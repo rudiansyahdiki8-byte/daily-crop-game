@@ -1,69 +1,154 @@
-<div class="space-y-6 animate-in">
-    
-    <div class="glass p-5 rounded-[2.5rem] border-l-4 border-emerald-500">
-        <div class="flex justify-between items-center">
-            <div>
-                <p class="text-[8px] text-gray-500 font-black uppercase tracking-widest">Status Lahan</p>
-                <h2 class="text-white font-black uppercase italic">Siap Panen</h2>
-            </div>
-            <div class="text-right">
-                <p class="text-[8px] text-gray-500 font-black uppercase tracking-widest">Produksi</p>
-                <p class="text-emerald-500 font-black">🥬 +1 Sawi/Klik</p>
-            </div>
-        </div>
-    </div>
-
-    <div class="relative group">
-        <div class="absolute -inset-1 bg-gradient-to-r from-emerald-500 to-teal-500 rounded-[3rem] blur opacity-25 group-hover:opacity-50 transition duration-1000"></div>
-        <div class="relative glass p-8 rounded-[3rem] flex flex-col items-center justify-center min-h-[300px]">
-            <div class="relative mb-6">
-                <div class="w-32 h-32 bg-emerald-500/20 rounded-full blur-3xl absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2"></div>
-                <span class="text-8xl block transform transition-transform duration-75 active:scale-125 select-none">🥬</span>
-            </div>
-
-            <button onclick="harvestSawi()" class="w-full bg-emerald-500 hover:bg-emerald-400 text-black py-5 rounded-2xl font-black text-xs uppercase tracking-[0.2em] shadow-[0_10px_20px_rgba(16,185,129,0.3)] btn-press">
-                <i class="fas fa-hand-pointer mr-2"></i> Harvest Sawi
-            </button>
-        </div>
-    </div>
+<div class="space-y-6 animate-in max-w-md mx-auto pb-24">
 
     <div class="grid grid-cols-2 gap-4">
-        <div class="glass p-4 rounded-3xl text-center">
-            <p class="text-[7px] text-gray-500 font-black uppercase mb-1">Total di Gudang</p>
-            <p id="farm-warehouse-display" class="text-lg font-black text-white">0</p>
+        <div onclick="dailyBooster()" id="btn-booster" class="glass p-4 rounded-[2rem] border border-yellow-500/20 text-center btn-press cursor-pointer bg-gradient-to-b from-yellow-500/5 to-transparent">
+            <div class="relative w-12 h-12 mx-auto mb-2">
+                <span class="text-3xl">🧪</span>
+                <div id="booster-ani" class="absolute inset-0 bg-yellow-400 blur-xl opacity-0 transition-opacity"></div>
+            </div>
+            <p class="text-[9px] font-black text-white uppercase tracking-tighter">Daily Fertilizer</p>
+            <p id="booster-timer" class="text-[7px] text-yellow-500 font-bold uppercase mt-1 italic">Ready to Boost</p>
         </div>
-        <div class="glass p-4 rounded-3xl text-center">
-            <p class="text-[7px] text-gray-500 font-black uppercase mb-1">Energi Lahan</p>
-            <p class="text-lg font-black text-blue-400">MAX</p>
+
+        <div onclick="hourlyRain()" id="btn-rain" class="glass p-4 rounded-[2rem] border border-blue-500/20 text-center btn-press cursor-pointer bg-gradient-to-b from-blue-500/5 to-transparent">
+            <div class="w-12 h-12 mx-auto mb-2 text-3xl animate-bounce">🌧️</div>
+            <p class="text-[9px] font-black text-white uppercase tracking-tighter">Hourly Rain</p>
+            <p id="rain-timer" class="text-[7px] text-blue-400 font-bold uppercase mt-1 italic">Ready to Rain</p>
+        </div>
+    </div>
+
+    <div class="glass p-6 rounded-[3rem] border border-emerald-500/20 relative">
+        <div class="flex justify-between items-center mb-4 px-2">
+            <h3 class="text-[9px] font-black uppercase text-gray-500 tracking-widest">Mini Garden (2x2)</h3>
+            <span class="text-[8px] bg-emerald-500/10 text-emerald-500 px-2 py-1 rounded-lg border border-emerald-500/20">5M REGEN</span>
+        </div>
+
+        <div class="grid grid-cols-2 gap-4">
+            <div onclick="harvestPlot(0)" id="plot-0" class="relative bg-black/40 aspect-square rounded-[2rem] border border-white/5 flex flex-col items-center justify-center overflow-hidden cursor-pointer group">
+                <div id="plant-0" class="text-4xl transition-all duration-1000 scale-50 opacity-30">🌱</div>
+                <div id="timer-0" class="absolute bottom-3 text-[7px] font-black text-gray-500 uppercase">Growing</div>
+                <div id="ready-0" class="hidden absolute inset-0 bg-emerald-500/20 backdrop-blur-sm items-center justify-center animate-pulse">
+                    <span class="text-2xl">🥬</span>
+                </div>
+            </div>
+
+            <div onclick="harvestPlot(1)" id="plot-1" class="relative bg-black/40 aspect-square rounded-[2rem] border border-white/5 flex flex-col items-center justify-center overflow-hidden cursor-pointer">
+                <div id="plant-1" class="text-4xl transition-all duration-1000 scale-50 opacity-30">🌱</div>
+                <div id="timer-1" class="absolute bottom-3 text-[7px] font-black text-gray-500 uppercase">Growing</div>
+                <div id="ready-1" class="hidden absolute inset-0 bg-orange-500/20 backdrop-blur-sm items-center justify-center animate-pulse">
+                    <span class="text-2xl">🥕</span>
+                </div>
+            </div>
+
+            <div onclick="harvestPlot(2)" id="plot-2" class="relative bg-black/40 aspect-square rounded-[2rem] border border-white/5 flex flex-col items-center justify-center overflow-hidden cursor-pointer">
+                <div id="plant-2" class="text-4xl transition-all duration-1000 scale-50 opacity-30">🌱</div>
+                <div id="timer-2" class="absolute bottom-3 text-[7px] font-black text-gray-500 uppercase">Growing</div>
+                <div id="ready-2" class="hidden absolute inset-0 bg-yellow-500/20 backdrop-blur-sm items-center justify-center animate-pulse">
+                    <span class="text-2xl">🌽</span>
+                </div>
+            </div>
+
+            <div onclick="harvestPlot(3)" id="plot-3" class="relative bg-black/40 aspect-square rounded-[2rem] border border-white/5 flex flex-col items-center justify-center overflow-hidden cursor-pointer">
+                <div id="plant-3" class="text-4xl transition-all duration-1000 scale-50 opacity-30">🌱</div>
+                <div id="timer-3" class="absolute bottom-3 text-[7px] font-black text-gray-500 uppercase">Growing</div>
+                <div id="ready-3" class="hidden absolute inset-0 bg-red-500/20 backdrop-blur-sm items-center justify-center animate-pulse">
+                    <span class="text-2xl">🌶️</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="glass p-5 rounded-[2.5rem] border border-white/5">
+        <h3 class="text-[9px] font-black uppercase text-gray-500 tracking-widest mb-4 px-2">Farm Activity (Last 5)</h3>
+        <div id="farm-history" class="space-y-2">
+            <p class="text-[8px] text-gray-600 italic text-center py-2 uppercase">No activity yet</p>
         </div>
     </div>
 
 </div>
 
 <script>
-    // FUNGSI INISIALISASI
-    window.initPage = function() {
-        // Tampilkan jumlah sawi terbaru dari variabel global di Main.html
-        document.getElementById('farm-warehouse-display').innerText = warehouse;
+    // Database Tanaman
+    const crops = [
+        { name: 'Sawi', emoji: '🥬', color: 'text-emerald-500' },
+        { name: 'Wortel', emoji: '🥕', color: 'text-orange-500' },
+        { name: 'Jagung', emoji: '🌽', color: 'text-yellow-500' },
+        { name: 'Cabai', emoji: '🌶️', color: 'text-red-500' }
+    ];
+
+    let historyLog = [];
+
+    // --- LOGIK KOTAK 1: BOOSTER & RAIN ---
+    function dailyBooster() {
+        // Logik timer 24 jam bisa ditambah dengan localStorage nanti
+        document.getElementById('booster-ani').classList.replace('opacity-0', 'opacity-100');
+        addHistory("🧪 Applied Fertilizer! Boost Active.");
+        alert("Booster Activated! (24H Cooldown)");
     }
 
-    // LOGIKA PANEN
-    function harvestSawi() {
-        // 1. Tambah jumlah di variabel global Main.html
-        warehouse += 1;
+    function hourlyRain() {
+        const randomCrop = crops[Math.floor(Math.random() * crops.length)];
+        warehouse += 5; // Bonus hujan
+        addHistory(`🌧️ Rain fall! +5 ${randomCrop.emoji} ${randomCrop.name}`);
+        alert(`You got 5 ${randomCrop.name} from Rain!`);
+    }
 
-        // 2. Update tampilan di halaman ini
-        document.getElementById('farm-warehouse-display').innerText = warehouse;
+    // --- LOGIK KOTAK 2: GARDEN 2X2 ---
+    let plotStatus = [false, false, false, false]; // false = sedang tumbuh, true = siap panen
 
-        // 3. Efek suara/getar kecil (Opsional)
-        if (window.navigator.vibrate) {
-            window.navigator.vibrate(10);
+    function startGrowth(id) {
+        const plant = document.getElementById(`plant-${id}`);
+        const timer = document.getElementById(`timer-${id}`);
+        const ready = document.getElementById(`ready-${id}`);
+
+        ready.classList.add('hidden');
+        ready.classList.remove('flex');
+        plant.classList.add('scale-50', 'opacity-30');
+        timer.innerText = "Growing...";
+
+        // Animasi Tumbuh (5 Menit disimulasikan 5 detik untuk tes, ganti 300000 untuk 5 menit)
+        setTimeout(() => {
+            plant.classList.remove('scale-50', 'opacity-30');
+            plant.classList.add('scale-110', 'opacity-100');
+            ready.classList.remove('hidden');
+            ready.classList.add('flex');
+            timer.innerText = "READY!";
+            plotStatus[id] = true;
+        }, 5000); // Ganti ke 300000 untuk 5 menit asli
+    }
+
+    function harvestPlot(id) {
+        if (!plotStatus[id]) {
+            alert("Masih proses tumbuh, sabar ya!");
+            return;
         }
 
-        // Catatan: Kita tidak perlu panggil updateMainUI() di sini 
-        // karena di header Main.html hanya menampilkan koin, bukan jumlah sawi.
+        const crop = crops[id];
+        warehouse += 1;
+        plotStatus[id] = false;
+        
+        addHistory(`👨‍🌾 Harvested 1 ${crop.emoji} ${crop.name}`);
+        startGrowth(id); // Langsung tanam lagi
+        updateMainUI();
     }
 
-    // Jalankan inisialisasi saat dimuat
+    // --- LOGIK KOTAK 3: HISTORY ---
+    function addHistory(text) {
+        const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        historyLog.unshift(`<div class="flex justify-between items-center bg-white/5 p-2 rounded-xl border border-white/5 animate-in">
+            <span class="text-[8px] font-bold text-gray-300 uppercase">${text}</span>
+            <span class="text-[7px] text-gray-600">${time}</span>
+        </div>`);
+        
+        if (historyLog.length > 5) historyLog.pop();
+        
+        document.getElementById('farm-history').innerHTML = historyLog.join('');
+    }
+
+    // Inisialisasi awal tanaman
+    window.initPage = function() {
+        for(let i=0; i<4; i++) startGrowth(i);
+    }
+    
     initPage();
 </script>
