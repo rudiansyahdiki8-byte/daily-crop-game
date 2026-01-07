@@ -139,9 +139,27 @@
             </div>
         </div>
 
-        <div id="shop" class="tab-content space-y-6 text-center">... (Konten Shop Anda) ...</div>
-        <div id="plan" class="tab-content space-y-6">... (Konten Plan Anda) ...</div>
-        <div id="affiliate" class="tab-content space-y-6">... (Konten Affiliate Anda) ...</div>
+        <div id="shop" class="tab-content space-y-6 text-center">
+             <div class="glass p-8 rounded-3xl">
+                <i class="fas fa-tools text-4xl mb-4 text-emerald-500"></i>
+                <h2 class="font-black uppercase tracking-widest text-sm">Shop Menu</h2>
+                <p class="text-xs text-gray-500 mt-2">Coming Soon / Under Development</p>
+             </div>
+        </div>
+        <div id="plan" class="tab-content space-y-6">
+             <div class="glass p-8 rounded-3xl text-center">
+                <i class="fas fa-crown text-4xl mb-4 text-yellow-500"></i>
+                <h2 class="font-black uppercase tracking-widest text-sm">Upgrade Plan</h2>
+                <p class="text-xs text-gray-500 mt-2">Unlock more vegetables and faster harvest.</p>
+             </div>
+        </div>
+        <div id="affiliate" class="tab-content space-y-6">
+             <div class="glass p-8 rounded-3xl text-center">
+                <i class="fas fa-users text-4xl mb-4 text-blue-500"></i>
+                <h2 class="font-black uppercase tracking-widest text-sm">Affiliate Program</h2>
+                <p class="text-xs text-gray-500 mt-2">Invite friends and earn 10% commission.</p>
+             </div>
+        </div>
 
     </main>
 
@@ -165,9 +183,9 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js";
-        import { getFirestore, doc, getDoc, setDoc, updateDoc, increment, arrayUnion } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js";
+        import { getFirestore, doc, getDoc, setDoc, updateDoc, increment } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js";
 
-        // CONFIG FIREBASE (Sesuai milik Anda)
+        // CONFIG FIREBASE
         const firebaseConfig = {
             apiKey: "AIzaSyBA0XxekNCYuBJVqLFWKhJYbIyEv7SGcOc",
             authDomain: "cryptofarm-bd14a.firebaseapp.com",
@@ -184,6 +202,7 @@
         const userRef = doc(db, "users", userId);
 
         let lastDaily = 0, lastHourly = 0, pupukUntil = 0;
+        let timers = {}; // Objek untuk menyimpan interval animasi
 
         // UI TABS
         window.showTab = (id, btn) => {
@@ -200,7 +219,7 @@
                 await setDoc(userRef, { 
                     balance: 0, plan: 'FREE', banana_count: 0, orange_count: 0, 
                     apple_count: 0, mangga_count: 0, total_earned: 0, total_wd: 0,
-                    lastDaily: 0, lastHourly: 0, pupukActiveUntil: 0
+                    lastDaily: 0, lastHourly: 0, pupukActiveUntil: 0, lastSawi: 0
                 });
             }
             const d = snap.data();
@@ -215,18 +234,37 @@
             document.getElementById('stat-earn').innerText = (d.total_earned || 0).toLocaleString();
             document.getElementById('stat-wd').innerText = (d.total_wd || 0).toLocaleString();
             
-            // Gudang
             document.getElementById('asset-banana').innerText = d.banana_count || 0;
             document.getElementById('asset-orange').innerText = d.orange_count || 0;
             document.getElementById('asset-apple').innerText = d.apple_count || 0;
             document.getElementById('asset-mangga').innerText = d.mangga_count || 0;
 
+            // CEK STATUS TUMBUH SAAT LOAD
+            checkGrowthStatus('sawi', d.lastSawi || 0, 300);
+
             // Visual Status Pupuk
             const box = document.getElementById('pupuk-status-box');
-            if(Date.now() < pupukUntil) {
-                box.classList.add('pupuk-glow');
+            if(Date.now() < pupukUntil) { box.classList.add('pupuk-glow'); } 
+            else { box.classList.remove('pupuk-glow'); }
+        }
+
+        // FUNGSI CEK STATUS (Kunci agar gambar tidak hilang)
+        function checkGrowthStatus(id, lastHarvest, cooldownSec) {
+            const now = Date.now();
+            const diff = (now - lastHarvest) / 1000;
+            const img = document.getElementById(`img-${id}`);
+            const btn = document.getElementById(`btn-${id}`);
+            if(!img || !btn) return;
+
+            if (diff < cooldownSec) {
+                const remaining = Math.floor(cooldownSec - diff);
+                startCooldownAnimation(id, remaining, cooldownSec);
             } else {
-                box.classList.remove('pupuk-glow');
+                img.style.transform = "scale(1)";
+                img.classList.add('ready-glow', 'floating');
+                btn.disabled = false;
+                btn.innerText = "Harvest";
+                btn.classList.replace('bg-gray-700', 'bg-emerald-600');
             }
         }
 
@@ -238,16 +276,8 @@
 
             tg.showConfirm(`Tonton iklan untuk ${type}?`, async (ok) => {
                 if(ok) {
-                    // Logika Waterfall (Adsgram -> Monetag)
-                    try {
-                        // Coba Provider 1 (Adsgram)
-                        console.log("Mencoba Adsgram...");
-                        // window.show_10426674().then(...) dst
-                        giveReward(type); // Simulasi Sukses
-                    } catch (e) {
-                        console.log("Adsgram Fail, Mencoba Monetag...");
-                        giveReward(type); // Simulasi Sukses
-                    }
+                    // Di sini tempat pasang SDK Iklan (Adsgram/Monetag)
+                    giveReward(type); 
                 }
             });
         };
@@ -258,7 +288,7 @@
 
             if(type === 'SAWI') {
                 upd = { lastSawi: now, banana_count: increment(10) };
-                startCooldownAnimation('sawi', 300); // 5 Menit
+                startCooldownAnimation('sawi', 300, 300);
             } else if(type === 'PUPUK') {
                 upd = { lastDaily: now, pupukActiveUntil: now + 86400000 };
             } else if(type === 'HUJAN') {
@@ -273,27 +303,30 @@
         }
 
         // ANIMASI TUMBUH
-        function startCooldownAnimation(id, sec) {
+        function startCooldownAnimation(id, secRemaining, totalCooldown) {
             const btn = document.getElementById(`btn-${id}`);
             const img = document.getElementById(`img-${id}`);
-            btn.disabled = true;
-            img.classList.remove('ready-glow', 'floating');
-            img.style.transition = "all 0.5s ease";
-            img.style.transform = "scale(0.3)"; // Jadi Tunas
+            if(!btn || !img) return;
 
-            let timeLeft = sec;
-            const timer = setInterval(() => {
-                timeLeft--;
-                btn.innerText = `Tumbuh (${timeLeft}s)`;
+            btn.disabled = true;
+            btn.classList.replace('bg-emerald-600', 'bg-gray-700');
+            img.classList.remove('ready-glow', 'floating');
+
+            if(timers[id]) clearInterval(timers[id]);
+
+            timers[id] = setInterval(() => {
+                secRemaining--;
+                btn.innerText = `Tumbuh (${secRemaining}s)`;
                 
-                // Progress Membesar
-                let scale = 0.3 + ((sec - timeLeft) / sec) * 0.7;
+                let progress = (totalCooldown - secRemaining) / totalCooldown;
+                let scale = 0.3 + (progress * 0.7);
                 img.style.transform = `scale(${scale})`;
 
-                if(timeLeft <= 0) {
-                    clearInterval(timer);
+                if(secRemaining <= 0) {
+                    clearInterval(timers[id]);
                     btn.disabled = false;
                     btn.innerText = "Harvest";
+                    btn.classList.replace('bg-gray-700', 'bg-emerald-600');
                     img.classList.add('ready-glow', 'floating');
                     img.style.transform = "scale(1)";
                 }
@@ -307,12 +340,9 @@
             const isPupuk = Date.now() < d.pupukActiveUntil;
             const mult = isPupuk ? 1.2 : 1.0;
 
-            // Harga: Sawi 30, Wortel 60, Terong 80, Labu 100
             let totalProfit = (
-                (d.banana_count * 30) + 
-                (d.orange_count * 60) + 
-                (d.apple_count * 80) + 
-                (d.mangga_count * 100)
+                (d.banana_count * 30) + (d.orange_count * 60) + 
+                (d.apple_count * 80) + (d.mangga_count * 100)
             ) * mult;
 
             if(totalProfit <= 0) return tg.showAlert("Gudang kosong! Panen dulu di Farm.");
@@ -329,21 +359,19 @@
 
         // TIMER INTERVAL UNTUK PUPUK/HUJAN
         setInterval(() => {
-            const now = Date.now();
             updateTimerUI('timer-daily', 86400000, lastDaily, "READY");
             updateTimerUI('timer-hourly', 3600000, lastHourly, "READY");
         }, 1000);
 
         function updateTimerUI(id, wait, last, readyText) {
             const el = document.getElementById(id);
+            if(!el) return;
             const diff = Date.now() - last;
             if(diff < wait) {
                 const r = wait - diff;
                 const h = Math.floor(r/3600000), m = Math.floor((r%3600000)/60000), s = Math.floor((r%60000)/1000);
                 el.innerText = `${h}h ${m}m ${s}s`;
-            } else {
-                el.innerText = readyText;
-            }
+            } else { el.innerText = readyText; }
         }
 
         loadData();
