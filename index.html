@@ -101,6 +101,53 @@
     </div>
 
     <script>
+        // Database Tanaman
+const cropInfo = [
+    { name: 'Sawi', seed: '🌱', ready: '🥬', count: 9 },
+    { name: 'Wortel', seed: '🌱', ready: '🥕', count: 9 },
+    { name: 'Jagung', seed: '🌱', ready: '🌽', count: 6 },
+    { name: 'Cabai', seed: '🌱', ready: '🌶️', count: 9 }
+];
+
+let plotReady = [false, false, false, false];
+
+// Fungsi Memulai Pertumbuhan
+function startGrowing(id) {
+    const garden = document.getElementById(`garden-${id}`);
+    const popup = document.getElementById(`pop-${id}`);
+    if(!garden || !popup) return; // Mencegah error jika belum di halaman Farm
+
+    plotReady[id] = false;
+    popup.classList.add('hidden');
+    garden.style.display = 'grid';
+    garden.innerHTML = '';
+
+    for (let i = 0; i < cropInfo[id].count; i++) {
+        const s = document.createElement('span');
+        s.innerText = cropInfo[id].seed;
+        s.className = 'seed-anim text-[12px]';
+        garden.appendChild(s);
+    }
+
+    setTimeout(() => {
+        plotReady[id] = true;
+        garden.style.display = 'none';
+        popup.classList.remove('hidden');
+    }, 5000); // 5 detik untuk tes
+}
+
+// Fungsi Harvest
+function harvestPlot(id) {
+    if (!plotReady[id]) return;
+    warehouse += 1;
+    updateMainUI();
+    startGrowing(id);
+}
+
+// Tambahkan startGrowing ke dalam fungsi loadPage agar otomatis jalan saat buka Farm
+// Cari fungsi loadPage kamu di index.html dan tambahkan baris init di bawahnya:
+// if(page === 'FarmingHouse') { setTimeout(() => { for(let i=0; i<4; i++) startGrowing(i); }, 100); }
+        
         // DATA UTAMA (Logic Jembatan)
         let coins = 0;
         let warehouse = 0;
