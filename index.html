@@ -8,6 +8,35 @@
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
+        /* CSS untuk Animasi Kebun */
+.dirt-patch {
+    background: #2d1b0d !important;
+    position: relative;
+    overflow: hidden;
+    border: 2px solid rgba(255,255,255,0.05);
+}
+
+@keyframes growUp {
+    0% { transform: scale(0.5); opacity: 0.5; }
+    100% { transform: scale(1); opacity: 1; }
+}
+
+@keyframes swayAndGlow {
+    0%, 100% { transform: scale(1) rotate(-5deg); filter: drop-shadow(0 0 5px gold); }
+    50% { transform: scale(1.1) rotate(5deg); filter: drop-shadow(0 0 15px gold); }
+}
+
+.ready-anim {
+    display: flex !important;
+    animation: swayAndGlow 1.5s ease-in-out infinite !important;
+    z-index: 99;
+    cursor: pointer;
+}
+
+.seed-anim {
+    display: inline-block;
+    animation: growUp 2s ease-out;
+}
         body { background-color: #05080f; color: #f8fafc; font-family: 'Plus Jakarta Sans', sans-serif; overflow-x: hidden; }
         .glass { background: rgba(255, 255, 255, 0.03); backdrop-filter: blur(15px); border: 1px solid rgba(255, 255, 255, 0.08); }
         .btn-press:active { transform: scale(0.95); }
