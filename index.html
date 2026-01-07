@@ -12,12 +12,17 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     
     <style>
+        /* KERANGKA ASLI GAME.TXT */
         body { background-color: #05080f; color: #f8fafc; font-family: 'Plus Jakarta Sans', sans-serif; overflow-x: hidden; }
         .glass { background: rgba(255, 255, 255, 0.03); backdrop-filter: blur(15px); border: 1px solid rgba(255, 255, 255, 0.08); }
         .tab-content { display: none; }
         .tab-content.active { display: block; }
         .nav-btn.active { color: #22c55e; }
-        .cooldown { filter: grayscale(1); opacity: 0.5; pointer-events: none; }
+        .cooldown-btn { filter: grayscale(1); opacity: 0.5; pointer-events: none; }
+        
+        /* ANIMASI TAMBAHAN */
+        @keyframes bounce-slow { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
+        .isometric-img { filter: drop-shadow(0 20px 30px rgba(34, 197, 94, 0.2)); animation: bounce-slow 3s infinite ease-in-out; }
     </style>
 </head>
 <body class="pb-24">
@@ -29,7 +34,7 @@
         </div>
         <div class="glass px-4 py-2 rounded-2xl border-green-500/20 flex items-center gap-2">
             <i class="fas fa-coins text-yellow-500"></i>
-            <span id="balance" class="font-mono font-black text-green-400">0</span>
+            <span id="display-balance" class="font-mono font-black text-green-400">0</span>
         </div>
     </header>
 
@@ -38,7 +43,7 @@
         <div id="home" class="tab-content active space-y-6">
             <div class="glass p-6 rounded-[2.5rem] relative overflow-hidden border-b-4 border-green-500/30">
                 <div class="flex items-center gap-4 mb-6">
-                    <div class="w-14 h-14 bg-gradient-to-br from-green-400 to-green-900 rounded-2xl flex items-center justify-center text-2xl shadow-inner">👨‍🌾</div>
+                    <div class="w-14 h-14 bg-gradient-to-br from-green-400 to-green-900 rounded-2xl flex items-center justify-center text-2xl shadow-inner border border-white/10">👨‍🌾</div>
                     <div>
                         <h2 id="user-name" class="font-black text-white text-lg italic tracking-tight">Farmer</h2>
                         <p id="user-id" class="text-[9px] text-gray-500 font-mono tracking-widest uppercase">ID: #--------</p>
@@ -48,16 +53,17 @@
                 <div class="bg-white/5 rounded-3xl p-5 border border-white/5 space-y-4">
                     <div class="flex justify-between items-center">
                         <div>
-                            <p class="text-[8px] font-black text-gray-400 uppercase">Stok Gudang</p>
-                            <p id="stock" class="text-xl font-bold text-white">0 <span class="text-[10px] text-gray-500">Sawi</span></p>
+                            <p class="text-[8px] font-black text-gray-400 uppercase tracking-widest">Stok Gudang</p>
+                            <p id="display-stock" class="text-xl font-bold text-white">0 <span class="text-[10px] text-gray-500">Sawi</span></p>
                         </div>
-                        <button onclick="sellHarvest()" class="bg-green-600 text-black px-5 py-2.5 rounded-xl font-black text-[10px] uppercase shadow-lg shadow-green-900/40">
+                        <button onclick="sellHarvest()" class="bg-green-600 text-black px-5 py-3 rounded-xl font-black text-[10px] uppercase shadow-lg shadow-green-900/40 hover:bg-green-500 transition-colors">
                             Jual Sayur <i class="fas fa-shopping-basket ml-1"></i>
                         </button>
                     </div>
+                    
                     <div class="pt-3 border-t border-white/5 flex justify-between items-center">
-                        <p class="text-[9px] font-bold text-gray-500 uppercase">Total Terjual</p>
-                        <p id="total-sold" class="text-[9px] font-black text-green-500 uppercase">0 Terjual</p>
+                        <p class="text-[9px] font-bold text-gray-500 uppercase">Total Sayur Terjual</p>
+                        <p id="display-total-sold" class="text-[9px] font-black text-green-500 uppercase tracking-widest">0 Terjual</p>
                     </div>
                 </div>
             </div>
@@ -67,22 +73,25 @@
             <div class="grid grid-cols-2 gap-4">
                 <div class="glass p-4 rounded-3xl bg-blue-500/5 border-b-2 border-blue-500">
                     <p class="text-[8px] font-black text-blue-400 uppercase mb-2 text-center">Vitamin Booster</p>
-                    <button class="w-full py-2 bg-blue-600 text-white rounded-lg font-black text-[9px] uppercase">READY</button>
+                    <button class="w-full py-2 bg-blue-600 text-white rounded-lg font-black text-[9px] uppercase hover:bg-blue-500 transition-all">READY</button>
                 </div>
                 <div class="glass p-4 rounded-3xl bg-purple-500/5 border-b-2 border-purple-500">
                     <p class="text-[8px] font-black text-purple-400 uppercase mb-2 text-center">Bio Liquid</p>
-                    <button class="w-full py-2 bg-purple-600 text-white rounded-lg font-black text-[9px] uppercase">READY</button>
+                    <button class="w-full py-2 bg-purple-600 text-white rounded-lg font-black text-[9px] uppercase hover:bg-purple-500 transition-all">READY</button>
                 </div>
             </div>
 
             <div class="grid grid-cols-1 gap-4">
                 <div class="glass rounded-[2rem] p-6 text-center relative border-t-4 border-green-500">
-                    <span class="text-[7px] font-black bg-green-500 text-black px-2 py-1 rounded absolute top-3 right-3 uppercase">LVL 1</span>
-                    <div class="text-6xl my-4">🥬</div>
-                    <h3 class="text-[10px] font-black uppercase text-gray-400">Green Lettuce</h3>
+                    <span class="text-[7px] font-black bg-green-500 text-black px-2 py-1 rounded absolute top-3 right-3 uppercase shadow-sm">LVL 1</span>
+                    
+                    <img src="https://img.icons8.com/isometric-gx/200/lettuce.png" class="w-32 h-32 mx-auto my-4 isometric-img">
+                    
+                    <h3 class="text-[11px] font-black uppercase text-gray-400 tracking-widest">Green Lettuce</h3>
                     <p class="text-xs font-mono text-green-400 mb-6">+10 Hasil</p>
-                    <button id="harvest-btn" onclick="startHarvest()" class="w-full py-4 bg-green-600 text-black font-black text-xs rounded-2xl uppercase">Panen</button>
-                    <p id="timer" class="hidden text-[10px] font-mono text-gray-500 mt-2 italic">Tunggu 05:00</p>
+                    
+                    <button id="btn-harvest" onclick="startHarvest()" class="w-full py-4 bg-green-600 text-black font-black text-sm rounded-2xl uppercase shadow-xl hover:bg-green-500 transition-all">Panen Sekarang</button>
+                    <p id="timer-text" class="hidden text-[10px] font-mono text-gray-500 mt-3 italic tracking-widest">Tunggu 05:00</p>
                 </div>
             </div>
         </div>
@@ -90,10 +99,7 @@
         <div id="shop" class="tab-content space-y-4">
             <h2 class="text-center font-black uppercase text-gray-500 tracking-widest text-sm">Supplies</h2>
             <div class="glass p-4 rounded-2xl flex justify-between items-center opacity-50">
-                <div class="flex items-center gap-3">
-                    <span class="text-2xl">🧪</span>
-                    <p class="text-[10px] font-black uppercase">Super Fertilizer</p>
-                </div>
+                <div class="flex items-center gap-3"><span class="text-2xl">🧪</span><p class="text-[10px] font-black uppercase">Super Fertilizer</p></div>
                 <button class="bg-white/10 text-gray-500 px-4 py-1.5 rounded-lg text-[9px] font-black uppercase">999K</button>
             </div>
         </div>
@@ -101,14 +107,14 @@
     </main>
 
     <nav class="fixed bottom-0 left-0 right-0 h-20 glass border-t border-white/10 flex justify-around items-center z-[100] px-4">
-        <button onclick="showTab('home', this)" class="nav-btn active flex flex-col items-center gap-1 text-gray-500">
-            <i class="fas fa-chart-pie text-xl"></i><span class="text-[8px] font-bold uppercase">Dashboard</span>
+        <button onclick="showTab('home', this)" class="nav-btn active flex flex-col items-center gap-1 text-gray-500 transition-all">
+            <i class="fas fa-chart-pie text-xl"></i><span class="text-[8px] font-bold uppercase tracking-widest">Dashboard</span>
         </button>
-        <button onclick="showTab('farming', this)" class="nav-btn flex flex-col items-center gap-1 text-gray-500">
-            <i class="fas fa-seedling text-xl"></i><span class="text-[8px] font-bold uppercase">Farmhouse</span>
+        <button onclick="showTab('farming', this)" class="nav-btn flex flex-col items-center gap-1 text-gray-500 transition-all">
+            <i class="fas fa-seedling text-xl"></i><span class="text-[8px] font-bold uppercase tracking-widest">Farmhouse</span>
         </button>
-        <button onclick="showTab('shop', this)" class="nav-btn flex flex-col items-center gap-1 text-gray-500">
-            <i class="fas fa-shopping-bag text-xl"></i><span class="text-[8px] font-bold uppercase">Shop</span>
+        <button onclick="showTab('shop', this)" class="nav-btn flex flex-col items-center gap-1 text-gray-500 transition-all">
+            <i class="fas fa-shopping-bag text-xl"></i><span class="text-[8px] font-bold uppercase tracking-widest">Shop</span>
         </button>
     </nav>
 
@@ -116,7 +122,7 @@
         const tg = window.Telegram.WebApp;
         tg.expand();
 
-        // SUPABASE
+        // SUPABASE CONFIG
         const SUPABASE_URL = 'https://knfeshiyggidnykqstbo.supabase.co';
         const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtuZmVzaGl5Z2dpZG55a3FzdGJvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njc3NDI2NzcsImV4cCI6MjA4MzMxODY3N30.NsYHMzEylVPT5JLRh38lyaQTW7E_4CpBVxJuFyRvBpY';
         const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
@@ -127,15 +133,16 @@
         document.getElementById('user-name').innerText = user.first_name;
         document.getElementById('user-id').innerText = "ID: #" + user.id;
 
-        // TAB SYSTEM (Game.txt style)
+        // TAB SYSTEM (ASLI GAME.TXT)
         window.showTab = (id, btn) => {
             document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
             document.getElementById(id).classList.add('active');
             document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
+            tg.HapticFeedback.impactOccurred('light');
         };
 
-        // HARVEST SYSTEM
+        // HARVEST LOGIC (COOLDOWN 5 MIN)
         window.startHarvest = () => {
             const now = Date.now();
             if (now - lastHarvest < 300000) return;
@@ -144,23 +151,23 @@
             stock += 10;
             updateUI();
             runTimer();
-            save();
+            saveData();
             tg.HapticFeedback.notificationOccurred('success');
         };
 
         function runTimer() {
-            const btn = document.getElementById('harvest-btn');
-            const txt = document.getElementById('timer');
-            btn.classList.add('cooldown');
-            btn.innerText = "Growing...";
+            const btn = document.getElementById('btn-harvest');
+            const txt = document.getElementById('timer-text');
+            btn.classList.add('cooldown-btn');
             txt.classList.remove('hidden');
 
-            const intv = setInterval(() => {
-                const rem = 300000 - (Date.now() - lastHarvest);
+            const interval = setInterval(() => {
+                const diff = Date.now() - lastHarvest;
+                const rem = 300000 - diff;
                 if (rem <= 0) {
-                    clearInterval(intv);
-                    btn.classList.remove('cooldown');
-                    btn.innerText = "Panen";
+                    clearInterval(interval);
+                    btn.classList.remove('cooldown-btn');
+                    btn.innerText = "Panen Sekarang";
                     txt.classList.add('hidden');
                 } else {
                     const m = Math.floor(rem/60000), s = Math.floor((rem%60000)/1000);
@@ -169,25 +176,27 @@
             }, 1000);
         }
 
-        // SELL SYSTEM
+        // SELL LOGIC
         window.sellHarvest = () => {
-            if(stock <= 0) return tg.showAlert("Stok kosong!");
-            const earn = stock * 10;
-            balance += earn;
+            if(stock <= 0) return tg.showAlert("Stok gudang kosong!");
+            const reward = stock * 10;
+            balance += reward;
             totalSold += stock;
             stock = 0;
-            tg.showAlert(`Sukses! +${earn} koin.`);
+            tg.showAlert(`Sukses! +${reward} Koin masuk.`);
             updateUI();
-            save();
+            saveData();
+            tg.HapticFeedback.impactOccurred('heavy');
         };
 
         function updateUI() {
-            document.getElementById('balance').innerText = balance.toLocaleString();
-            document.getElementById('stock').innerText = stock + " Sawi";
-            document.getElementById('total-sold').innerText = totalSold.toLocaleString() + " Terjual";
+            document.getElementById('display-balance').innerText = balance.toLocaleString();
+            document.getElementById('display-stock').innerText = stock;
+            document.getElementById('display-total-sold').innerText = totalSold.toLocaleString() + " Terjual";
         }
 
-        async function save() {
+        async function saveData() {
+            // Update balance ke database
             await supabaseClient.from('profiles').update({ balance: balance }).eq('user_id', user.id.toString());
         }
 
