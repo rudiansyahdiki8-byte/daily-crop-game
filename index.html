@@ -3,10 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>SeedFarm Pro Elite</title>
+    <title>Daily Crop: Merge & Harvest</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
-    <script src="//libtl.com/sdk.js" data-zone="10426674" data-sdk="show_10426674"></script>
+    <script src="https://adsgram.ai/sdk.js"></script>
     
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
@@ -19,8 +19,16 @@
         @keyframes fadeIn { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }
         .btn-press:active { transform: scale(0.95); }
         .no-scrollbar::-webkit-scrollbar { display: none; }
-        .status-badge { font-size: 7px; font-weight: 800; padding: 2px 6px; border-radius: 6px; position: absolute; top: 12px; right: 12px; }
-        .lock-overlay { background: rgba(5, 8, 15, 0.85); backdrop-filter: blur(4px); border-radius: 2rem; z-index: 10; }
+        .status-badge { font-size: 7px; font-weight: 800; padding: 2px 6px; border-radius: 6px; position: absolute; top: 12px; right: 12px; z-index: 20; }
+        
+        /* ANIMASI GAME */
+        .floating { animation: floatAnim 3s ease-in-out infinite; }
+        @keyframes floatAnim {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+        .ready-glow { filter: drop-shadow(0 0 15px rgba(34, 197, 94, 0.6)); }
+        .pupuk-glow { filter: drop-shadow(0 0 10px rgba(234, 179, 8, 0.5)); border: 1px solid rgba(234, 179, 8, 0.3) !important; }
     </style>
 </head>
 <body class="pb-32">
@@ -31,7 +39,7 @@
             <h1 class="text-xs font-black tracking-widest uppercase opacity-50">Daily Crop<br>Merge & Harvest</h1>
         </div>
         <div class="flex items-center gap-2">
-            <button onclick="openWithdraw()" class="w-10 h-10 glass rounded-xl flex items-center justify-center text-blue-400 active:scale-90 transition-all border-blue-500/20">
+            <button onclick="openWithdraw()" class="w-10 h-10 glass rounded-xl flex items-center justify-center text-blue-400 border-blue-500/20">
                 <i class="fas fa-wallet"></i>
             </button>
             <div class="glass px-4 py-2 rounded-2xl border-emerald-500/20 flex items-center gap-2 shadow-lg shadow-emerald-500/5">
@@ -41,270 +49,108 @@
         </div>
     </header>
 
+    <main class="px-6 space-y-6">
+
         <div id="home" class="tab-content active space-y-5">
-            <div class="glass p-6 rounded-[2.5rem] relative overflow-hidden border-b-4 border-emerald-500/30">
+            <div id="pupuk-status-box" class="glass p-6 rounded-[2.5rem] relative overflow-hidden transition-all">
                 <div class="flex items-center gap-4 mb-6">
-                    <div id="home" class="tab-content active space-y-5">
-            <div class="glass p-6 rounded-[2.5rem] relative overflow-hidden border-b-4 border-emerald-500/30">
-                <div class="flex items-center gap-4 mb-6">
-                    <div class="w-14 h-14 bg-gradient-to-br from-emerald-400 to-green-900 rounded-2xl flex items-center justify-center text-2xl shadow-inner border border-white/10">👨‍🌾</div>
+                    <div class="w-14 h-14 bg-gradient-to-br from-emerald-400 to-green-900 rounded-2xl flex items-center justify-center text-2xl border border-white/10">👨‍🌾</div>
                     <div>
                         <h2 id="displayUser" class="font-black text-white text-lg tracking-tight">@Username</h2>
                         <p id="displayId" class="text-[9px] text-gray-500 font-mono tracking-widest uppercase">ID: #--------</p>
                     </div>
                 </div>
-                
-                <div class="bg-white/5 rounded-3xl p-4 border border-white/5 flex justify-between items-center mb-4">
-                    <div>
-                        <p class="text-[8px] font-black text-gray-500 uppercase tracking-widest">Stok Gudang</p>
-                        <p id="display-stock" class="text-lg font-bold text-white">0 <span class="text-[9px] text-gray-500 uppercase">Sawi</span></p>
-                    </div>
-                    <button onclick="sellHarvest()" class="bg-emerald-600 text-black px-4 py-2 rounded-xl font-black text-[9px] uppercase shadow-lg shadow-emerald-900/40 btn-press">
-                        Jual Sayur <i class="fas fa-shopping-basket ml-1"></i>
-                    </button>
-                </div>
+
+                <button onclick="sellHarvest()" class="w-full py-4 bg-emerald-600 text-black rounded-2xl font-black text-xs uppercase mb-4 shadow-xl shadow-emerald-900/20 btn-press">
+                    Jual Semua Hasil Panen <i class="fas fa-shopping-cart ml-2"></i>
+                </button>
 
                 <div class="grid grid-cols-2 gap-4 pt-4 border-t border-white/5 text-center">
                     <div>
-                        <p class="text-[8px] text-gray-500 uppercase font-black tracking-widest">Total Terjual</p>
-                        <p id="stat-earn" class="font-bold text-emerald-400">0 Pcs</p>
+                        <p class="text-[8px] text-gray-500 uppercase font-black">Total Earned (Pts)</p>
+                        <p id="stat-earn" class="font-bold text-emerald-400">0</p>
                     </div>
                     <div>
-                        <p class="text-[8px] text-gray-500 uppercase font-black tracking-widest">Withdrawals</p>
+                        <p class="text-[8px] text-gray-500 uppercase font-black">Withdrawals</p>
                         <p id="stat-wd" class="font-bold text-white">0</p>
                     </div>
                 </div>
             </div>
-            
+
             <div class="grid grid-cols-2 gap-3">
-                <div class="glass p-4 rounded-3xl flex items-center gap-3 border-l-2 border-emerald-500/50">
-<div id="farming" class="tab-content space-y-6">
-            <div class="glass p-5 rounded-[2.5rem] border-b-4 border-blue-500 bg-blue-500/5 relative overflow-hidden">
-                <div class="flex items-center justify-between">
-                    <div class="flex items-center gap-4">
-                        <div class="w-12 h-12 bg-blue-500/20 rounded-2xl flex items-center justify-center text-blue-400 text-2xl">
-                            <i class="fas fa-flask-vial animate-pulse"></i>
-                        </div>
-                        <div>
-                            <h3 class="text-[10px] font-black uppercase text-white tracking-widest">Vitamin Booster</h3>
-                            <p id="timer-daily" class="text-[9px] text-blue-400 font-mono">READY TO USE</p>
-                        </div>
-                    </div>
-                    <button onclick="triggerAd('DAILY')" class="px-5 py-2.5 bg-blue-600 text-white rounded-xl font-black text-[10px] uppercase shadow-lg shadow-blue-900/40 btn-press">Use</button>
+                <div class="glass p-4 rounded-3xl flex items-center gap-3">
+                    <img src="https://img.icons8.com/isometric-gx/50/lettuce.png" class="w-8 h-8">
+                    <div><p class="text-[8px] font-black text-gray-500">SAWI</p><p id="asset-banana" class="text-xs font-bold text-white">0</p></div>
                 </div>
-            </div>
-
-            <div class="grid grid-cols-1 gap-4">
-                <div class="glass rounded-[2rem] p-8 text-center relative border-t-4 border-emerald-500 overflow-hidden">
-                    <span class="status-badge bg-emerald-500 text-black shadow-lg">LVL 1</span>
-                    
-                    <div class="relative my-6">
-                        <img src="https://img.icons8.com/isometric-gx/200/lettuce.png" class="w-32 h-32 mx-auto drop-shadow-[0_20px_30px_rgba(34,197,94,0.3)] hover:scale-110 transition-transform">
-                    </div>
-
-                    <h3 class="text-[11px] font-black uppercase text-gray-400 tracking-widest">Green Lettuce</h3>
-                    <p class="text-xs font-mono text-emerald-400 mb-6">+10 Hasil Panen</p>
-                    
-                    <button id="btn-harvest" onclick="startHarvest()" class="w-full py-4 bg-emerald-600 text-black font-black text-xs rounded-2xl uppercase btn-press shadow-xl">Panen Sekarang</button>
-                    <p id="timer-harvest" class="hidden text-[10px] font-mono text-gray-500 mt-3 italic tracking-widest">Memulihkan Tanah... 05:00</p>
+                <div class="glass p-4 rounded-3xl flex items-center gap-3">
+                    <img src="https://img.icons8.com/isometric-gx/50/carrot.png" class="w-8 h-8">
+                    <div><p class="text-[8px] font-black text-gray-500">WORTEL</p><p id="asset-orange" class="text-xs font-bold text-white">0</p></div>
+                </div>
+                <div class="glass p-4 rounded-3xl flex items-center gap-3">
+                    <img src="https://img.icons8.com/isometric-gx/50/eggplant.png" class="w-8 h-8">
+                    <div><p class="text-[8px] font-black text-gray-500">TERONG</p><p id="asset-apple" class="text-xs font-bold text-white">0</p></div>
+                </div>
+                <div class="glass p-4 rounded-3xl flex items-center gap-3">
+                    <img src="https://img.icons8.com/isometric-gx/50/pumpkin.png" class="w-8 h-8">
+                    <div><p class="text-[8px] font-black text-gray-500">LABU</p><p id="asset-mangga" class="text-xs font-bold text-white">0</p></div>
                 </div>
             </div>
         </div>
+
+        <div id="farming" class="tab-content space-y-6">
+            <div class="grid grid-cols-2 gap-4">
+                <div class="glass p-4 rounded-3xl border-b-4 border-orange-500 bg-orange-500/5 text-center">
+                    <div class="text-2xl mb-1">🧪</div>
+                    <h3 class="text-[8px] font-black uppercase text-white tracking-widest">Pupuk Organik</h3>
+                    <p id="timer-daily" class="text-[7px] text-orange-400 font-mono mb-2">READY</p>
+                    <button onclick="triggerWaterfall('PUPUK')" class="w-full py-2 bg-orange-600 text-white rounded-lg font-black text-[9px] uppercase btn-press">Gunakan</button>
+                </div>
+                <div class="glass p-4 rounded-3xl border-b-4 border-blue-500 bg-blue-500/5 text-center">
+                    <div class="text-2xl mb-1">🌧️</div>
+                    <h3 class="text-[8px] font-black uppercase text-white tracking-widest">Hujan Berkah</h3>
+                    <p id="timer-hourly" class="text-[7px] text-blue-400 font-mono mb-2">READY</p>
+                    <button onclick="triggerWaterfall('HUJAN')" class="w-full py-2 bg-blue-600 text-white rounded-lg font-black text-[9px] uppercase btn-press">Panggil</button>
+                </div>
+            </div>
+
             <div class="grid grid-cols-2 gap-4">
                 <div class="glass rounded-[2rem] p-5 text-center relative border-t-4 border-emerald-500">
                     <span class="status-badge bg-emerald-500 text-black">FREE</span>
-                    <div class="text-5xl my-4 hover:scale-110 transition-transform">🍌</div>
-                    <h3 class="text-[10px] font-black uppercase text-gray-400">Pisang</h3>
-                    <p class="text-[11px] font-mono text-emerald-400 mb-4">30 Pts <span class="booster-label hidden text-blue-400">+6</span></p>
-                    <button onclick="triggerAd('BANANA')" class="w-full py-3 bg-emerald-600 text-black font-black text-[10px] rounded-xl uppercase btn-press">Harvest</button>
+                    <div class="h-24 flex items-center justify-center my-2">
+                        <img id="img-sawi" src="https://img.icons8.com/isometric-gx/200/lettuce.png" class="w-20 h-20 floating ready-glow">
+                    </div>
+                    <h3 class="text-[9px] font-black uppercase text-gray-400">Green Lettuce</h3>
+                    <p class="text-[10px] font-mono text-emerald-400 mb-3">+10 Hasil</p>
+                    <button id="btn-sawi" onclick="triggerWaterfall('SAWI')" class="w-full py-3 bg-emerald-600 text-black font-black text-[9px] rounded-xl uppercase btn-press">Harvest</button>
                 </div>
 
-                <div id="slot-jeruk" class="glass rounded-[2rem] p-5 text-center relative opacity-40 grayscale border-dashed border-2 border-white/10">
-                    <div class="lock-overlay absolute inset-0 flex flex-col items-center justify-center">
-                        <i class="fas fa-lock text-gray-600 mb-1"></i>
-                        <p class="text-[7px] font-black text-gray-600 uppercase">Basic Plan</p>
+                <div id="slot-jeruk" class="glass rounded-[2rem] p-5 text-center relative border-t-4 border-orange-500 opacity-40 grayscale">
+                    <div class="lock-overlay absolute inset-0 flex flex-col items-center justify-center z-10 bg-black/40 rounded-[2rem]">
+                        <i class="fas fa-lock text-white/50 mb-1"></i>
+                        <p class="text-[7px] font-black text-white/50 uppercase">Basic Plan</p>
                     </div>
-                    <div class="text-5xl my-4">🍊</div>
-                    <h3 class="text-[10px] font-black uppercase text-gray-400">Jeruk</h3>
-                    <p class="text-[11px] font-mono text-orange-400 mb-4">60 Pts</p>
-                    <button onclick="triggerAd('ORANGE')" class="hidden w-full py-3 bg-orange-600 text-white font-black text-[10px] rounded-xl uppercase">Harvest</button>
-                </div>
-
-                <div id="slot-apel" class="glass rounded-[2rem] p-5 text-center relative opacity-40 grayscale border-dashed border-2 border-white/10">
-                    <div class="lock-overlay absolute inset-0 flex flex-col items-center justify-center">
-                        <i class="fas fa-lock text-gray-600 mb-1"></i>
-                        <p class="text-[7px] font-black text-gray-600 uppercase">Pro Plan</p>
+                    <div class="h-24 flex items-center justify-center my-2">
+                        <img id="img-wortel" src="https://img.icons8.com/isometric-gx/200/carrot.png" class="w-20 h-20">
                     </div>
-                    <div class="text-5xl my-4">🍎</div>
-                    <h3 class="text-[10px] font-black uppercase text-gray-400">Apel</h3>
-                    <p class="text-[11px] font-mono text-red-500 mb-4">80 Pts</p>
-                    <button onclick="triggerAd('APPLE')" class="hidden w-full py-3 bg-red-600 text-white font-black text-[10px] rounded-xl uppercase">Harvest</button>
-                </div>
-
-                <div id="slot-mangga" class="glass rounded-[2rem] p-5 text-center relative opacity-40 grayscale border-dashed border-2 border-white/10">
-                    <div class="lock-overlay absolute inset-0 flex flex-col items-center justify-center">
-                        <i class="fas fa-lock text-gray-600 mb-1"></i>
-                        <p class="text-[7px] font-black text-gray-600 uppercase">Master Plan</p>
-                    </div>
-                    <div class="text-5xl my-4">🥭</div>
-                    <h3 class="text-[10px] font-black uppercase text-gray-400">Mangga</h3>
-                    <p class="text-[11px] font-mono text-yellow-500 mb-4">100 Pts</p>
-                    <button onclick="triggerAd('MANGO')" class="hidden w-full py-3 bg-yellow-500 text-black font-black text-[10px] rounded-xl uppercase">Harvest</button>
-                </div>
-            </div>
-
-            <button onclick="triggerAd('HOURLY')" class="glass p-5 rounded-[2.5rem] w-full border-l-4 border-purple-500 bg-purple-500/5 flex justify-between items-center btn-press">
-                <div class="flex items-center gap-4">
-                    <div class="w-12 h-12 rounded-full bg-purple-500/10 border-2 border-dashed border-purple-500 flex items-center justify-center text-purple-400 animate-[spin_10s_linear_infinite]">
-                        <i class="fas fa-spinner"></i>
-                    </div>
-                    <div class="text-left">
-                        <p class="text-[10px] font-black uppercase text-white tracking-widest">Mini Lucky Roulette</p>
-                        <p id="timer-hourly" class="text-[9px] text-purple-400 font-mono uppercase tracking-widest">Ready to Spin</p>
-                    </div>
-                </div>
-                <i class="fas fa-circle-play text-2xl text-purple-500"></i>
-            </button>
-        </div>
-
-        <div id="shop" class="tab-content space-y-6 text-center">
-            <h2 class="text-xl font-black uppercase tracking-tighter">Shop Boosters</h2>
-            <div class="space-y-4">
-                <div class="glass p-5 rounded-3xl flex items-center justify-between border-b-2 border-emerald-500/20">
-                    <div class="flex items-center gap-4 text-left">
-                        <span class="text-3xl">🧪</span>
-                        <div><p class="text-xs font-black uppercase">Fertilizer</p><p class="text-[8px] text-gray-500">Yield +50% for next panen</p></div>
-                    </div>
-                    <button onclick="buyItem('FERT', 500)" class="bg-white text-black px-4 py-2 rounded-xl text-[10px] font-black uppercase">500 Pts</button>
-                </div>
-                </div>
-        </div>
-
-        <div id="plan" class="tab-content space-y-5">
-            <div class="text-center mb-6">
-                <h2 class="text-xl font-black uppercase tracking-tighter">Upgrade Plan</h2>
-                <p class="text-[9px] text-gray-500 uppercase tracking-widest">Unlock more assets & harvest faster</p>
-            </div>
-            
-            <div class="space-y-4">
-                <div class="glass p-5 rounded-[2rem] border-l-4 border-emerald-500 flex justify-between items-center">
-                    <div><h4 class="text-xs font-black text-emerald-500">BASIC PLAN</h4><p class="text-[8px] text-gray-500 uppercase">Unlock Jeruk Slot + 1.1x Multiplier</p></div>
-                    <button id="plan-basic" onclick="buyPlan('BASIC', 5000)" class="bg-emerald-600 text-black px-5 py-2.5 rounded-xl font-black text-[10px] uppercase shadow-lg shadow-emerald-900/40">5k Pts</button>
-                </div>
-                <div class="glass p-5 rounded-[2rem] border-l-4 border-blue-500 flex justify-between items-center">
-                    <div><h4 class="text-xs font-black text-blue-500">PRO PLAN</h4><p class="text-[8px] text-gray-500 uppercase">Unlock Apel Slot + 1.2x Multiplier</p></div>
-                    <button id="plan-pro" onclick="buyPlan('PRO', 15000)" class="bg-blue-600 text-white px-5 py-2.5 rounded-xl font-black text-[10px] uppercase shadow-lg shadow-blue-900/40">15k Pts</button>
-                </div>
-                <div class="glass p-5 rounded-[2.5rem] border-l-4 border-yellow-500 bg-yellow-500/5 flex justify-between items-center">
-                    <div><h4 class="text-xs font-black text-yellow-500 uppercase">Master Plan</h4><p class="text-[8px] text-gray-400 uppercase">Unlock All Slots + 1.5x Multiplier</p></div>
-                    <button id="plan-master" onclick="buyPlan('MASTER', 50000)" class="bg-yellow-500 text-black px-5 py-2.5 rounded-xl font-black text-[10px] uppercase shadow-lg shadow-yellow-900/40">50k Pts</button>
+                    <h3 class="text-[9px] font-black uppercase text-gray-400">Carrot</h3>
+                    <p class="text-[10px] font-mono text-orange-400 mb-3">+20 Hasil</p>
+                    <button id="btn-wortel" disabled class="w-full py-3 bg-orange-600 text-white font-black text-[9px] rounded-xl uppercase">Harvest</button>
                 </div>
             </div>
         </div>
 
-        <div id="affiliate" class="tab-content space-y-5">
-            <div class="glass p-6 rounded-[2.5rem] bg-emerald-500/5 border-b-4 border-emerald-500/20">
-                <h2 class="text-lg font-black uppercase text-white mb-2">Affiliate Program</h2>
-                <div class="bg-emerald-500/10 rounded-2xl p-4 text-[9px] text-emerald-100/60 leading-relaxed">
-                    <p class="text-emerald-400 font-bold mb-1 uppercase tracking-widest">Rules & Commission:</p>
-                    <p>• Share link kamu dan dapatkan <span class="text-white font-black">10%</span> dari setiap panen temanmu!</p>
-                    <p>• Bonus bersifat instan dan otomatis masuk ke saldo koin kamu.</p>
-                </div>
-            </div>
-
-            <div class="glass p-5 rounded-3xl space-y-3">
-                <p class="text-[9px] font-black text-gray-500 uppercase tracking-widest">Your Referral Link</p>
-                <div class="flex gap-2">
-                    <input id="ref-link" type="text" readonly value="Loading..." class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-[10px] font-mono text-emerald-400 outline-none">
-                    <button onclick="copyRef()" class="bg-emerald-600 text-black px-4 rounded-xl active:bg-white transition-colors"><i class="fas fa-copy"></i></button>
-                </div>
-                <button onclick="shareRef()" class="w-full py-3.5 bg-blue-600 text-white rounded-2xl font-black uppercase text-[10px] btn-press shadow-lg shadow-blue-900/30">
-                    <i class="fab fa-telegram-plane mr-2"></i> Invite Friends
-                </button>
-            </div>
-
-            <div class="grid grid-cols-2 gap-3">
-                <div class="glass p-4 rounded-3xl text-center">
-                    <p class="text-[8px] font-black text-gray-500 uppercase">Invited</p>
-                    <p id="aff-total-invite" class="text-lg font-black text-white">0</p>
-                </div>
-                <div class="glass p-4 rounded-3xl text-center">
-                    <p class="text-[8px] font-black text-gray-500 uppercase">Earnings</p>
-                    <p id="aff-total-bonus" class="text-lg font-black text-emerald-400">0</p>
-                </div>
-            </div>
-
-            <div id="aff-list" class="space-y-2 pb-10">
-                <p class="text-[10px] text-gray-700 italic px-2">Active referrals will appear here...</p>
-            </div>
-        </div>
+        <div id="shop" class="tab-content space-y-6 text-center">... (Konten Shop Anda) ...</div>
+        <div id="plan" class="tab-content space-y-6">... (Konten Plan Anda) ...</div>
+        <div id="affiliate" class="tab-content space-y-6">... (Konten Affiliate Anda) ...</div>
 
     </main>
 
-    <div class="fixed bottom-28 right-6 flex flex-col gap-3 z-[60]">
-        <a href="https://t.me/SeedFarmChannel" target="_blank" class="w-12 h-12 bg-sky-500 rounded-full flex items-center justify-center text-white shadow-xl shadow-sky-900/40 animate-bounce transition-transform active:scale-90">
-            <i class="fab fa-telegram-plane text-xl"></i>
-        </a>
-        <button onclick="openDoc('terms')" class="w-10 h-10 glass rounded-full flex items-center justify-center text-yellow-500 shadow-xl border border-yellow-500/20 active:scale-90">
-            <i class="fas fa-file-contract text-sm"></i>
-        </button>
-        <button onclick="openDoc('privacy')" class="w-10 h-10 glass rounded-full flex items-center justify-center text-emerald-400 shadow-xl border border-emerald-400/20 active:scale-90">
-            <i class="fas fa-shield-halved text-sm"></i>
-        </button>
-    </div>
-
-    <div id="wd-modal" class="fixed inset-0 z-[100] hidden flex items-center justify-center p-6">
-        <div class="absolute inset-0 bg-black/90 backdrop-blur-sm" onclick="closeWithdraw()"></div>
-        <div class="glass w-full max-w-sm rounded-[2.5rem] p-6 relative border-t-4 border-blue-500 animate-fadeIn overflow-hidden">
-            <div class="flex justify-between items-center mb-6">
-                <h3 class="font-black text-white uppercase tracking-tighter">Withdraw Wallet</h3>
-                <button onclick="closeWithdraw()" class="text-gray-500 p-2"><i class="fas fa-times"></i></button>
-            </div>
-            <div class="space-y-4">
-                <div>
-                    <label class="text-[8px] font-black text-gray-500 uppercase ml-2 mb-1 block tracking-widest">Wallet Address (DOGE/FP)</label>
-                    <input id="wd-address" type="text" placeholder="Enter Wallet Address" class="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3 text-xs text-blue-400 focus:outline-none focus:border-blue-500 transition-all">
-                </div>
-                <div class="grid grid-cols-2 gap-2">
-                    <div>
-                        <label class="text-[8px] font-black text-gray-500 uppercase ml-2 mb-1 block tracking-widest">Amount (Pts)</label>
-                        <input id="wd-amount" type="number" oninput="calcDoge(this.value)" placeholder="0" class="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3 text-xs focus:outline-none font-mono text-white">
-                    </div>
-                    <div>
-                        <label class="text-[8px] font-black text-gray-500 uppercase ml-2 mb-1 block tracking-widest">You Receive</label>
-                        <input id="wd-doge" type="text" disabled placeholder="0.00 DOGE" class="w-full bg-emerald-500/10 border border-emerald-500/20 rounded-2xl px-4 py-3 text-xs font-mono text-emerald-400">
-                    </div>
-                </div>
-                <button onclick="processWD()" class="w-full py-4 bg-blue-600 text-white rounded-2xl font-black uppercase text-[10px] shadow-lg shadow-blue-900/40 btn-press">Confirm Withdrawal</button>
-                <div class="bg-yellow-500/5 border border-yellow-500/10 rounded-2xl p-3 text-[7px] text-yellow-200/60 leading-relaxed uppercase tracking-tighter">
-                    <p>• Faucetpay (FP) Withdrawal is INSTANT.</p>
-                    <p>• Other Wallets take 2-3 days process.</p>
-                    <p class="text-yellow-500 font-bold mt-1">IMPORTANT: Wallet address is bound after first WD.</p>
-                </div>
-                <div id="wd-history" class="pt-2 text-[8px] space-y-1">
-                    <p class="text-gray-600 font-black uppercase tracking-widest">Last 3 Records:</p>
-                    </div>
-            </div>
-        </div>
-    </div>
-
-    <div id="doc-modal" class="fixed inset-0 z-[110] hidden flex items-center justify-center p-6">
-        <div class="absolute inset-0 bg-black/90 backdrop-blur-md" onclick="closeDoc()"></div>
-        <div class="glass w-full max-w-sm rounded-[2.5rem] p-6 relative border border-white/10 animate-fadeIn">
-            <div class="flex justify-between items-center mb-4">
-                <h3 id="doc-title" class="font-black text-white uppercase tracking-tighter">Document</h3>
-                <button onclick="closeDoc()" class="text-gray-500 p-2"><i class="fas fa-times"></i></button>
-            </div>
-            <div id="doc-content" class="text-[10px] text-gray-400 leading-relaxed max-h-[60vh] overflow-y-auto pr-2 no-scrollbar"></div>
-        </div>
-    </div>
-
-    <nav class="fixed bottom-6 left-6 right-6 h-18 glass rounded-[2rem] flex justify-around items-center z-[55] border-white/10 shadow-2xl overflow-hidden">
+    <nav class="fixed bottom-6 left-6 right-6 h-18 glass rounded-[2rem] flex justify-around items-center z-[55] border-white/10 shadow-2xl">
         <button onclick="showTab('home', this)" class="nav-btn flex flex-col items-center gap-1 text-emerald-500">
-            <i class="fas fa-user-circle text-lg"></i><span class="text-[7px] font-black uppercase">Main</span>
+            <i class="fas fa-warehouse text-lg"></i><span class="text-[7px] font-black uppercase">Main</span>
         </button>
         <button onclick="showTab('farming', this)" class="nav-btn flex flex-col items-center gap-1 text-gray-500">
-            <i class="fas fa-wheat-awn text-lg"></i><span class="text-[7px] font-black uppercase">Farm</span>
+            <i class="fas fa-seedling text-lg"></i><span class="text-[7px] font-black uppercase">Farm</span>
         </button>
         <button onclick="showTab('shop', this)" class="nav-btn flex flex-col items-center gap-1 text-gray-500">
             <i class="fas fa-shop text-lg"></i><span class="text-[7px] font-black uppercase">Shop</span>
@@ -313,7 +159,7 @@
             <i class="fas fa-crown text-lg"></i><span class="text-[7px] font-black uppercase">Plan</span>
         </button>
         <button onclick="showTab('affiliate', this)" class="nav-btn flex flex-col items-center gap-1 text-gray-500">
-            <i class="fas fa-users-viewfinder text-lg"></i><span class="text-[7px] font-black uppercase">Affiliate</span>
+            <i class="fas fa-users text-lg"></i><span class="text-[7px] font-black uppercase">Affiliate</span>
         </button>
     </nav>
 
@@ -321,6 +167,7 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js";
         import { getFirestore, doc, getDoc, setDoc, updateDoc, increment, arrayUnion } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js";
 
+        // CONFIG FIREBASE (Sesuai milik Anda)
         const firebaseConfig = {
             apiKey: "AIzaSyBA0XxekNCYuBJVqLFWKhJYbIyEv7SGcOc",
             authDomain: "cryptofarm-bd14a.firebaseapp.com",
@@ -336,7 +183,7 @@
         const userId = tg.initDataUnsafe?.user?.id?.toString() || "7138574504";
         const userRef = doc(db, "users", userId);
 
-        let lastDaily = 0, lastHourly = 0;
+        let lastDaily = 0, lastHourly = 0, pupukUntil = 0;
 
         // UI TABS
         window.showTab = (id, btn) => {
@@ -346,189 +193,160 @@
             if(btn) btn.classList.replace('text-gray-500', 'text-emerald-500');
         };
 
-        // LOAD DATA
+        // LOAD DATA UTAMA
         async function loadData() {
             const snap = await getDoc(userRef);
             if(!snap.exists()) {
                 await setDoc(userRef, { 
-                    balance: 0, plan: 'FREE', 
-                    banana_count: 0, orange_count: 0, apple_count: 0, mangga_count: 0, 
-                    total_earned: 0, total_wd: 0, referral_count: 0, total_aff_bonus: 0
+                    balance: 0, plan: 'FREE', banana_count: 0, orange_count: 0, 
+                    apple_count: 0, mangga_count: 0, total_earned: 0, total_wd: 0,
+                    lastDaily: 0, lastHourly: 0, pupukActiveUntil: 0
                 });
             }
             const d = snap.data();
             lastDaily = d.lastDaily || 0;
             lastHourly = d.lastHourly || 0;
+            pupukUntil = d.pupukActiveUntil || 0;
 
-            document.getElementById('displayId').innerText = "ID: #" + userId;
-            document.getElementById('displayUser').innerText = "@" + (tg.initDataUnsafe?.user?.username || "Guest");
+            // Update UI
             document.getElementById('top-balance').innerText = Math.floor(d.balance).toLocaleString();
+            document.getElementById('displayUser').innerText = "@" + (tg.initDataUnsafe?.user?.username || "Guest");
+            document.getElementById('displayId').innerText = "ID: #" + userId;
             document.getElementById('stat-earn').innerText = (d.total_earned || 0).toLocaleString();
             document.getElementById('stat-wd').innerText = (d.total_wd || 0).toLocaleString();
             
-            // Assets
+            // Gudang
             document.getElementById('asset-banana').innerText = d.banana_count || 0;
             document.getElementById('asset-orange').innerText = d.orange_count || 0;
             document.getElementById('asset-apple').innerText = d.apple_count || 0;
             document.getElementById('asset-mangga').innerText = d.mangga_count || 0;
 
-            // Affiliate
-            const botUser = "SeedFarmProBot"; // Sesuaikan username bot
-            document.getElementById('ref-link').value = `https://t.me/${botUser}?start=${userId}`;
-            document.getElementById('aff-total-invite').innerText = d.referral_count || 0;
-            document.getElementById('aff-total-bonus').innerText = (d.total_aff_bonus || 0).toLocaleString();
-
-            updateGameAccess(d.plan || 'FREE', lastDaily);
+            // Visual Status Pupuk
+            const box = document.getElementById('pupuk-status-box');
+            if(Date.now() < pupukUntil) {
+                box.classList.add('pupuk-glow');
+            } else {
+                box.classList.remove('pupuk-glow');
+            }
         }
 
-        function updateGameAccess(plan, daily) {
-            const isWater = (Date.now() - daily) < 86400000;
-            document.querySelectorAll('.booster-label').forEach(l => isWater ? l.classList.remove('hidden') : l.classList.add('hidden'));
-            document.getElementById('water-active-dot').style.display = isWater ? 'block' : 'none';
-
-            const unlock = (id) => {
-                const el = document.getElementById(id);
-                el.classList.remove('opacity-40', 'grayscale', 'border-dashed');
-                el.querySelector('.lock-overlay').classList.add('hidden');
-                el.querySelector('button').classList.remove('hidden');
-            };
-
-            if(['BASIC', 'PRO', 'MASTER'].includes(plan)) unlock('slot-jeruk');
-            if(['PRO', 'MASTER'].includes(plan)) unlock('slot-apel');
-            if(plan === 'MASTER') unlock('slot-mangga');
-            
-            ['basic', 'pro', 'master'].forEach(p => {
-                const b = document.getElementById('plan-'+p);
-                if(plan === p.toUpperCase()) { 
-                    b.innerText = "ACTIVE"; b.disabled = true; b.classList.replace('bg-emerald-600', 'bg-gray-800');
-                }
-            });
-        }
-
-        // AD & REWARD
-        window.triggerAd = (type) => {
+        // WATERFALL AD SYSTEM
+        window.triggerWaterfall = async (type) => {
             const now = Date.now();
-            if(type === 'DAILY' && now - lastDaily < 86400000) return tg.showAlert("Watering once per day!");
-            if(type === 'HOURLY' && now - lastHourly < 3600000) return tg.showAlert("Roulette ready in 1 hour!");
+            if(type === 'PUPUK' && now - lastDaily < 86400000) return tg.showAlert("Pupuk baru tersedia besok!");
+            if(type === 'HUJAN' && now - lastHourly < 3600000) return tg.showAlert("Hujan akan datang 1 jam lagi!");
 
-            tg.showConfirm(`Watch Ad to Claim ${type}?`, (ok) => {
-                if(ok && typeof show_10426674 !== 'undefined') {
-                    show_10426674().then(() => giveReward(type));
-                } else if(ok) {
-                    giveReward(type); // Fallback jika ad blocked
+            tg.showConfirm(`Tonton iklan untuk ${type}?`, async (ok) => {
+                if(ok) {
+                    // Logika Waterfall (Adsgram -> Monetag)
+                    try {
+                        // Coba Provider 1 (Adsgram)
+                        console.log("Mencoba Adsgram...");
+                        // window.show_10426674().then(...) dst
+                        giveReward(type); // Simulasi Sukses
+                    } catch (e) {
+                        console.log("Adsgram Fail, Mencoba Monetag...");
+                        giveReward(type); // Simulasi Sukses
+                    }
                 }
             });
         };
 
         async function giveReward(type) {
-            const d = (await getDoc(userRef)).data();
-            const isWater = (Date.now() - (d.lastDaily || 0)) < 86400000;
-            let mult = d.plan === 'MASTER' ? 1.5 : d.plan === 'PRO' ? 1.2 : d.plan === 'BASIC' ? 1.1 : 1.0;
-            let waterBonus = isWater ? 1.2 : 1.0;
-
+            const now = Date.now();
             let upd = {};
-            if(['BANANA', 'ORANGE', 'APPLE', 'MANGO'].includes(type)) {
-                let basePrices = { BANANA: 30, ORANGE: 60, APPLE: 80, MANGO: 100 };
-                let amt = Math.floor(basePrices[type] * mult * waterBonus);
-                upd = { 
-                    balance: increment(amt), 
-                    [`${type.toLowerCase()}_count`]: increment(1), 
-                    total_earned: increment(amt) 
-                };
-            } else if(type === 'DAILY') {
-                upd = { lastDaily: Date.now() };
-            } else if(type === 'HOURLY') {
-                let r = Math.floor(Math.random() * 91) + 10;
-                upd = { balance: increment(r), lastHourly: Date.now(), total_earned: increment(r) };
+
+            if(type === 'SAWI') {
+                upd = { lastSawi: now, banana_count: increment(10) };
+                startCooldownAnimation('sawi', 300); // 5 Menit
+            } else if(type === 'PUPUK') {
+                upd = { lastDaily: now, pupukActiveUntil: now + 86400000 };
+            } else if(type === 'HUJAN') {
+                const crops = ['banana', 'orange', 'apple', 'mangga'];
+                const rand = crops[Math.floor(Math.random()*4)];
+                upd = { lastHourly: now, [`${rand}_count`]: increment(1) };
             }
 
             await updateDoc(userRef, upd);
-            tg.showAlert("Action Successful!");
+            tg.showAlert("Aksi Berhasil!");
             loadData();
         }
 
-        // WALLET LOGIC
-        window.calcDoge = (v) => document.getElementById('wd-doge').value = (v * 0.0001).toFixed(4) + " DOGE";
-        window.openWithdraw = async () => {
-            const d = (await getDoc(userRef)).data();
-            const addrInput = document.getElementById('wd-address');
-            if(d.wallet_address) { addrInput.value = d.wallet_address; addrInput.disabled = true; }
-            
-            const histDiv = document.getElementById('wd-history');
-            if(d.wd_history) {
-                histDiv.innerHTML = d.wd_history.slice(-3).reverse().map(h => `
-                    <div class="flex justify-between bg-white/5 p-2 rounded-lg text-gray-400">
-                        <span>${new Date(h.date).toLocaleDateString()}</span><span>${h.amount} Pts</span><span>${h.status}</span>
-                    </div>`).join('');
-            }
-            document.getElementById('wd-modal').classList.remove('hidden');
-        };
-        window.closeWithdraw = () => document.getElementById('wd-modal').classList.add('hidden');
-        window.processWD = async () => {
-            const amt = parseInt(document.getElementById('wd-amount').value);
-            const addr = document.getElementById('wd-address').value;
-            const d = (await getDoc(userRef)).data();
-            if(!addr || amt < 1000 || amt > d.balance) return tg.showAlert("Invalid Amount or Balance!");
-            
-            await updateDoc(userRef, { 
-                balance: increment(-amt), total_wd: increment(amt),
-                wallet_address: addr, wd_history: arrayUnion({date: Date.now(), amount: amt, status: 'PENDING'}) 
+        // ANIMASI TUMBUH
+        function startCooldownAnimation(id, sec) {
+            const btn = document.getElementById(`btn-${id}`);
+            const img = document.getElementById(`img-${id}`);
+            btn.disabled = true;
+            img.classList.remove('ready-glow', 'floating');
+            img.style.transition = "all 0.5s ease";
+            img.style.transform = "scale(0.3)"; // Jadi Tunas
+
+            let timeLeft = sec;
+            const timer = setInterval(() => {
+                timeLeft--;
+                btn.innerText = `Tumbuh (${timeLeft}s)`;
+                
+                // Progress Membesar
+                let scale = 0.3 + ((sec - timeLeft) / sec) * 0.7;
+                img.style.transform = `scale(${scale})`;
+
+                if(timeLeft <= 0) {
+                    clearInterval(timer);
+                    btn.disabled = false;
+                    btn.innerText = "Harvest";
+                    img.classList.add('ready-glow', 'floating');
+                    img.style.transform = "scale(1)";
+                }
+            }, 1000);
+        }
+
+        // LOGIKA JUAL KE KOIN
+        window.sellHarvest = async () => {
+            const snap = await getDoc(userRef);
+            const d = snap.data();
+            const isPupuk = Date.now() < d.pupukActiveUntil;
+            const mult = isPupuk ? 1.2 : 1.0;
+
+            // Harga: Sawi 30, Wortel 60, Terong 80, Labu 100
+            let totalProfit = (
+                (d.banana_count * 30) + 
+                (d.orange_count * 60) + 
+                (d.apple_count * 80) + 
+                (d.mangga_count * 100)
+            ) * mult;
+
+            if(totalProfit <= 0) return tg.showAlert("Gudang kosong! Panen dulu di Farm.");
+
+            await updateDoc(userRef, {
+                balance: increment(totalProfit),
+                total_earned: increment(totalProfit),
+                banana_count: 0, orange_count: 0, apple_count: 0, mangga_count: 0
             });
-            tg.showAlert("WD Submitted!");
-            closeWithdraw(); loadData();
-        };
 
-        // DOCS & AFFILIATE
-        window.openDoc = (type) => {
-            const title = document.getElementById('doc-title');
-            const content = document.getElementById('doc-content');
-            if(type === 'privacy') {
-                title.innerText = "Privacy Policy";
-                content.innerHTML = `<p>Kami hanya menyimpan data ID Telegram & Username untuk progres game. Alamat Wallet disimpan permanen untuk keamanan penarikan Anda.</p>`;
-            } else {
-                title.innerText = "Terms of Use";
-                content.innerHTML = `<p>Satu akun per orang. Penggunaan script/bot dilarang. Withdraw diproses manual kecuali Faucetpay. Keputusan admin mutlak.</p>`;
-            }
-            document.getElementById('doc-modal').classList.remove('hidden');
-        };
-        window.closeDoc = () => document.getElementById('doc-modal').classList.add('hidden');
-        window.copyRef = () => {
-            const link = document.getElementById('ref-link'); link.select();
-            navigator.clipboard.writeText(link.value); tg.showAlert("Link Copied!");
-        };
-        window.shareRef = () => {
-            const url = `https://t.me/share/url?url=${encodeURIComponent(document.getElementById('ref-link').value)}&text=${encodeURIComponent("Gabung di SeedFarm Pro! Panen koin & tarik DOGE!")}`;
-            window.open(url);
-        };
-
-        window.buyPlan = async (name, price) => {
-            const d = (await getDoc(userRef)).data();
-            if(d.balance < price) return tg.showAlert("Not enough coins!");
-            await updateDoc(userRef, { balance: increment(-price), plan: name });
-            tg.showAlert("Upgraded to " + name);
+            tg.showAlert(`Berhasil menjual hasil panen! Dapat ${Math.floor(totalProfit)} Pts ${isPupuk ? '(Bonus Pupuk Aktif!)' : ''}`);
             loadData();
         };
 
-        // TIMER INTERVAL
+        // TIMER INTERVAL UNTUK PUPUK/HUJAN
         setInterval(() => {
             const now = Date.now();
-            updateTimer('timer-daily', 86400000, lastDaily, "READY TO USE");
-            updateTimer('timer-hourly', 3600000, lastHourly, "READY TO SPIN");
+            updateTimerUI('timer-daily', 86400000, lastDaily, "READY");
+            updateTimerUI('timer-hourly', 3600000, lastHourly, "READY");
         }, 1000);
 
-        function updateTimer(id, wait, last, readyText) {
+        function updateTimerUI(id, wait, last, readyText) {
             const el = document.getElementById(id);
             const diff = Date.now() - last;
             if(diff < wait) {
                 const r = wait - diff;
                 const h = Math.floor(r/3600000), m = Math.floor((r%3600000)/60000), s = Math.floor((r%60000)/1000);
                 el.innerText = `${h}h ${m}m ${s}s`;
-            } else { el.innerText = readyText; }
+            } else {
+                el.innerText = readyText;
+            }
         }
 
-        tg.expand();
         loadData();
     </script>
 </body>
 </html>
-
