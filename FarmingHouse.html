@@ -1,168 +1,45 @@
-<style>
-    /* 1. Tanah Kebun */
-    .dirt-patch {
-        background: radial-gradient(circle, #3d2b1f 0%, #1a1008 100%);
-        box-shadow: inset 0 0 20px rgba(0,0,0,0.5);
-        position: relative;
-        overflow: hidden;
-    }
-
-    /* 2. Animasi Goyang Tanaman Siap Panen */
-    @keyframes swayAndGlow {
-        0% { transform: scale(1) rotate(-5deg); filter: drop-shadow(0 0 5px gold); }
-        50% { transform: scale(1.1) rotate(5deg); filter: drop-shadow(0 0 15px gold); }
-        100% { transform: scale(1) rotate(-5deg); filter: drop-shadow(0 0 5px gold); }
-    }
-
-    .ready-anim {
-        display: block !important;
-        animation: swayAndGlow 1.5s ease-in-out infinite;
-        cursor: pointer;
-        z-index: 50;
-    }
-
-    /* 3. Animasi Bibit Kecil Berdenyut */
-    @keyframes pulseSeed {
-        0% { opacity: 0.3; transform: scale(0.8); }
-        50% { opacity: 0.8; transform: scale(1); }
-        100% { opacity: 0.3; transform: scale(0.8); }
-    }
-
-    .seed-anim {
-        animation: pulseSeed 2s infinite;
-        display: inline-block;
-    }
-
-    /* 4. Overlay Transparan */
-    .harvest-overlay {
-        position: absolute;
-        inset: 0;
-        display: none; /* Default sembunyi */
-        align-items: center;
-        justify-content: center;
-        background: rgba(0, 255, 128, 0.1);
-        backdrop-filter: blur(2px);
-    }
-</style>
-
 <div class="space-y-6 animate-in max-w-md mx-auto pb-24 px-4">
-
     <div class="grid grid-cols-2 gap-4">
-        <div onclick="dailyBooster()" class="glass p-4 rounded-[2rem] border border-yellow-500/20 text-center btn-press">
-            <div class="text-3xl mb-1">🧪</div>
+        <div onclick="alert('Booster Active!')" class="glass p-4 rounded-[2rem] border border-yellow-500/20 text-center">
+            <div class="text-3xl">🧪</div>
             <p class="text-[9px] font-black text-white uppercase">Daily Booster</p>
         </div>
-        <div onclick="hourlyRain()" class="glass p-4 rounded-[2rem] border border-blue-500/20 text-center btn-press">
-            <div class="text-3xl mb-1">🌧️</div>
+        <div onclick="alert('Rain Incoming!')" class="glass p-4 rounded-[2rem] border border-blue-500/20 text-center">
+            <div class="text-3xl">🌧️</div>
             <p class="text-[9px] font-black text-white uppercase">Hourly Rain</p>
         </div>
     </div>
 
     <div class="glass p-5 rounded-[2.5rem] border border-white/5">
-        <h3 class="text-[9px] font-black uppercase text-gray-500 tracking-widest mb-4 text-center italic">Mini Plantation 2x2</h3>
-        
         <div class="grid grid-cols-2 gap-4">
-            <div onclick="harvestPlot(0)" class="dirt-patch aspect-square rounded-3xl border-2 border-white/10 p-2">
+            <div onclick="harvestPlot(0)" class="dirt-patch aspect-square rounded-3xl p-2 flex items-center justify-center">
                 <div id="garden-0" class="grid grid-cols-3 gap-1 h-full w-full items-center justify-items-center"></div>
-                <div id="pop-0" class="harvest-overlay"><span class="text-5xl ready-anim">🥬</span></div>
+                <div id="pop-0" class="absolute inset-0 flex items-center justify-center bg-black/20 hidden">
+                    <span class="text-5xl ready-anim">🥬</span>
+                </div>
             </div>
-
-            <div onclick="harvestPlot(1)" class="dirt-patch aspect-square rounded-3xl border-2 border-white/10 p-2">
+            <div onclick="harvestPlot(1)" class="dirt-patch aspect-square rounded-3xl p-2 flex items-center justify-center">
                 <div id="garden-1" class="grid grid-cols-3 gap-1 h-full w-full items-center justify-items-center"></div>
-                <div id="pop-1" class="harvest-overlay"><span class="text-5xl ready-anim">🥕</span></div>
+                <div id="pop-1" class="absolute inset-0 flex items-center justify-center bg-black/20 hidden">
+                    <span class="text-5xl ready-anim">🥕</span>
+                </div>
             </div>
-
-            <div onclick="harvestPlot(2)" class="dirt-patch aspect-square rounded-3xl border-2 border-white/10 p-2">
+            <div onclick="harvestPlot(2)" class="dirt-patch aspect-square rounded-3xl p-2 flex items-center justify-center">
                 <div id="garden-2" class="grid grid-cols-3 gap-1 h-full w-full items-center justify-items-center"></div>
-                <div id="pop-2" class="harvest-overlay"><span class="text-5xl ready-anim">🌽</span></div>
+                <div id="pop-2" class="absolute inset-0 flex items-center justify-center bg-black/20 hidden">
+                    <span class="text-5xl ready-anim">🌽</span>
+                </div>
             </div>
-
-            <div onclick="harvestPlot(3)" class="dirt-patch aspect-square rounded-3xl border-2 border-white/10 p-2">
+            <div onclick="harvestPlot(3)" class="dirt-patch aspect-square rounded-3xl p-2 flex items-center justify-center">
                 <div id="garden-3" class="grid grid-cols-3 gap-1 h-full w-full items-center justify-items-center"></div>
-                <div id="pop-3" class="harvest-overlay"><span class="text-5xl ready-anim">🌶️</span></div>
+                <div id="pop-3" class="absolute inset-0 flex items-center justify-center bg-black/20 hidden">
+                    <span class="text-5xl ready-anim">🌶️</span>
+                </div>
             </div>
         </div>
     </div>
 
-    <div id="farm-history" class="glass p-5 rounded-[2.5rem] border border-white/5 min-h-[100px] space-y-2">
-        <p class="text-[8px] text-gray-600 text-center uppercase py-4">Waiting for first harvest...</p>
+    <div id="farm-history" class="glass p-5 rounded-[2.5rem] border border-white/5 space-y-2 min-h-[50px]">
+        <p class="text-[8px] text-gray-600 text-center uppercase tracking-widest">Awaiting Activity...</p>
     </div>
-
 </div>
-
-<script>
-    const cropInfo = [
-        { name: 'Sawi', seed: '🌱', ready: '🥬', count: 9 },
-        { name: 'Wortel', seed: '🌱', ready: '🥕', count: 9 },
-        { name: 'Jagung', seed: '🌱', ready: '🌽', count: 6 },
-        { name: 'Cabai', seed: '🌱', ready: '🌶️', count: 9 }
-    ];
-
-    let plotReady = [false, false, false, false];
-
-    function startGrowing(id) {
-        plotReady[id] = false;
-        const garden = document.getElementById(`garden-${id}`);
-        const popup = document.getElementById(`pop-${id}`);
-
-        // Sembunyikan popup, tampilkan tanah kosong/bibit
-        popup.style.display = 'none';
-        garden.style.opacity = '1';
-        garden.innerHTML = '';
-
-        // Tampilkan bibit kecil
-        for (let i = 0; i < cropInfo[id].count; i++) {
-            const s = document.createElement('span');
-            s.innerText = cropInfo[id].seed;
-            s.className = 'seed-anim text-[10px]';
-            garden.appendChild(s);
-        }
-
-        // Timer 10 detik (Silakan ganti 300000 untuk 5 menit)
-        setTimeout(() => {
-            plotReady[id] = true;
-            garden.style.opacity = '0';
-            popup.style.display = 'flex';
-        }, 10000);
-    }
-
-    function harvestPlot(id) {
-        if (!plotReady[id]) return;
-
-        // Tambah koin/warehouse global
-        warehouse += 1;
-        
-        // Log History
-        updateHistory(`Harvested 1 ${cropInfo[id].ready} ${cropInfo[id].name}`);
-        
-        // Mulai lagi
-        startGrowing(id);
-        
-        // Update UI Atas
-        if (typeof updateMainUI === 'function') updateMainUI();
-    }
-
-    function updateHistory(msg) {
-        const hist = document.getElementById('farm-history');
-        const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-        
-        // Hapus teks default "Waiting..."
-        if (hist.innerHTML.includes('Waiting')) hist.innerHTML = '';
-
-        const item = `<div class="flex justify-between items-center bg-white/5 p-2 rounded-xl border border-white/5">
-            <span class="text-[8px] font-black text-gray-400 uppercase tracking-tighter">${msg}</span>
-            <span class="text-[7px] text-gray-600 font-bold">${time}</span>
-        </div>`;
-        
-        hist.innerHTML = item + hist.innerHTML;
-        if (hist.children.length > 5) hist.lastElementChild.remove();
-    }
-
-    // Jalankan otomatis
-    window.initPage = function() {
-        for(let i=0; i<4; i++) startGrowing(i);
-    }
-    
-    // Panggil paksa
-    initPage();
-</script>
