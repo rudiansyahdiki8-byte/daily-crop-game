@@ -3,378 +3,112 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Daily Crop: Merge & Harvest</title>
+    <title>Daily Crop - Management</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://telegram.org/js/telegram-web-app.js"></script>
-    <script src="https://adsgram.ai/sdk.js"></script>
-    
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    
     <style>
         body { background-color: #05080f; color: #f8fafc; font-family: 'Plus Jakarta Sans', sans-serif; overflow-x: hidden; }
         .glass { background: rgba(255, 255, 255, 0.03); backdrop-filter: blur(15px); border: 1px solid rgba(255, 255, 255, 0.08); }
-        .tab-content { display: none; animation: fadeIn 0.4s ease-out; }
-        .tab-content.active { display: block; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }
         .btn-press:active { transform: scale(0.95); }
-        .no-scrollbar::-webkit-scrollbar { display: none; }
-        .status-badge { font-size: 7px; font-weight: 800; padding: 2px 6px; border-radius: 6px; position: absolute; top: 12px; right: 12px; z-index: 20; }
         
-        /* ANIMASI GAME */
-        .floating { animation: floatAnim 3s ease-in-out infinite; }
-        @keyframes floatAnim {
-            0%, 100% { transform: translateY(0); }
-            50% { transform: translateY(-10px); }
-        }
-        .ready-glow { filter: drop-shadow(0 0 15px rgba(34, 197, 94, 0.6)); }
-        .pupuk-glow { filter: drop-shadow(0 0 10px rgba(234, 179, 8, 0.5)); border: 1px solid rgba(234, 179, 8, 0.3) !important; }
+        /* Bingkai Modal */
+        #modal-overlay { display: none; position: fixed; inset: 0; z-index: 200; background: rgba(0,0,0,0.85); backdrop-filter: blur(8px); align-items: flex-end; justify-content: center; }
+        .modal-container { width: 100%; max-width: 500px; background: #0a0f1a; border-radius: 2.5rem 2.5rem 0 0; padding: 2rem; border: 1px solid rgba(255,255,255,0.1); border-top: 4px solid #10b981; animation: slideUp 0.3s ease-out; }
+        @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
     </style>
 </head>
-<body class="pb-32">
+<body class="pb-40">
 
-    <header class="p-5 flex justify-between items-center sticky top-0 bg-[#05080f]/90 backdrop-blur-xl z-50">
+    <header class="p-5 flex justify-between items-center sticky top-0 bg-[#05080f]/90 backdrop-blur-xl z-50 border-b border-white/5">
         <div class="flex items-center gap-3">
-            <div class="w-10 h-10 bg-emerald-500 rounded-xl flex items-center justify-center text-black font-black text-xl italic shadow-lg shadow-emerald-500/20">DC</div>
-            <h1 class="text-xs font-black tracking-widest uppercase opacity-50">Daily Crop<br>Merge & Harvest</h1>
-        </div>
-        <div class="flex items-center gap-2">
-            <button onclick="openWithdraw()" class="w-10 h-10 glass rounded-xl flex items-center justify-center text-blue-400 border-blue-500/20">
-                <i class="fas fa-wallet"></i>
-            </button>
-            <div class="glass px-4 py-2 rounded-2xl border-emerald-500/20 flex items-center gap-2 shadow-lg shadow-emerald-500/5">
-                <i class="fas fa-coins text-yellow-500"></i>
-                <span id="top-balance" class="font-mono font-black text-emerald-400">0</span>
+            <div class="w-12 h-12 bg-emerald-500 rounded-2xl flex items-center justify-center shadow-lg shadow-emerald-500/30">
+                <i class="fas fa-leaf text-black text-2xl"></i>
+            </div>
+            <div>
+                <h1 class="text-xl font-black tracking-tight text-white leading-none">Daily Crop</h1>
+                <p id="main-balance" class="text-[10px] font-bold text-emerald-500 mt-1 italic font-mono uppercase">0 PTS</p>
             </div>
         </div>
+        <button onclick="openPopup('Withdraw')" class="w-14 h-14 glass rounded-2xl flex items-center justify-center text-blue-400 border-blue-500/30 shadow-lg btn-press">
+            <i class="fas fa-wallet text-2xl"></i>
+        </button>
     </header>
 
-    <main class="px-6 space-y-6">
+    <main id="app-content" class="px-6 space-y-6 mt-4">
+        </main>
 
-        <div id="home" class="tab-content active space-y-5">
-            <div id="pupuk-status-box" class="glass p-6 rounded-[2.5rem] relative overflow-hidden transition-all">
-                <div class="flex items-center gap-4 mb-6">
-                    <div class="w-14 h-14 bg-gradient-to-br from-emerald-400 to-green-900 rounded-2xl flex items-center justify-center text-2xl border border-white/10">👨‍🌾</div>
-                    <div>
-                        <h2 id="displayUser" class="font-black text-white text-lg tracking-tight">@Username</h2>
-                        <p id="displayId" class="text-[9px] text-gray-500 font-mono tracking-widest uppercase">ID: #--------</p>
-                    </div>
-                </div>
+    <div class="fixed bottom-32 right-6 flex flex-col gap-3 z-[60]">
+        <button onclick="openPopup('Kontak')" class="w-12 h-12 glass rounded-full flex items-center justify-center text-sky-400 border-sky-500/30 btn-press"><i class="fab fa-telegram-plane"></i></button>
+        <button onclick="openPopup('TermsOfUse')" class="w-12 h-12 glass rounded-full flex items-center justify-center text-yellow-500 border-yellow-500/30 btn-press"><i class="fas fa-book-open text-xs"></i></button>
+        <button onclick="openPopup('PrivacyPolicy')" class="w-12 h-12 glass rounded-full flex items-center justify-center text-emerald-500 border-emerald-500/30 btn-press"><i class="fas fa-user-shield text-xs"></i></button>
+    </div>
 
-                <button onclick="sellHarvest()" class="w-full py-4 bg-emerald-600 text-black rounded-2xl font-black text-xs uppercase mb-4 shadow-xl shadow-emerald-900/20 btn-press">
-                    Jual Semua Hasil Panen <i class="fas fa-shopping-cart ml-2"></i>
-                </button>
-
-                <div class="grid grid-cols-2 gap-4 pt-4 border-t border-white/5 text-center">
-                    <div>
-                        <p class="text-[8px] text-gray-500 uppercase font-black">Total Earned (Pts)</p>
-                        <p id="stat-earn" class="font-bold text-emerald-400">0</p>
-                    </div>
-                    <div>
-                        <p class="text-[8px] text-gray-500 uppercase font-black">Withdrawals</p>
-                        <p id="stat-wd" class="font-bold text-white">0</p>
-                    </div>
-                </div>
-            </div>
-
-            <div class="grid grid-cols-2 gap-3">
-                <div class="glass p-4 rounded-3xl flex items-center gap-3">
-                    <img src="https://img.icons8.com/isometric-gx/50/lettuce.png" class="w-8 h-8">
-                    <div><p class="text-[8px] font-black text-gray-500">SAWI</p><p id="asset-banana" class="text-xs font-bold text-white">0</p></div>
-                </div>
-                <div class="glass p-4 rounded-3xl flex items-center gap-3">
-                    <img src="https://img.icons8.com/isometric-gx/50/carrot.png" class="w-8 h-8">
-                    <div><p class="text-[8px] font-black text-gray-500">WORTEL</p><p id="asset-orange" class="text-xs font-bold text-white">0</p></div>
-                </div>
-                <div class="glass p-4 rounded-3xl flex items-center gap-3">
-                    <img src="https://img.icons8.com/isometric-gx/50/eggplant.png" class="w-8 h-8">
-                    <div><p class="text-[8px] font-black text-gray-500">TERONG</p><p id="asset-apple" class="text-xs font-bold text-white">0</p></div>
-                </div>
-                <div class="glass p-4 rounded-3xl flex items-center gap-3">
-                    <img src="https://img.icons8.com/isometric-gx/50/pumpkin.png" class="w-8 h-8">
-                    <div><p class="text-[8px] font-black text-gray-500">LABU</p><p id="asset-mangga" class="text-xs font-bold text-white">0</p></div>
-                </div>
-            </div>
-        </div>
-
-        <div id="farming" class="tab-content space-y-6">
-            <div class="grid grid-cols-2 gap-4">
-                <div class="glass p-4 rounded-3xl border-b-4 border-orange-500 bg-orange-500/5 text-center">
-                    <div class="text-2xl mb-1">🧪</div>
-                    <h3 class="text-[8px] font-black uppercase text-white tracking-widest">Pupuk Organik</h3>
-                    <p id="timer-daily" class="text-[7px] text-orange-400 font-mono mb-2">READY</p>
-                    <button onclick="triggerWaterfall('PUPUK')" class="w-full py-2 bg-orange-600 text-white rounded-lg font-black text-[9px] uppercase btn-press">Gunakan</button>
-                </div>
-                <div class="glass p-4 rounded-3xl border-b-4 border-blue-500 bg-blue-500/5 text-center">
-                    <div class="text-2xl mb-1">🌧️</div>
-                    <h3 class="text-[8px] font-black uppercase text-white tracking-widest">Hujan Berkah</h3>
-                    <p id="timer-hourly" class="text-[7px] text-blue-400 font-mono mb-2">READY</p>
-                    <button onclick="triggerWaterfall('HUJAN')" class="w-full py-2 bg-blue-600 text-white rounded-lg font-black text-[9px] uppercase btn-press">Panggil</button>
-                </div>
-            </div>
-
-            <div class="grid grid-cols-2 gap-4">
-                <div class="glass rounded-[2rem] p-5 text-center relative border-t-4 border-emerald-500">
-                    <span class="status-badge bg-emerald-500 text-black">FREE</span>
-                    <div class="h-24 flex items-center justify-center my-2">
-                        <img id="img-sawi" src="https://img.icons8.com/isometric-gx/200/lettuce.png" class="w-20 h-20 floating ready-glow">
-                    </div>
-                    <h3 class="text-[9px] font-black uppercase text-gray-400">Green Lettuce</h3>
-                    <p class="text-[10px] font-mono text-emerald-400 mb-3">+10 Hasil</p>
-                    <button id="btn-sawi" onclick="triggerWaterfall('SAWI')" class="w-full py-3 bg-emerald-600 text-black font-black text-[9px] rounded-xl uppercase btn-press">Harvest</button>
-                </div>
-
-                <div id="slot-jeruk" class="glass rounded-[2rem] p-5 text-center relative border-t-4 border-orange-500 opacity-40 grayscale">
-                    <div class="lock-overlay absolute inset-0 flex flex-col items-center justify-center z-10 bg-black/40 rounded-[2rem]">
-                        <i class="fas fa-lock text-white/50 mb-1"></i>
-                        <p class="text-[7px] font-black text-white/50 uppercase">Basic Plan</p>
-                    </div>
-                    <div class="h-24 flex items-center justify-center my-2">
-                        <img id="img-wortel" src="https://img.icons8.com/isometric-gx/200/carrot.png" class="w-20 h-20">
-                    </div>
-                    <h3 class="text-[9px] font-black uppercase text-gray-400">Carrot</h3>
-                    <p class="text-[10px] font-mono text-orange-400 mb-3">+20 Hasil</p>
-                    <button id="btn-wortel" disabled class="w-full py-3 bg-orange-600 text-white font-black text-[9px] rounded-xl uppercase">Harvest</button>
-                </div>
-            </div>
-        </div>
-
-        <div id="shop" class="tab-content space-y-6 text-center">
-             <div class="glass p-8 rounded-3xl">
-                <i class="fas fa-tools text-4xl mb-4 text-emerald-500"></i>
-                <h2 class="font-black uppercase tracking-widest text-sm">Shop Menu</h2>
-                <p class="text-xs text-gray-500 mt-2">Coming Soon / Under Development</p>
-             </div>
-        </div>
-        <div id="plan" class="tab-content space-y-6">
-             <div class="glass p-8 rounded-3xl text-center">
-                <i class="fas fa-crown text-4xl mb-4 text-yellow-500"></i>
-                <h2 class="font-black uppercase tracking-widest text-sm">Upgrade Plan</h2>
-                <p class="text-xs text-gray-500 mt-2">Unlock more vegetables and faster harvest.</p>
-             </div>
-        </div>
-        <div id="affiliate" class="tab-content space-y-6">
-             <div class="glass p-8 rounded-3xl text-center">
-                <i class="fas fa-users text-4xl mb-4 text-blue-500"></i>
-                <h2 class="font-black uppercase tracking-widest text-sm">Affiliate Program</h2>
-                <p class="text-xs text-gray-500 mt-2">Invite friends and earn 10% commission.</p>
-             </div>
-        </div>
-
-    </main>
-
-    <nav class="fixed bottom-6 left-6 right-6 h-18 glass rounded-[2rem] flex justify-around items-center z-[55] border-white/10 shadow-2xl">
-        <button onclick="showTab('home', this)" class="nav-btn flex flex-col items-center gap-1 text-emerald-500">
-            <i class="fas fa-warehouse text-lg"></i><span class="text-[7px] font-black uppercase">Main</span>
+    <nav class="fixed bottom-6 left-6 right-6 h-20 glass rounded-[2.5rem] flex justify-around items-center z-[150] border-white/10 shadow-2xl">
+        <button onclick="loadPage('Dashboard', this)" class="nav-link flex flex-col items-center gap-1 text-emerald-500">
+            <i class="fas fa-th-large text-lg"></i>
+            <span class="text-[7px] font-black uppercase">Home</span>
         </button>
-        <button onclick="showTab('farming', this)" class="nav-btn flex flex-col items-center gap-1 text-gray-500">
-            <i class="fas fa-seedling text-lg"></i><span class="text-[7px] font-black uppercase">Farm</span>
+        <button onclick="loadPage('FarmingHouse', this)" class="nav-link flex flex-col items-center gap-1 text-gray-500">
+            <i class="fas fa-house-chimney-window text-lg"></i>
+            <span class="text-[7px] font-black uppercase">Farm</span>
         </button>
-        <button onclick="showTab('shop', this)" class="nav-btn flex flex-col items-center gap-1 text-gray-500">
-            <i class="fas fa-shop text-lg"></i><span class="text-[7px] font-black uppercase">Shop</span>
+        <button onclick="loadPage('Shop', this)" class="nav-link flex flex-col items-center gap-1 text-gray-500">
+            <i class="fas fa-store text-lg"></i>
+            <span class="text-[7px] font-black uppercase">Shop</span>
         </button>
-        <button onclick="showTab('plan', this)" class="nav-btn flex flex-col items-center gap-1 text-gray-500">
-            <i class="fas fa-crown text-lg"></i><span class="text-[7px] font-black uppercase">Plan</span>
+        <button onclick="loadPage('Plan', this)" class="nav-link flex flex-col items-center gap-1 text-gray-500">
+            <i class="fas fa-crown text-lg"></i>
+            <span class="text-[7px] font-black uppercase">Plan</span>
         </button>
-        <button onclick="showTab('affiliate', this)" class="nav-btn flex flex-col items-center gap-1 text-gray-500">
-            <i class="fas fa-users text-lg"></i><span class="text-[7px] font-black uppercase">Affiliate</span>
+        <button onclick="loadPage('Affiliate', this)" class="nav-link flex flex-col items-center gap-1 text-gray-500">
+            <i class="fas fa-users-rays text-lg"></i>
+            <span class="text-[7px] font-black uppercase">Friends</span>
         </button>
     </nav>
 
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js";
-        import { getFirestore, doc, getDoc, setDoc, updateDoc, increment } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js";
+    <div id="modal-overlay" onclick="closePopup()">
+        <div id="modal-content" class="modal-container" onclick="event.stopPropagation()"></div>
+    </div>
 
-        // CONFIG FIREBASE
-        const firebaseConfig = {
-            apiKey: "AIzaSyBA0XxekNCYuBJVqLFWKhJYbIyEv7SGcOc",
-            authDomain: "cryptofarm-bd14a.firebaseapp.com",
-            projectId: "cryptofarm-bd14a",
-            storageBucket: "cryptofarm-bd14a.firebasestorage.app",
-            messagingSenderId: "9701816366",
-            appId: "1:9701816366:web:fd369290508596e27287bf"
-        };
+    <script>
+        // DATA UTAMA (Logic Jembatan)
+        let coins = 0;
+        let warehouse = 0;
 
-        const app = initializeApp(firebaseConfig);
-        const db = getFirestore(app);
-        const tg = window.Telegram.WebApp;
-        const userId = tg.initDataUnsafe?.user?.id?.toString() || "7138574504";
-        const userRef = doc(db, "users", userId);
-
-        let lastDaily = 0, lastHourly = 0, pupukUntil = 0;
-        let timers = {}; // Objek untuk menyimpan interval animasi
-
-        // UI TABS
-        window.showTab = (id, btn) => {
-            document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
-            document.getElementById(id).classList.add('active');
-            document.querySelectorAll('.nav-btn').forEach(b => b.classList.replace('text-emerald-500', 'text-gray-500'));
-            if(btn) btn.classList.replace('text-gray-500', 'text-emerald-500');
-        };
-
-        // LOAD DATA UTAMA
-        async function loadData() {
-            const snap = await getDoc(userRef);
-            if(!snap.exists()) {
-                await setDoc(userRef, { 
-                    balance: 0, plan: 'FREE', banana_count: 0, orange_count: 0, 
-                    apple_count: 0, mangga_count: 0, total_earned: 0, total_wd: 0,
-                    lastDaily: 0, lastHourly: 0, pupukActiveUntil: 0, lastSawi: 0
-                });
-            }
-            const d = snap.data();
-            lastDaily = d.lastDaily || 0;
-            lastHourly = d.lastHourly || 0;
-            pupukUntil = d.pupukActiveUntil || 0;
-
-            // Update UI
-            document.getElementById('top-balance').innerText = Math.floor(d.balance).toLocaleString();
-            document.getElementById('displayUser').innerText = "@" + (tg.initDataUnsafe?.user?.username || "Guest");
-            document.getElementById('displayId').innerText = "ID: #" + userId;
-            document.getElementById('stat-earn').innerText = (d.total_earned || 0).toLocaleString();
-            document.getElementById('stat-wd').innerText = (d.total_wd || 0).toLocaleString();
-            
-            document.getElementById('asset-banana').innerText = d.banana_count || 0;
-            document.getElementById('asset-orange').innerText = d.orange_count || 0;
-            document.getElementById('asset-apple').innerText = d.apple_count || 0;
-            document.getElementById('asset-mangga').innerText = d.mangga_count || 0;
-
-            // CEK STATUS TUMBUH SAAT LOAD
-            checkGrowthStatus('sawi', d.lastSawi || 0, 300);
-
-            // Visual Status Pupuk
-            const box = document.getElementById('pupuk-status-box');
-            if(Date.now() < pupukUntil) { box.classList.add('pupuk-glow'); } 
-            else { box.classList.remove('pupuk-glow'); }
-        }
-
-        // FUNGSI CEK STATUS (Kunci agar gambar tidak hilang)
-        function checkGrowthStatus(id, lastHarvest, cooldownSec) {
-            const now = Date.now();
-            const diff = (now - lastHarvest) / 1000;
-            const img = document.getElementById(`img-${id}`);
-            const btn = document.getElementById(`btn-${id}`);
-            if(!img || !btn) return;
-
-            if (diff < cooldownSec) {
-                const remaining = Math.floor(cooldownSec - diff);
-                startCooldownAnimation(id, remaining, cooldownSec);
-            } else {
-                img.style.transform = "scale(1)";
-                img.classList.add('ready-glow', 'floating');
-                btn.disabled = false;
-                btn.innerText = "Harvest";
-                btn.classList.replace('bg-gray-700', 'bg-emerald-600');
-            }
-        }
-
-        // WATERFALL AD SYSTEM
-        window.triggerWaterfall = async (type) => {
-            const now = Date.now();
-            if(type === 'PUPUK' && now - lastDaily < 86400000) return tg.showAlert("Pupuk baru tersedia besok!");
-            if(type === 'HUJAN' && now - lastHourly < 3600000) return tg.showAlert("Hujan akan datang 1 jam lagi!");
-
-            tg.showConfirm(`Tonton iklan untuk ${type}?`, async (ok) => {
-                if(ok) {
-                    // Di sini tempat pasang SDK Iklan (Adsgram/Monetag)
-                    giveReward(type); 
-                }
-            });
-        };
-
-        async function giveReward(type) {
-            const now = Date.now();
-            let upd = {};
-
-            if(type === 'SAWI') {
-                upd = { lastSawi: now, banana_count: increment(10) };
-                startCooldownAnimation('sawi', 300, 300);
-            } else if(type === 'PUPUK') {
-                upd = { lastDaily: now, pupukActiveUntil: now + 86400000 };
-            } else if(type === 'HUJAN') {
-                const crops = ['banana', 'orange', 'apple', 'mangga'];
-                const rand = crops[Math.floor(Math.random()*4)];
-                upd = { lastHourly: now, [`${rand}_count`]: increment(1) };
-            }
-
-            await updateDoc(userRef, upd);
-            tg.showAlert("Aksi Berhasil!");
-            loadData();
-        }
-
-        // ANIMASI TUMBUH
-        function startCooldownAnimation(id, secRemaining, totalCooldown) {
-            const btn = document.getElementById(`btn-${id}`);
-            const img = document.getElementById(`img-${id}`);
-            if(!btn || !img) return;
-
-            btn.disabled = true;
-            btn.classList.replace('bg-emerald-600', 'bg-gray-700');
-            img.classList.remove('ready-glow', 'floating');
-
-            if(timers[id]) clearInterval(timers[id]);
-
-            timers[id] = setInterval(() => {
-                secRemaining--;
-                btn.innerText = `Tumbuh (${secRemaining}s)`;
+        async function loadPage(pageName, btn) {
+            try {
+                const res = await fetch(`${pageName}.html`);
+                const html = await res.text();
+                document.getElementById('app-content').innerHTML = html;
                 
-                let progress = (totalCooldown - secRemaining) / totalCooldown;
-                let scale = 0.3 + (progress * 0.7);
-                img.style.transform = `scale(${scale})`;
-
-                if(secRemaining <= 0) {
-                    clearInterval(timers[id]);
-                    btn.disabled = false;
-                    btn.innerText = "Harvest";
-                    btn.classList.replace('bg-gray-700', 'bg-emerald-600');
-                    img.classList.add('ready-glow', 'floating');
-                    img.style.transform = "scale(1)";
-                }
-            }, 1000);
+                // Urusan warna Navbar
+                document.querySelectorAll('.nav-link').forEach(n => n.classList.replace('text-emerald-500', 'text-gray-500'));
+                btn.classList.replace('text-gray-500', 'text-emerald-500');
+                
+                // Update UI setelah halaman dimuat
+                if(window.initPage) initPage();
+                updateMainUI();
+            } catch (e) { console.error("Gagal ambil file:", pageName); }
         }
 
-        // LOGIKA JUAL KE KOIN
-        window.sellHarvest = async () => {
-            const snap = await getDoc(userRef);
-            const d = snap.data();
-            const isPupuk = Date.now() < d.pupukActiveUntil;
-            const mult = isPupuk ? 1.2 : 1.0;
-
-            let totalProfit = (
-                (d.banana_count * 30) + (d.orange_count * 60) + 
-                (d.apple_count * 80) + (d.mangga_count * 100)
-            ) * mult;
-
-            if(totalProfit <= 0) return tg.showAlert("Gudang kosong! Panen dulu di Farm.");
-
-            await updateDoc(userRef, {
-                balance: increment(totalProfit),
-                total_earned: increment(totalProfit),
-                banana_count: 0, orange_count: 0, apple_count: 0, mangga_count: 0
-            });
-
-            tg.showAlert(`Berhasil menjual hasil panen! Dapat ${Math.floor(totalProfit)} Pts ${isPupuk ? '(Bonus Pupuk Aktif!)' : ''}`);
-            loadData();
-        };
-
-        // TIMER INTERVAL UNTUK PUPUK/HUJAN
-        setInterval(() => {
-            updateTimerUI('timer-daily', 86400000, lastDaily, "READY");
-            updateTimerUI('timer-hourly', 3600000, lastHourly, "READY");
-        }, 1000);
-
-        function updateTimerUI(id, wait, last, readyText) {
-            const el = document.getElementById(id);
-            if(!el) return;
-            const diff = Date.now() - last;
-            if(diff < wait) {
-                const r = wait - diff;
-                const h = Math.floor(r/3600000), m = Math.floor((r%3600000)/60000), s = Math.floor((r%60000)/1000);
-                el.innerText = `${h}h ${m}m ${s}s`;
-            } else { el.innerText = readyText; }
+        async function openPopup(pageName) {
+            try {
+                const res = await fetch(`${pageName}.html`);
+                const html = await res.text();
+                document.getElementById('modal-content').innerHTML = html;
+                document.getElementById('modal-overlay').style.display = 'flex';
+            } catch (e) { console.error("Gagal ambil popup:", pageName); }
         }
 
-        loadData();
+        function closePopup() { document.getElementById('modal-overlay').style.display = 'none'; }
+        
+        function updateMainUI() {
+            document.getElementById('main-balance').innerText = coins.toLocaleString() + " PTS";
+        }
+
+        // Buka dashboard pertama kali
+        window.onload = () => loadPage('Dashboard', document.querySelector('.nav-link'));
     </script>
 </body>
 </html>
