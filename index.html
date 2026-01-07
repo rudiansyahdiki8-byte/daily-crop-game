@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Daily Crop: Merge & Harvest</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <script src="https://sad.adsgram.ai/js/sad.min.js"></script>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800&display=swap" rel="stylesheet">
+    <style>
+        body { background-color: #05080f; color: #f8fafc; font-family: 'Plus Jakarta Sans', sans-serif; }
+        .farm-card { background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 20px; }
+        .btn-harvest { background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%); shadow: 0 4px 15px rgba(34, 197, 94, 0.4); }
+    </style>
+</head>
+<body class="p-4">
+    <div class="flex justify-between items-center mb-6">
+        <div>
+            <h1 class="text-xl font-extrabold text-green-500">DAILY CROP</h1>
+            <p class="text-xs text-gray-400">Merge & Harvest</p>
+        </div>
+        <div class="text-right">
+            <div id="balance" class="text-xl font-bold text-yellow-400">0 🪙</div>
+            <p class="text-[10px] text-gray-500 uppercase tracking-widest" id="user-name">Loading...</p>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-2 gap-4 mb-8">
+        <div class="farm-card p-4 text-center">
+            <img src="https://img.icons8.com/isometric-gx/100/lettuce.png" class="w-16 h-16 mx-auto mb-2">
+            <p class="text-sm font-bold">Sawi Hijau</p>
+            <button onclick="showAd()" class="btn-harvest w-full mt-2 py-1 rounded-lg text-xs font-bold">HARVEST</button>
+        </div>
+        <div class="farm-card p-4 text-center">
+            <img src="https://img.icons8.com/isometric-gx/100/carrot.png" class="w-16 h-16 mx-auto mb-2 opacity-50">
+            <p class="text-sm font-bold text-gray-500">Locked</p>
+            <button class="bg-gray-700 w-full mt-2 py-1 rounded-lg text-xs font-bold">UPGRADE</button>
+        </div>
+    </div>
+
+    <div class="fixed bottom-6 left-4 right-4 farm-card p-2 flex justify-around items-center">
+        <button class="text-green-500"><i class="fas fa-seedling d-block"></i><span class="text-[10px]">Farm</span></button>
+        <button class="text-gray-500"><i class="fas fa-shopping-cart d-block"></i><span class="text-[10px]">Shop</span></button>
+        <button class="text-gray-500"><i class="fas fa-users d-block"></i><span class="text-[10px]">Friends</span></button>
+    </div>
+
+    <script>
+        const tg = window.Telegram.WebApp;
+        tg.expand();
+        
+        // Tampilkan Nama User dari Telegram
+        document.getElementById('user-name').innerText = tg.initDataUnsafe.user?.first_name || "Petani Gemoy";
+
+        // Fungsi Iklan (Contoh Adsgram)
+        function showAd() {
+            // Nanti di sini kita masukkan Block ID Adsgram kamu
+            tg.showConfirm("Tonton iklan untuk panen ganda?", (ok) => {
+                if(ok) {
+                    alert("Iklan Muncul (Simulasi)");
+                    // Logika tambah saldo
+                }
+            });
+        }
+    </script>
+</body>
+</html>
