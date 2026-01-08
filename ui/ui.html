@@ -1,28 +1,5 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Daily Crop - Premium Agriculture</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    
-    <style>
-        body { background-color: #05080f; color: #f8fafc; font-family: 'Plus Jakarta Sans', sans-serif; overflow-x: hidden; }
-        .glass { background: rgba(255, 255, 255, 0.03); backdrop-filter: blur(15px); border: 1px solid rgba(255, 255, 255, 0.08); }
-        .tab-content { display: none; animation: fadeIn 0.4s ease-out; }
-        .tab-content.active { display: block; }
-        @keyframes fadeIn { 
-        from { opacity: 0; transform: scale(0.95) translateY(10px); } 
-        to { opacity: 1; transform: scale(1) translateY(0); } 
-        }
-        #withdrawModal { display: none; position: fixed; inset: 0; z-index: 100; background: rgba(0,0,0,0.85); backdrop-filter: blur(8px); align-items: flex-end; justify-content: center; }
-        .modal-container { width: 100%; max-width: 500px; background: #0a0f1a; border-radius: 2.5rem 2.5rem 0 0; padding: 2rem; border: 1px solid rgba(255,255,255,0.1); border-top: 4px solid #3b82f6; animation: slideUp 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
-        @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
-    </style>
-</head>
-<body class="pb-40" onload="renderFarm()">
+<div id="game-root">
+  <body class="pb-40" onload="renderFarm()">
 
     <header class="p-5 flex justify-between items-center sticky top-0 bg-[#05080f]/90 backdrop-blur-xl z-50 border-b border-white/5">
         <div class="flex items-center gap-3">
@@ -357,7 +334,7 @@
                 
                 updateUI();
                 calculateTotalPreview();
-            }}
+            }
 
 function calculatePreview() {
     let amount = document.getElementById('sell-input').value;
@@ -377,4 +354,5 @@ function calculatePreview() {
 
     </script>
 </body>
-</html>
+<!-- PASTE ISI BODY Backup.html DI SINI -->
+</div>
