@@ -4,6 +4,9 @@
 function switchTab(id, btn) {
   document.querySelectorAll('.tab-content')
     .forEach(t => t.classList.remove('active'));
+function updateInventoryUI() {
+  document.getElementById('inv-leaf').innerText = State.inventory.leaf;
+}
 
   document.getElementById(id)?.classList.add('active');
 
