@@ -18,6 +18,7 @@ const App = {
         // 🔑 INIT SETELAH UI ADA
         GameState.init(tg.initDataUnsafe.user);
         Farm.init();
+        Market.init();
 
         console.log("UI + Game Loaded");
       });
@@ -25,3 +26,4 @@ const App = {
 };
 
 document.addEventListener("DOMContentLoaded", App.init);
+
