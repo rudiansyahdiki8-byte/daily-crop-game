@@ -18,4 +18,8 @@ function updateInventoryUI() {
   btn.classList.add('text-emerald-500');
   btn.classList.remove('text-gray-500');
 }
+// ui.js
+function initUI() {
+  console.log("UI init");
+}
 
