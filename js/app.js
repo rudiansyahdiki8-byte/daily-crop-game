@@ -1,8 +1,6 @@
 // app.js
 const App = {
-  init() GameState.init(tg.initDataUnsafe.user);
-  Farm.init();
-  {
+  init() {
     const tg = window.Telegram.WebApp;
     tg.ready();
 
@@ -11,21 +9,19 @@ const App = {
         "<h3>Please open this app via Telegram</h3>";
       return;
     }
-    
+
     fetch("ui/ui.html")
       .then(res => res.text())
       .then(html => {
         document.getElementById("app").innerHTML = html;
-        console.log("UI loaded successfully");
-    
-        // INIT MODULES AFTER UI READY
-        if (typeof initUI === "function") initUI();
-        if (typeof renderFarm === "function") renderFarm();
-      });
 
+        // 🔑 INIT SETELAH UI ADA
+        GameState.init(tg.initDataUnsafe.user);
+        Farm.init();
+
+        console.log("UI + Game Loaded");
+      });
   }
 };
 
 document.addEventListener("DOMContentLoaded", App.init);
-
-
