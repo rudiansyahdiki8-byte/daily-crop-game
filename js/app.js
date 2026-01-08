@@ -1,6 +1,8 @@
 // app.js
 const App = {
-  init() {
+  init() GameState.init(tg.initDataUnsafe.user);
+  Farm.init();
+  {
     const tg = window.Telegram.WebApp;
     tg.ready();
 
@@ -25,4 +27,5 @@ const App = {
 };
 
 document.addEventListener("DOMContentLoaded", App.init);
+
 
