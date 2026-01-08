@@ -4,53 +4,27 @@
   <meta charset="UTF-8">
   <title>Daily Crop</title>
 
-  <!-- Telegram WebApp SDK -->
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
-
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      background: #0f172a;
-      color: white;
-      text-align: center;
-      padding: 40px;
-    }
-    .card {
-      background: rgba(255,255,255,0.08);
-      border-radius: 16px;
-      padding: 20px;
-      max-width: 400px;
-      margin: auto;
-    }
-  </style>
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-  <div class="card">
-    <h2>🌱 Daily Crop</h2>
-    <p id="status">Loading Telegram...</p>
-    <p id="userid"></p>
-    <p id="username"></p>
-  </div>
+  <!-- UI akan dimuat di sini -->
+  <div id="app"></div>
 
   <script>
     const tg = window.Telegram.WebApp;
     tg.ready();
 
-    if (tg.initDataUnsafe && tg.initDataUnsafe.user) {
-      const user = tg.initDataUnsafe.user;
-
-      document.getElementById("status").textContent =
-        "Telegram connected ✅";
-
-      document.getElementById("userid").textContent =
-        "User ID: " + user.id;
-
-      document.getElementById("username").textContent =
-        "Username: @" + (user.username || "no_username");
+    if (!tg.initDataUnsafe?.user) {
+      document.getElementById("app").innerHTML =
+        "<p style='color:red'>Open this app via Telegram</p>";
     } else {
-      document.getElementById("status").textContent =
-        "❌ Not opened via Telegram";
+      fetch("ui.html")
+        .then(res => res.text())
+        .then(html => {
+          document.getElementById("app").innerHTML = html;
+        });
     }
   </script>
 
