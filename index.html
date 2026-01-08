@@ -3,14 +3,56 @@
 <head>
   <meta charset="UTF-8">
   <title>Daily Crop</title>
+
+  <!-- Telegram WebApp SDK -->
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
-  <link rel="stylesheet" href="css/style.css">
+
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #0f172a;
+      color: white;
+      text-align: center;
+      padding: 40px;
+    }
+    .card {
+      background: rgba(255,255,255,0.08);
+      border-radius: 16px;
+      padding: 20px;
+      max-width: 400px;
+      margin: auto;
+    }
+  </style>
 </head>
 <body>
 
-  <div id="app"></div>
+  <div class="card">
+    <h2>🌱 Daily Crop</h2>
+    <p id="status">Loading Telegram...</p>
+    <p id="userid"></p>
+    <p id="username"></p>
+  </div>
 
-  <script src="js/app.js"></script>
-  <script src="js/state.js"></script>
+  <script>
+    const tg = window.Telegram.WebApp;
+    tg.ready();
+
+    if (tg.initDataUnsafe && tg.initDataUnsafe.user) {
+      const user = tg.initDataUnsafe.user;
+
+      document.getElementById("status").textContent =
+        "Telegram connected ✅";
+
+      document.getElementById("userid").textContent =
+        "User ID: " + user.id;
+
+      document.getElementById("username").textContent =
+        "Username: @" + (user.username || "no_username");
+    } else {
+      document.getElementById("status").textContent =
+        "❌ Not opened via Telegram";
+    }
+  </script>
+
 </body>
 </html>
