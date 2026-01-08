@@ -271,86 +271,8 @@
     </nav>
 
     <script>
-        let coins = 0;
-        let warehouse = 0;
-        function switchTab(id, btn) {
-            document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
-            document.getElementById(id).classList.add('active');
-            document.querySelectorAll('nav button').forEach(b => { b.classList.remove('text-emerald-500'); b.classList.add('text-gray-500'); });
-            btn.classList.add('text-emerald-500'); btn.classList.remove('text-gray-500');
-        }
-        function renderFarm() {
-            const grid = document.getElementById('garden-grid');
-            grid.innerHTML = '<div onclick="harvest()" class="glass aspect-square rounded-[2.5rem] flex flex-col items-center justify-center border-b-4 border-emerald-500 btn-press"><span class="text-4xl mb-2">🥬</span><span class="text-[8px] font-black text-emerald-400 uppercase">Harvest (Ads)</span></div>';
-            for(let i=0; i<3; i++) grid.innerHTML += '<div class="glass aspect-square rounded-[2.5rem] flex flex-col items-center justify-center border-2 border-dashed border-white/5 opacity-20"><i class="fas fa-lock text-xl text-gray-600"></i></div>';
-        }
-        function harvest() { warehouse++; updateUI(); }
-            // Variable gudang untuk 4 barang
-            let inv = {
-                leaf: 0,    // Sawi
-                carrot: 0,  // Wortel
-                corn: 0,    // Jagung
-                chili: 0    // Cabe
-            };
-
-            // Fungsi tombol MAX untuk masing-masing barang
-            function setMax(type) {
-                // Menghubungkan variabel 'warehouse' kamu ke input leaf, yang lain 0 dulu
-                if(type === 'leaf') {
-                    document.getElementById('input-leaf').value = warehouse;
-                } else {
-                    document.getElementById('input-' + type).value = 0; 
-                }
-                calculateTotalPreview();
-            }
-
-            // Fungsi Preview (Auto Konversi)
-            function calculateTotalPreview() {
-                const l = parseInt(document.getElementById('input-leaf').value) || 0;
-                const r = parseInt(document.getElementById('input-carrot').value) || 0;
-                const o = parseInt(document.getElementById('input-corn').value) || 0;
-                const c = parseInt(document.getElementById('input-chili').value) || 0;
-                
-                // Harga per sayur 30 poin
-                let total = (l + r + o + c) * 30;
-                document.getElementById('sell-preview').innerText = total.toLocaleString() + " Pts";
-            }
-
-            // Fungsi Jual Semua
-            function sellAllItems() {
-                const l = parseInt(document.getElementById('input-leaf').value) || 0;
-                // (Tambahkan item lain di sini jika sudah ada datanya)
-
-                if (l > warehouse) return alert("Barang di Warehouse tidak cukup!");
-                if (l <= 0) return alert("Masukkan jumlah barang yang ingin dijual!");
-
-                let totalPts = l * 30;
-                coins += totalPts;
-                warehouse -= l; // Kurangi jumlah sawi sesuai yang dijual
-
-                // Reset input
-                document.getElementById('input-leaf').value = "";
-                
-                updateUI();
-                calculateTotalPreview();
-            }
-
-function calculatePreview() {
-    let amount = document.getElementById('sell-input').value;
-    document.getElementById('sell-preview').innerText = "+ " + (amount * 30).toLocaleString() + " Pts";
-}
-        function updateUI() {
-            document.getElementById('inv-leaf').innerText = warehouse;
-            document.getElementById('sell-preview').innerText = (warehouse * 30) + ' Pts';
-            document.getElementById('main-balance').innerText = coins.toLocaleString();
-        }
-        function openWD() { document.getElementById('withdrawModal').style.display = 'flex'; }
-        function closeWD() { document.getElementById('withdrawModal').style.display = 'none'; }
-        function openTerms(){document.getElementById('termsModal').style.display='flex'}
-        function closeTerms(){document.getElementById('termsModal').style.display='none'}
-        function openPrivacy(){document.getElementById('privacyModal').style.display='flex'}
-        function closePrivacy(){document.getElementById('privacyModal').style.display='none'}
-
+      
     </script>
 </div>
+
 
