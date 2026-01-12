@@ -1,9 +1,8 @@
 // js/state.js
 // State Management & Configuration
-// Updated: Removed 'initSystems' because it is handled by 'bootstrap.js'
+// Updated: Telegram ID Integration for Permanent Save
 
-// 1. KONFIGURASI PLAN (Visual Badge Only)
-// Limit gudang dan slot sekarang diatur logic, ini hanya referensi nama.
+// 1. KONFIGURASI PLAN
 const PlanConfig = {
     FREE: { name: "Free Farmer", basePlots: 1, maxPlots: 1, warehouseLimit: 50, ads: "High" },
     MORTGAGE: { name: "Mortgage Farmer", basePlots: 1, maxPlots: 1, warehouseLimit: 50, ads: "Medium" },
@@ -11,7 +10,7 @@ const PlanConfig = {
     OWNER: { name: "Owner Farmer", basePlots: 1, maxPlots: 1, warehouseLimit: 9999, ads: "None" }
 };
 
-// 2. DATA HARGA & RARITY (Otomatis ambil dari herbs.js)
+// 2. DATA HARGA & RARITY
 const PriceRanges = {};
 const CropRarity = {};
 if (window.HerbData) {
@@ -21,7 +20,7 @@ if (window.HerbData) {
     }
 }
 
-// 3. ENGINE GACHA (Untuk Tanam Random)
+// 3. ENGINE GACHA
 const DropEngine = {
     roll() {
         const rand = Math.random() * 100;
@@ -34,28 +33,23 @@ const DropEngine = {
     }
 };
 
-// 4. DATA DEFAULT USER (Struktur ini TIDAK BERUBAH agar Firebase Aman)
+// 4. DATA DEFAULT USER
 const defaultUser = {
     username: "Juragan Baru",
-    userId: "DC-" + Math.floor(Math.random() * 900000),
+    userId: null, // Nanti diisi otomatis saat Load
     plan: "FREE", 
-    
-    // STARTING BALANCE: 500 PTS (Sesuai Ekonomi Baru)
     coins: 500, 
-    
     lastActive: Date.now(),
     isFirstPlantDone: false, 
     totalHarvest: 0,
     totalSold: 0,
     has_withdrawn: false,
     faucetpay_email: null,
-    
-    // ITEM BARU (Market Integration)
     landPurchasedCount: 0,   
     extraStorage: 0,         
     adBoosterCooldown: 0,    
+    spin_free_cooldown: 0, 
     activeBuffs: {},
-    
     upline: null,
     referral_status: 'Pending',
     affiliate: { total_friends: 0, total_earnings: 0, friends_list: [] }
@@ -69,42 +63,72 @@ let GameState = {
     market: { prices: {}, lastRefresh: 0 },
     isLoaded: false,
 
-    // LOAD FUNCTION (Firebase)
     async load() {
         if (!window.db) return;
 
-        const localId = localStorage.getItem('dc_user_id');
-        if (localId) this.user.userId = localId;
+        // --- DETEKSI IDENTITAS USER (SANGAT PENTING) ---
+        let finalUserId = null;
+        let finalUsername = "Juragan Baru";
+        let isTelegram = false;
 
+        // 1. Cek Apakah di dalam Telegram?
+        if (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.initDataUnsafe && window.Telegram.WebApp.initDataUnsafe.user) {
+            // YES: Pakai ID Telegram (Permanen walaupun clear history)
+            const tgUser = window.Telegram.WebApp.initDataUnsafe.user;
+            finalUserId = "TG-" + tgUser.id;
+            finalUsername = tgUser.first_name + (tgUser.last_name ? " " + tgUser.last_name : "");
+            isTelegram = true;
+            
+            // Expand tampilan Telegram agar full screen
+            window.Telegram.WebApp.expand(); 
+            console.log("Logged in as Telegram User:", finalUserId);
+        } 
+        else {
+            // NO: Pakai LocalStorage (Browser Biasa)
+            const localId = localStorage.getItem('dc_user_id');
+            if (localId) {
+                finalUserId = localId;
+            } else {
+                // Buat ID baru jika belum ada
+                finalUserId = "WEB-" + Math.floor(Math.random() * 9000000);
+                localStorage.setItem('dc_user_id', finalUserId);
+            }
+            console.log("Logged in as Web User:", finalUserId);
+        }
+
+        this.user.userId = finalUserId;
+        
+        // --- AMBIL DATA DARI FIREBASE ---
         const userRef = window.fs.doc(window.db, "users", this.user.userId);
         try {
             const docSnap = await window.fs.getDoc(userRef);
 
             if (docSnap.exists()) {
                 const data = docSnap.data();
-                // Merge agar field baru (seperti activeBuffs) masuk ke user lama
+                // Merge data (Prioritas Data Cloud, tapi update Username jika dari Telegram)
                 this.user = { ...defaultUser, ...data.user };
+                if (isTelegram) this.user.username = finalUsername; // Selalu update nama sesuai Telegram
+                
                 this.warehouse = data.warehouse || {};
                 this.market = data.market || { prices: {}, lastRefresh: 0 };
                 this.farmPlots = data.farmPlots || [];
-                console.log("Firebase Data Loaded");
+                console.log("Firebase Data Loaded Successfully");
             } else {
-                localStorage.setItem('dc_user_id', this.user.userId);
-                await this.save();
+                // User Baru (Belum ada di Cloud)
+                this.user.username = isTelegram ? finalUsername : "Juragan Baru";
+                await this.save(); // Buat data baru di Cloud
+                console.log("New User Created in Cloud");
             }
 
             this.isLoaded = true;
-            // CATATAN: initSystems() DIHAPUS DARI SINI
-            // Karena sekarang dijalankan oleh bootstrap.js setelah load selesai.
-            
         } catch (e) {
             console.error("Load Failed:", e);
+            this.isLoaded = true; 
         }
     },
 
-    // SAVE FUNCTION
     async save() {
-        if (!window.db || !this.isLoaded) return;
+        if (!window.db || !this.isLoaded || !this.user.userId) return;
         this.user.lastActive = Date.now();
         
         const userRef = window.fs.doc(window.db, "users", this.user.userId);
@@ -116,7 +140,6 @@ let GameState = {
                 farmPlots: this.farmPlots
             }, { merge: true });
             
-            // Update Header UI setiap kali save agar saldo sinkron
             if(window.UIEngine) UIEngine.updateHeader();
         } catch (e) {
             console.error("Save Failed:", e);
@@ -144,7 +167,7 @@ let GameState = {
     }
 };
 
-// Autosave setiap 10 detik
+// Autosave
 setInterval(() => {
     if(GameState.isLoaded) GameState.save();
 }, 10000);
