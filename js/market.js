@@ -208,6 +208,18 @@ const MarketSystem = {
         const multiplier = this.getSellMultiplier();
         const totalEarn = Math.floor(price * multiplier) * qty;
 
+        // --- TAMBAHAN LOG HISTORY UNTUK DASHBOARD ---
+        if (!GameState.user.sales_history) GameState.user.sales_history = [];
+        GameState.user.sales_history.unshift({
+            item: (window.HerbData && window.HerbData[key]) ? window.HerbData[key].name : key,
+            qty: qty,
+            price: totalEarn,
+            date: new Date().toLocaleTimeString()
+        });
+        // Batasi histori simpan cuma 10 terakhir biar database enteng
+        if (GameState.user.sales_history.length > 5) GameState.user.sales_history.pop();
+        // --------------------------------------------
+
         GameState.user.coins += totalEarn;
         GameState.user.totalSold += totalEarn;
         GameState.warehouse[key] -= qty;
