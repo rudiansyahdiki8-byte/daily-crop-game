@@ -4,8 +4,8 @@
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;700;800&display=swap');
 
 body { 
-    background-color: #05080f; 
-    color: #f8fafc; 
+    background: linear-gradient(to bottom, #0c1834, #343131);
+    color: #eaedf0;
     font-family: 'Plus Jakarta Sans', sans-serif; 
     overflow: hidden; /* Mencegah scroll pada body utama */
     height: 100vh;
