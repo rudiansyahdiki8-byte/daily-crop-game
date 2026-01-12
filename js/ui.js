@@ -66,20 +66,95 @@ const UIEngine = {
         if (planEl) planEl.innerText = planName;
     },
 
-    updateDashboard() {
-        // Update statistik di Dashboard dari Cloud
+updateDashboard() {
+        if (!GameState.user) return;
         const user = GameState.user;
-        const dashboardName = document.querySelector('#Dashboard h1');
-        const dashboardId = document.querySelector('#Dashboard .bg-blue-500\\/10 span');
-        const dashboardHarvest = document.querySelectorAll('#Dashboard .glass .text-2xl')[0];
-        const dashboardSold = document.querySelectorAll('#Dashboard .glass .text-2xl')[1];
 
-        if (dashboardName) dashboardName.innerText = user.username;
-        if (dashboardId) dashboardId.innerText = `ID: ${user.userId.split('-')[1] || user.userId}`;
-        if (dashboardHarvest) dashboardHarvest.innerText = (user.totalHarvest || 0).toLocaleString();
-        if (dashboardSold) dashboardSold.innerText = (user.totalSold || 0).toLocaleString();
+        // 1. UPDATE CARD 1 (User Info Split)
+        const dName = document.getElementById('dash-username');
+        const dId = document.getElementById('dash-id');
+        const dPlan = document.getElementById('dash-plan');
+        const dHarvest = document.getElementById('dash-harvest');
+        const dSold = document.getElementById('dash-sold');
+
+        if (dName) dName.innerText = user.username;
+        if (dId) dId.innerText = `ID: ${user.userId ? user.userId.replace('TG-', '') : '...'}`;
+        if (dPlan) dPlan.innerText = window.PlanConfig[user.plan]?.name || user.plan;
+        if (dHarvest) dHarvest.innerText = (user.totalHarvest || 0).toLocaleString();
+        if (dSold) dSold.innerText = (user.totalSold || 0).toLocaleString();
+
+        // 2. UPDATE CARD 2 (Mini Warehouse)
+        this.renderMiniWarehouse();
+
+        // 3. UPDATE CARD 3 (Sales History)
+        this.renderSalesHistory();
     },
 
+    renderMiniWarehouse() {
+        const container = document.getElementById('mini-warehouse-grid');
+        if (!container || !GameState.warehouse) return;
+
+        container.innerHTML = '';
+        let hasItem = false;
+
+        Object.keys(GameState.warehouse).forEach(key => {
+            const count = GameState.warehouse[key];
+            if (count > 0) {
+                hasItem = true;
+                const img = (window.HerbData && window.HerbData[key]) ? window.HerbData[key].img : '';
+                
+                // Buat Kotak Kecil
+                container.innerHTML += `
+                    <div class="shrink-0 w-12 h-12 bg-black/30 rounded-xl border border-white/5 flex flex-col items-center justify-center relative">
+                        <img src="${img}" class="w-6 h-6 object-contain mb-1">
+                        <span class="text-[8px] font-bold text-white absolute bottom-0.5 right-1">${count}</span>
+                    </div>
+                `;
+            }
+        });
+
+        if (!hasItem) {
+            container.innerHTML = `<span class="text-[9px] text-gray-600 w-full text-center py-2">Empty Storage</span>`;
+        }
+    },
+
+    renderSalesHistory() {
+        const container = document.getElementById('sales-history-list');
+        // Kita butuh data history. Nanti kita edit market.js untuk simpan history.
+        // Untuk sementara kita ambil dari GameState.user.sales_history
+        const history = GameState.user.sales_history || [];
+
+        if (!container) return;
+        container.innerHTML = '';
+
+        if (history.length === 0) {
+            container.innerHTML = `<div class="text-center py-4"><p class="text-[9px] text-gray-600 font-bold uppercase">No sales record</p></div>`;
+            return;
+        }
+
+        // Tampilkan 5 history terakhir
+        history.slice(0, 5).forEach(tx => {
+            container.innerHTML += `
+                <div class="bg-white/5 p-2 rounded-xl flex justify-between items-center border border-white/5">
+                    <div class="flex items-center gap-2">
+                        <i class="fas fa-sack-dollar text-yellow-500 text-xs"></i>
+                        <div>
+                            <p class="text-[9px] font-black text-white uppercase">SOLD ${tx.item}</p>
+                            <p class="text-[7px] text-gray-400">${tx.date}</p>
+                        </div>
+                    </div>
+                    <div class="text-right">
+                        <p class="text-[9px] font-black text-emerald-400">+${tx.price}</p>
+                    </div>
+                </div>
+            `;
+        });
+    },
+
+    // Tambahkan helper ini untuk membuka warehouse dari klik card
+    showWarehouse() {
+        if(window.WarehouseSystem) WarehouseSystem.show();
+    },
     openWithdraw() {
         const modal = document.getElementById('withdraw-modal');
         if (modal) {
