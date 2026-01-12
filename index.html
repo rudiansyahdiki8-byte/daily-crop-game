@@ -4,12 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Daily Crop - Farming Game</title>
-    
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
-    
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    
     <link rel="stylesheet" href="style.css">
 </head>
 <body class="bg-[#05080f] text-white overflow-hidden h-screen w-screen selection:bg-emerald-500/30 font-sans">
@@ -25,7 +22,6 @@
                 <p id="display-plan" class="text-[7px] text-emerald-500 font-bold uppercase tracking-wider">...</p>
             </div>
         </div>
-
         <button onclick="UIEngine.openWithdraw();" class="group flex items-center gap-3 bg-white/5 border border-white/10 px-3 py-1.5 rounded-2xl active:scale-95 transition-all hover:border-emerald-500/30 hover:bg-emerald-500/10">
             <div class="text-right">
                 <p class="text-[7px] text-gray-400 font-black uppercase group-hover:text-emerald-400 transition-colors">Wallet</p>
@@ -39,20 +35,51 @@
 
     <main id="main-content" class="h-full pt-20 pb-28 px-4 overflow-y-auto no-scrollbar relative">
         
-        <div id="Dashboard" class="flex flex-col gap-4 animate-in">
-             <div class="glass p-6 rounded-[2rem] border border-white/10 flex flex-col items-center justify-center h-40">
-                <i class="fas fa-circle-notch animate-spin text-emerald-500 text-2xl"></i>
+        <div id="Dashboard" class="flex flex-col gap-4 animate-in pb-28">
+            <div class="glass p-6 rounded-[2.5rem] border border-white/10 relative overflow-hidden">
+                <div class="absolute top-0 right-0 w-32 h-32 bg-emerald-500/20 rounded-full blur-3xl -mr-10 -mt-10"></div>
+                <div class="relative z-10 flex flex-col items-center text-center">
+                    <div class="w-20 h-20 mb-3 rounded-full p-1 bg-gradient-to-br from-emerald-400 to-emerald-900 shadow-xl">
+                        <div class="w-full h-full rounded-full bg-black/50 flex items-center justify-center overflow-hidden">
+                            <i class="fas fa-user-astronaut text-3xl text-white"></i>
+                        </div>
+                    </div>
+                    <h1 class="text-2xl font-black text-white uppercase italic tracking-wider mb-1">Player</h1>
+                    <div class="bg-blue-500/10 border border-blue-500/30 px-3 py-1 rounded-lg mb-4">
+                        <span class="text-[9px] font-mono text-blue-300 font-bold uppercase tracking-widest">ID: ...</span>
+                    </div>
+                    <div class="grid grid-cols-2 gap-3 w-full">
+                        <div class="bg-black/20 p-3 rounded-2xl border border-white/5">
+                            <p class="text-[8px] text-gray-400 uppercase font-bold mb-1">Total Harvest</p>
+                            <p class="text-2xl font-black text-emerald-400">0</p>
+                        </div>
+                        <div class="bg-black/20 p-3 rounded-2xl border border-white/5">
+                            <p class="text-[8px] text-gray-400 uppercase font-bold mb-1">Items Sold</p>
+                            <p class="text-2xl font-black text-yellow-400">0</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+                <button onclick="UIEngine.navigate('FarmingHouse')" class="glass p-4 rounded-3xl border border-white/10 flex flex-col items-center gap-2 group active:scale-95 transition-all hover:border-emerald-500/30">
+                    <div class="w-10 h-10 bg-emerald-500/20 rounded-xl flex items-center justify-center group-hover:bg-emerald-500 text-emerald-400 group-hover:text-black transition-colors">
+                        <i class="fas fa-seedling text-lg"></i>
+                    </div>
+                    <span class="text-[9px] font-black uppercase text-white">Start Farming</span>
+                </button>
+                <button onclick="UIEngine.navigate('Shop')" class="glass p-4 rounded-3xl border border-white/10 flex flex-col items-center gap-2 group active:scale-95 transition-all hover:border-yellow-500/30">
+                    <div class="w-10 h-10 bg-yellow-500/20 rounded-xl flex items-center justify-center group-hover:bg-yellow-500 text-yellow-400 group-hover:text-black transition-colors">
+                        <i class="fas fa-store text-lg"></i>
+                    </div>
+                    <span class="text-[9px] font-black uppercase text-white">Marketplace</span>
+                </button>
             </div>
         </div>
 
         <div id="FarmingHouse" class="hidden h-full flex flex-col animate-in"></div>
-
         <div id="Shop" class="hidden flex flex-col h-full animate-in"></div>
-
         <div id="SubscibePlan" class="hidden flex flex-col h-full animate-in"></div>
-
         <div id="Affiliate" class="hidden flex flex-col h-full animate-in"></div>
-
     </main>
 
     <div class="fixed bottom-28 right-4 flex flex-col gap-3 z-40">
@@ -91,32 +118,33 @@
     <div id="withdraw-modal" class="fixed inset-0 z-[200] hidden items-center justify-center p-6 bg-black/95 backdrop-blur-xl animate-in">
         <div id="withdraw-area" class="w-full"></div>
     </div>
-
     <div id="warehouse-modal" class="fixed inset-0 z-[200] hidden items-center justify-center p-6 bg-black/95 backdrop-blur-xl animate-in">
-        <div class="glass p-0 rounded-[2.5rem] border border-white/10 w-full max-w-sm relative overflow-hidden flex flex-col max-h-[85vh] shadow-2xl shadow-emerald-900/20">
-             </div>
+        <div class="glass p-0 rounded-[2.5rem] border border-white/10 w-full max-w-sm relative overflow-hidden flex flex-col max-h-[85vh] shadow-2xl shadow-emerald-900/20"></div>
     </div>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
         import { getFirestore, doc, getDoc, setDoc, updateDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-        // CONFIG FIREBASE ANDA (JANGAN DIUBAH/DIHAPUS BAGIAN INI)
+        // ==========================================
+        // CONFIG FIREBASE ANDA DI BAWAH INI
+        // Hapus Config Orang Lain, Tempel Config Anda!
+        // ==========================================
         const firebaseConfig = {
-            apiKey: "AIzaSyCGefQXaiXZBHHGDiQkhiEzZ81vE2g-kys",
-            authDomain: "herbgatherer-51ddf.firebaseapp.com",
-            projectId: "herbgatherer-51ddf",
-            storageBucket: "herbgatherer-51ddf.firebasestorage.app",
-            messagingSenderId: "51585903790",
-            appId: "1:51585903790:web:058a5df8dc5c44d912513f",
-            measurementId: "G-6FYEJ2TTL6"
+        apiKey: "AIzaSyCGefQXaiXZBHHGDiQkhiEzZ81vE2g-kys",
+        authDomain: "herbgatherer-51ddf.firebaseapp.com",
+        projectId: "herbgatherer-51ddf",
+        storageBucket: "herbgatherer-51ddf.firebasestorage.app",
+        messagingSenderId: "51585903790",
+        appId: "1:51585903790:web:058a5df8dc5c44d912513f",
+        measurementId: "G-6FYEJ2TTL6"
         };
+        // ==========================================
 
         const app = initializeApp(firebaseConfig);
         window.db = getFirestore(app);
         window.fs = { doc, getDoc, setDoc, updateDoc, onSnapshot };
 
-        // TRIGGER LOAD GAME
         window.addEventListener('load', () => {
             setTimeout(() => {
                 if(window.initGame) {
@@ -138,8 +166,6 @@
     <script src="js/withdraw.js"></script>
     <script src="js/affiliate.js"></script>
     <script src="js/ui.js"></script>
-    
     <script src="js/bootstrap.js"></script>
-
 </body>
 </html>
