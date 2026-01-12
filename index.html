@@ -22,16 +22,17 @@
             </div>
         </div>
         
-        <div class="group flex items-center gap-3 bg-white/5 border border-white/10 px-3 py-1.5 rounded-2xl">
+        <button onclick="UIEngine.openWithdraw();" class="group flex items-center gap-3 bg-white/5 border border-white/10 px-3 py-1.5 rounded-2xl active:scale-95 transition-all hover:border-emerald-500/30 hover:bg-emerald-500/10">
             <div class="text-right">
-                <p class="text-[7px] text-gray-400 font-black uppercase">Wallet</p>
-                <p id="header-coins" class="text-[10px] font-black text-white">Loading...</p>
+                <p class="text-[7px] text-gray-400 font-black uppercase group-hover:text-emerald-400 transition-colors">Wallet</p>
+                <p id="header-coins" class="text-[10px] font-black text-white">...</p>
             </div>
-            <div class="w-8 h-8 bg-[#1a1a1a] rounded-xl flex items-center justify-center border border-white/5 shadow-inner">
+            <div class="w-8 h-8 bg-[#1a1a1a] rounded-xl flex items-center justify-center border border-white/5 shadow-inner group-hover:shadow-emerald-500/20 transition-all">
                 <i class="fas fa-wallet text-emerald-500"></i>
             </div>
-        </div>
-    </header>
+        </button>
+
+   </header>
 
     <main id="main-content" class="h-full pt-20 pb-28 px-4 overflow-y-auto no-scrollbar relative">
         
