@@ -1,0 +1,2144 @@
+=== index.html ===
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Daily Crop - Farming Game</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <script src="https://unpkg.com/@lottiefiles/lottie-player@latest/dist/lottie-player.js"></script>
+    
+    <link rel="stylesheet" href="style.css">
+</head>
+<body class="bg-[#05080f] text-white overflow-hidden h-screen w-screen selection:bg-emerald-500/30">
+
+    <header class="fixed top-0 left-0 right-0 z-50 bg-black/80 backdrop-blur-md border-b border-white/5 px-4 py-3 flex justify-between items-center transition-all duration-300">
+        <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500/20 to-emerald-900/20 border border-emerald-500/30 flex items-center justify-center relative overflow-hidden">
+                <i class="fas fa-user text-emerald-400 z-10"></i>
+                <div class="absolute inset-0 bg-emerald-500/10 animate-pulse"></div>
+            </div>
+            <div>
+                <p id="display-username" class="text-[10px] font-black uppercase text-white tracking-widest leading-tight">Farmer One</p>
+                <p id="display-plan" class="text-[7px] text-emerald-500 font-bold uppercase tracking-wider">Free Plan</p>
+            </div>
+        </div>
+
+        <button onclick="UIEngine.openWithdraw(); if(window.WithdrawSystem) WithdrawSystem.init();" 
+                class="group flex items-center gap-3 bg-white/5 border border-white/10 px-3 py-1.5 rounded-2xl active:scale-95 transition-all hover:border-emerald-500/30">
+            <div class="text-right">
+                <p class="text-[7px] text-gray-400 font-black uppercase group-hover:text-emerald-400 transition-colors">Balance</p>
+                <p id="header-coins" class="text-[10px] font-black text-white">0 PTS</p>
+            </div>
+            <div class="w-8 h-8 bg-[#1a1a1a] rounded-xl flex items-center justify-center border border-white/5 shadow-inner">
+                <img width="20" height="20" src="https://img.icons8.com/nolan/64/wallet.png" alt="wallet"/>
+            </div>
+        </button>
+    </header>
+
+    <main id="main-content" class="h-full pt-20 pb-28 px-4 overflow-y-auto no-scrollbar relative">
+        
+        <div id="Dashboard" class="flex flex-col gap-4 animate-in">
+            <div class="glass p-6 rounded-[2rem] border border-white/10 relative overflow-hidden group">
+                <div class="absolute top-0 right-0 p-6 opacity-5 group-hover:opacity-10 transition-opacity"><i class="fas fa-tractor text-8xl transform -rotate-12"></i></div>
+                <h3 class="text-[9px] text-gray-400 font-bold uppercase tracking-widest mb-1">Welcome Back</h3>
+                <h1 class="text-2xl font-black text-white uppercase italic tracking-wider">Farmer One</h1>
+                
+                <div class="mt-4 flex gap-3">
+                    <div class="bg-emerald-500/10 px-3 py-1 rounded-lg border border-emerald-500/20">
+                        <span class="text-[8px] font-black text-emerald-400 uppercase">Level 1</span>
+                    </div>
+                    <div class="bg-blue-500/10 px-3 py-1 rounded-lg border border-blue-500/20">
+                        <span class="text-[8px] font-black text-blue-400 uppercase">ID: 8829</span>
+                    </div>
+                </div>
+            </div>
+
+            <div onclick="WarehouseSystem.show()" class="glass p-4 rounded-[2rem] border border-white/10 flex items-center justify-between active:scale-95 transition-all cursor-pointer hover:bg-white/5">
+                <div class="flex items-center gap-4">
+                    <div class="w-12 h-12 rounded-full bg-amber-500/10 flex items-center justify-center text-amber-500 border border-amber-500/20">
+                        <i class="fas fa-warehouse text-xl"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-sm font-bold text-white uppercase">Warehouse</h3>
+                        <p class="text-[9px] text-gray-400 font-medium">Check your harvest stock</p>
+                    </div>
+                </div>
+                <i class="fas fa-chevron-right text-gray-600"></i>
+            </div>
+            
+            <div class="grid grid-cols-2 gap-3">
+                <div class="glass p-4 rounded-3xl border border-white/5 flex flex-col items-center justify-center py-6">
+                    <span class="text-2xl font-black text-white">0</span>
+                    <span class="text-[8px] text-gray-500 uppercase font-bold mt-1">Total Harvest</span>
+                </div>
+                <div class="glass p-4 rounded-3xl border border-white/5 flex flex-col items-center justify-center py-6">
+                    <span class="text-2xl font-black text-white">0</span>
+                    <span class="text-[8px] text-gray-500 uppercase font-bold mt-1">Total Sold</span>
+                </div>
+            </div>
+        </div>
+
+        <div id="FarmingHouse" class="hidden h-full flex flex-col animate-in">
+            <div class="flex-1 flex gap-3 h-full pb-6">
+                
+                <div class="w-16 flex flex-col gap-2 overflow-y-auto no-scrollbar py-1">
+                    <button id="task-plant" onclick="FarmSystem.useAction('plant')" class="w-full aspect-square glass rounded-2xl flex flex-col items-center justify-center border-emerald-500/20 active:scale-90 transition-all group hover:bg-emerald-500/10">
+                        <i class="fas fa-leaf text-emerald-500 text-xs mb-1 group-hover:animate-bounce"></i>
+                        <span class="text-[5px] font-black uppercase text-center leading-tight text-emerald-100">Plant<br>Herbs</span>
+                    </button>
+                    
+                    <button id="task-water" onclick="FarmSystem.completeDailyTask('water')" class="w-full aspect-square glass rounded-2xl flex flex-col items-center justify-center border-blue-500/20 active:scale-90 transition-all hover:bg-blue-500/10">
+                        <i class="fas fa-tint text-blue-400 text-xs mb-1"></i>
+                        <span class="text-[5px] font-black uppercase text-center leading-tight text-blue-100">Watering<br>Herb</span>
+                    </button>
+
+                    <button id="task-pest" onclick="FarmSystem.completeDailyTask('pest')" class="w-full aspect-square glass rounded-2xl flex flex-col items-center justify-center border-red-500/20 active:scale-90 transition-all hover:bg-red-500/10">
+                        <i class="fas fa-bug text-red-400 text-xs mb-1"></i>
+                        <span class="text-[5px] font-black uppercase text-center leading-tight text-red-100">Pest<br>Control</span>
+                    </button>
+                    
+                     <button id="task-fertilizer" onclick="FarmSystem.completeDailyTask('fertilizer')" class="w-full aspect-square glass rounded-2xl flex flex-col items-center justify-center border-amber-500/20 active:scale-90 transition-all hover:bg-amber-500/10">
+                        <i class="fas fa-poop text-amber-400 text-xs mb-1"></i>
+                        <span class="text-[5px] font-black uppercase text-center leading-tight text-amber-100">Apply<br>Fertilizer</span>
+                    </button>
+                </div>
+
+                <div id="farm-grid" class="flex-1 grid grid-cols-2 grid-rows-4 gap-3 h-full content-start">
+                    <div id="plot-1"></div>
+                    <div id="plot-2"></div>
+                    <div id="plot-3"></div>
+                    <div id="plot-4"></div>
+                    <div id="plot-5"></div>
+                    <div id="plot-6"></div>
+                    <div id="plot-7"></div>
+                    <div id="plot-8"></div>
+                </div>
+            </div>
+        </div>
+
+        <div id="Shop" class="hidden flex flex-col items-center justify-center h-full animate-in text-center opacity-50">
+            <i class="fas fa-store-slash text-4xl text-gray-600 mb-3"></i>
+            <h2 class="text-sm font-black uppercase">Market Closed</h2>
+            <p class="text-[9px] uppercase tracking-widest">Opening Soon</p>
+        </div>
+
+        <div id="SubscibePlan" class="hidden flex flex-col items-center justify-center h-full animate-in text-center opacity-50">
+            <i class="fas fa-crown text-4xl text-gray-600 mb-3"></i>
+            <h2 class="text-sm font-black uppercase">Subscription</h2>
+            <p class="text-[9px] uppercase tracking-widest">Upgrade Coming Soon</p>
+        </div>
+
+        <div id="Affiliate" class="hidden flex flex-col items-center justify-center h-full animate-in text-center opacity-50">
+            <i class="fas fa-users text-4xl text-gray-600 mb-3"></i>
+            <h2 class="text-sm font-black uppercase">Affiliate</h2>
+            <p class="text-[9px] uppercase tracking-widest">Invite Friends Soon</p>
+        </div>
+
+    </main>
+
+    <div class="fixed bottom-28 right-4 flex flex-col gap-3 z-40">
+        <a href="https://t.me/DailyCropBot" target="_blank" class="w-10 h-10 bg-[#229ED9] rounded-full flex items-center justify-center shadow-lg hover:scale-110 transition-transform border border-white/10">
+            <i class="fab fa-telegram-plane text-white text-lg"></i>
+        </a>
+        <button onclick="UIEngine.showPrivacy()" class="w-10 h-10 bg-gray-700 rounded-full flex items-center justify-center shadow-lg hover:scale-110 transition-transform border border-white/10">
+            <i class="fas fa-user-shield text-gray-300 text-sm"></i>
+        </button>
+        <button onclick="UIEngine.showTermsModal()" class="w-10 h-10 bg-gray-800 rounded-full flex items-center justify-center shadow-lg hover:scale-110 transition-transform border border-white/10">
+            <i class="fas fa-file-contract text-gray-300 text-sm"></i>
+        </button>
+    </div>
+
+    <nav class="fixed bottom-6 left-4 right-4 h-20 glass rounded-[2.5rem] flex justify-around items-center z-50 border border-white/10 shadow-2xl bg-black/60 backdrop-blur-xl">
+        <button onclick="UIEngine.navigate('Dashboard')" class="nav-item flex flex-col items-center text-emerald-500 scale-110 transition-all duration-300">
+            <i class="fas fa-th-large text-xl mb-1"></i>
+            <span class="text-[7px] font-black uppercase tracking-wider">Home</span>
+        </button>
+        <button onclick="UIEngine.navigate('FarmingHouse')" class="nav-item flex flex-col items-center text-gray-500 hover:text-emerald-400 transition-all duration-300">
+            <i class="fas fa-seedling text-xl mb-1"></i>
+            <span class="text-[7px] font-black uppercase tracking-wider">Farm</span>
+        </button>
+        <button onclick="UIEngine.navigate('Shop')" class="nav-item flex flex-col items-center text-gray-500 hover:text-emerald-400 transition-all duration-300">
+            <i class="fas fa-store text-xl mb-1"></i>
+            <span class="text-[7px] font-black uppercase tracking-wider">Market</span>
+        </button>
+        <button onclick="UIEngine.navigate('SubscibePlan')" class="nav-item flex flex-col items-center text-gray-500 hover:text-emerald-400 transition-all duration-300">
+            <i class="fas fa-gem text-xl mb-1"></i>
+            <span class="text-[7px] font-black uppercase tracking-wider">Plan</span>
+        </button>
+        <button onclick="UIEngine.navigate('Affiliate')" class="nav-item flex flex-col items-center text-gray-500 hover:text-emerald-400 transition-all duration-300 relative">
+            <i class="fas fa-users text-xl mb-1"></i>
+            <span id="affiliate-dot" class="absolute top-0 right-3 w-1.5 h-1.5 bg-red-500 rounded-full animate-ping hidden"></span>
+            <span class="text-[7px] font-black uppercase tracking-wider">Team</span>
+        </button>
+    </nav>
+
+    <div id="withdraw-modal" class="fixed inset-0 z-[200] hidden flex items-center justify-center p-6 bg-black/95 backdrop-blur-xl">
+        <div class="glass p-6 rounded-[2.5rem] border border-white/10 w-full max-w-sm animate-in relative overflow-hidden flex flex-col max-h-[90vh]">
+            <button onclick="UIEngine.closeWithdraw()" class="absolute top-6 right-6 text-gray-500 z-50 hover:text-white"><i class="fas fa-times"></i></button>
+            
+            <h2 class="text-xl font-black uppercase italic text-emerald-500 tracking-widest mb-6 flex items-center gap-2">
+                <i class="fas fa-wallet"></i> Wallet
+            </h2>
+
+            <div class="flex gap-2 mb-6 bg-white/5 p-1 rounded-2xl border border-white/5 shrink-0">
+                <button id="tab-wd-btn" onclick="WithdrawSystem.switchTab('withdraw')" class="flex-1 py-3 rounded-xl text-[10px] font-black uppercase transition-all bg-emerald-500 text-black shadow-lg">Withdraw</button>
+                <button id="tab-dep-btn" onclick="WithdrawSystem.switchTab('deposit')" class="flex-1 py-3 rounded-xl text-[10px] font-black uppercase transition-all text-gray-400 hover:text-white">Deposit</button>
+            </div>
+
+            <div class="overflow-y-auto no-scrollbar flex-1 pb-4">
+                <div id="withdraw-area" class="relative z-10 animate-in">
+                    <p class="text-[8px] text-gray-500 font-bold uppercase mb-2">Select Network</p>
+                    <div class="grid grid-cols-4 gap-2 mb-6">
+                        <button onclick="WithdrawSystem.select('BTC')" class="p-2 glass rounded-2xl flex flex-col items-center border border-white/5 active:scale-95 transition-all hover:bg-orange-500/10 hover:border-orange-500/30"><i class="fab fa-bitcoin text-orange-500 mb-1"></i><span class="text-[6px] font-black">BTC</span></button>
+                        <button onclick="WithdrawSystem.select('USDT')" class="p-2 glass rounded-2xl flex flex-col items-center border border-white/5 active:scale-95 transition-all hover:bg-emerald-500/10 hover:border-emerald-500/30"><i class="fas fa-dollar-sign text-emerald-500 mb-1"></i><span class="text-[6px] font-black">USDT</span></button>
+                        <button onclick="WithdrawSystem.select('ETH')" class="p-2 glass rounded-2xl flex flex-col items-center border border-white/5 active:scale-95 transition-all hover:bg-purple-500/10 hover:border-purple-500/30"><i class="fab fa-ethereum text-purple-400 mb-1"></i><span class="text-[6px] font-black">ETH</span></button>
+                        <button onclick="WithdrawSystem.select('TRX')" class="p-2 glass rounded-2xl flex flex-col items-center border border-white/5 active:scale-95 transition-all hover:bg-red-500/10 hover:border-red-500/30"><i class="fas fa-gem text-red-500 mb-1"></i><span class="text-[6px] font-black">TRX</span></button>
+                    </div>
+
+                    <div class="relative mb-2">
+                        <input type="number" id="wd-amount" class="w-full bg-black/40 border border-white/10 rounded-2xl px-5 py-4 text-sm font-black text-white outline-none focus:border-emerald-500/50 transition-all" placeholder="0.00">
+                        <button onclick="WithdrawSystem.setMax()" class="absolute right-3 top-3 bg-emerald-500 text-black text-[8px] font-black px-3 py-2 rounded-xl active:scale-95">MAX</button>
+                    </div>
+                    
+                    <p id="wd-preview" class="text-[8px] text-emerald-500 font-mono text-right mb-6">Receive: 0 <span id="selected-symbol">TRX</span></p>
+
+                    <button onclick="WithdrawSystem.process()" class="w-full bg-emerald-500 text-black py-4 rounded-[1.5rem] font-black uppercase text-[10px] shadow-[0_5px_20px_rgba(16,185,129,0.3)] active:scale-95 transition-all tracking-widest flex items-center justify-center gap-2">
+                        <span>Process</span> <i class="fas fa-arrow-right"></i>
+                    </button>
+                </div>
+
+                <div id="deposit-area" class="hidden relative z-10 py-10 text-center animate-in">
+                    <div class="w-20 h-20 mx-auto bg-amber-500/10 rounded-full flex items-center justify-center mb-4 border border-amber-500/20 animate-pulse">
+                        <i class="fas fa-tools text-amber-500 text-2xl"></i>
+                    </div>
+                    <h3 class="font-black italic text-lg text-white uppercase mb-2 tracking-widest">Maintenance</h3>
+                    <p class="text-[10px] text-gray-400 font-bold uppercase max-w-[200px] mx-auto leading-relaxed">
+                        Deposit gateway is currently undergoing upgrades.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="warehouse-modal" class="fixed inset-0 z-[200] hidden items-center justify-center p-6 bg-black/95 backdrop-blur-xl">
+        <div class="glass p-0 rounded-[2.5rem] border border-white/10 w-full max-w-sm animate-in relative overflow-hidden flex flex-col max-h-[85vh] shadow-2xl shadow-emerald-900/20">
+            
+            <div class="p-6 pb-4 bg-gradient-to-b from-white/5 to-transparent border-b border-white/5 relative">
+                <button onclick="WarehouseSystem.close()" class="absolute top-6 right-6 w-8 h-8 rounded-full bg-white/5 flex items-center justify-center text-gray-400 hover:bg-red-500 hover:text-white transition-all z-10">
+                    <i class="fas fa-times text-xs"></i>
+                </button>
+                
+                <h2 class="text-xl font-black uppercase italic text-emerald-500 tracking-widest flex items-center gap-2">
+                    <i class="fas fa-warehouse"></i> Storage
+                </h2>
+                
+                <div class="mt-4 w-full h-5 bg-black/60 rounded-full overflow-hidden border border-white/10 relative">
+                    <div id="warehouse-progress" class="h-full bg-emerald-500 w-0 transition-all duration-700 ease-out relative"></div>
+                    <span id="warehouse-limit-text" class="absolute inset-0 flex items-center justify-center text-[8px] font-black uppercase tracking-widest text-white drop-shadow-md z-10">Loading...</span>
+                </div>
+            </div>
+
+            <div id="warehouse-list" class="flex-1 overflow-y-auto p-6 grid grid-cols-3 gap-3 no-scrollbar content-start">
+                </div>
+
+            <div class="p-6 pt-4 border-t border-white/5 bg-black/40">
+                <button onclick="WarehouseSystem.goToSell()" class="w-full bg-gradient-to-r from-amber-500 to-orange-600 text-white py-4 rounded-[1.5rem] font-black uppercase text-[10px] shadow-lg shadow-orange-900/30 active:scale-95 transition-all tracking-widest flex items-center justify-center gap-2 group">
+                    <i class="fas fa-coins text-white group-hover:rotate-12 transition-transform"></i>
+                    Sell Items at Market
+                </button>
+            </div>
+        </div>
+    </div>
+
+<script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getFirestore, doc, getDoc, setDoc, updateDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyCGefQXaiXZBHHGDiQkhiEzZ81vE2g-kys",
+            authDomain: "herbgatherer-51ddf.firebaseapp.com",
+            projectId: "herbgatherer-51ddf",
+            storageBucket: "herbgatherer-51ddf.firebasestorage.app",
+            messagingSenderId: "51585903790",
+            appId: "1:51585903790:web:058a5df8dc5c44d912513f",
+            measurementId: "G-6FYEJ2TTL6"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        window.db = getFirestore(app);
+        window.fs = { doc, getDoc, setDoc, updateDoc, onSnapshot };
+        
+        // Pemicu awal setelah Firebase siap
+        if (window.GameState && typeof window.GameState.load === 'function') {
+            window.GameState.load();
+        }
+    </script>
+
+    <script src="js/herbs.js"></script>
+    <script src="js/state.js"></script>
+    <script src="js/farm.js"></script>
+    <script src="js/warehouse.js"></script>
+    <script src="js/market.js"></script>
+    <script src="js/plan.js"></script>
+    <script src="js/spin.js"></script>
+    <script src="js/withdraw.js"></script>
+    <script src="js/affiliate.js"></script>
+    <script src="js/ui.js"></script>
+
+
+</body>
+</html>
+
+=== style.css ===
+
+// js/state.js
+
+const PlanConfig = {
+    FREE: { name: "Free Farmer", basePlots: 1, maxPlots: 3, warehouseLimit: 120, ads: "High" },
+    MORTGAGE: { name: "Mortgage Farmer", basePlots: 4, maxPlots: 6, warehouseLimit: 240, ads: "Medium" },
+    TENANT: { name: "Tenant Farmer", basePlots: 6, maxPlots: 8, warehouseLimit: 500, ads: "None" },
+    OWNER: { name: "Owner Farmer", basePlots: 8, maxPlots: 12, warehouseLimit: 9999, ads: "None" }
+};
+
+const PriceRanges = {};
+const CropRarity = {};
+if (window.HerbData) {
+    for (const key in HerbData) {
+        PriceRanges[key] = { min: HerbData[key].minPrice, max: HerbData[key].maxPrice };
+        CropRarity[key] = { chance: HerbData[key].chance, rarity: HerbData[key].rarity };
+    }
+}
+
+const DropEngine = {
+    roll() {
+        const rand = Math.random() * 100;
+        let cumulative = 0;
+        for (const key in CropRarity) {
+            cumulative += CropRarity[key].chance;
+            if (rand <= cumulative) return key;
+        }
+        return 'ginger';
+    }
+};
+
+const defaultUser = {
+    username: "Juragan Baru",
+    userId: "DC-" + Math.floor(Math.random() * 900000),
+    plan: "FREE", 
+    coins: 500,
+    lastActive: Date.now(),
+    isFirstPlantDone: false, 
+    totalHarvest: 0,
+    totalSold: 0,
+    has_withdrawn: false,
+    faucetpay_email: null,
+    landPurchasedCount: 0,   
+    extraStorage: 0,         
+    adBoosterCooldown: 0,    
+    activeBuffs: {},
+    upline: null,
+    referral_status: 'Pending',
+    affiliate: { total_friends: 0, total_earnings: 0, friends_list: [] }
+};
+
+let GameState = {
+    user: { ...defaultUser },
+    warehouse: {},
+    farmPlots: [],
+    market: { prices: {}, lastRefresh: 0 },
+    isLoaded: false,
+
+    // Fungsi Load Baru (Cloud-based)
+    async load() {
+        if (!window.db) return;
+
+        const localId = localStorage.getItem('dc_user_id');
+        if (localId) this.user.userId = localId;
+
+        const userRef = window.fs.doc(window.db, "users", this.user.userId);
+        try {
+            const docSnap = await window.fs.getDoc(userRef);
+
+            if (docSnap.exists()) {
+                const data = docSnap.data();
+                this.user = { ...defaultUser, ...data.user };
+                this.warehouse = data.warehouse || {};
+                this.market = data.market || { prices: {}, lastRefresh: 0 };
+                this.farmPlots = data.farmPlots || [];
+                console.log("Firebase Data Loaded");
+            } else {
+                localStorage.setItem('dc_user_id', this.user.userId);
+                await this.save();
+            }
+
+            this.isLoaded = true;
+            this.initSystems(); // Memicu Chain (Plan, Farm, UI)
+        } catch (e) {
+            console.error("Load Failed:", e);
+        }
+    },
+
+    // Inisialisasi sistem setelah data siap
+    initSystems() {
+        if (window.UIEngine) {
+            UIEngine.updateHeader();
+            UIEngine.navigate('Dashboard');
+        }
+        if (window.PlanSystem) PlanSystem.init();
+        if (window.FarmSystem) FarmSystem.init();
+    },
+
+    async save() {
+        if (!window.db || !this.isLoaded) return;
+        this.user.lastActive = Date.now();
+        
+        const userRef = window.fs.doc(window.db, "users", this.user.userId);
+        try {
+            await window.fs.setDoc(userRef, {
+                user: this.user,
+                warehouse: this.warehouse,
+                market: this.market,
+                farmPlots: this.farmPlots
+            }, { merge: true });
+            if(window.UIEngine) UIEngine.updateHeader();
+        } catch (e) {
+            console.error("Save Failed:", e);
+        }
+    },
+
+    refreshMarketPrices() {
+        const now = Date.now();
+        if (now - this.market.lastRefresh > 3600000 || Object.keys(this.market.prices).length === 0) {
+            let newPrices = {};
+            for (const key in PriceRanges) {
+                const range = PriceRanges[key];
+                newPrices[key] = Math.floor(Math.random() * (range.max - range.min + 1)) + range.min;
+            }
+            this.market.prices = newPrices;
+            this.market.lastRefresh = now;
+            this.save();
+            return true;
+        }
+        return false;
+    },
+
+    getPrice(key) {
+        return (this.market.prices && this.market.prices[key]) ? this.market.prices[key] : (PriceRanges[key]?.min || 10);
+    }
+};
+
+// Autosave setiap 10 detik
+setInterval(() => {
+    if(GameState.isLoaded) GameState.save();
+}, 10000);
+
+window.GameState = GameState;
+window.PlanConfig = PlanConfig;
+window.CropRarity = CropRarity;
+window.DropEngine = DropEngine;
+window.PriceRanges = PriceRanges;
+
+
+=== herb.js ===
+
+// js/herbs.js
+const HerbData = {
+    // COMMON
+    ginger:      { name: 'Ginger', time: 180, img: 'https://img.icons8.com/color/96/ginger.png', minPrice: 20, maxPrice: 35, chance: 10.0, rarity: 'Common' },
+    turmeric:    { name: 'Turmeric', time: 180, img: 'https://img.icons8.com/color/96/turmeric.png', minPrice: 22, maxPrice: 38, chance: 10.0, rarity: 'Common' },
+    galangal:    { name: 'Galangal', time: 180, img: 'https://img.icons8.com/external-flaticons-flat-flat-icons/64/external-ginger-vegetables-flaticons-flat-flat-icons-2.png', minPrice: 25, maxPrice: 40, chance: 10.0, rarity: 'Common' },
+    lemongrass:  { name: 'Lemongrass', time: 180, img: 'https://img.icons8.com/color/96/lemongrass.png', minPrice: 28, maxPrice: 45, chance: 10.0, rarity: 'Common' },
+    cassava:     { name: 'Cassava', time: 180, img: 'https://img.icons8.com/color/96/cassava.png', minPrice: 30, maxPrice: 50, chance: 10.0, rarity: 'Common' },
+
+    // UNCOMMON
+    chili:       { name: 'Red Chili', time: 240, img: 'https://img.icons8.com/color/96/chili-pepper.png', minPrice: 50, maxPrice: 80, chance: 6.0, rarity: 'Uncommon' },
+    pepper:      { name: 'Pepper', time: 240, img: 'https://img.icons8.com/color/96/pepper-shaker.png', minPrice: 55, maxPrice: 85, chance: 6.0, rarity: 'Uncommon' },
+    onion:       { name: 'Onion', time: 240, img: 'https://img.icons8.com/color/96/onion.png', minPrice: 60, maxPrice: 90, chance: 6.0, rarity: 'Uncommon' },
+    garlic:      { name: 'White Garlic', time: 28, img: 'https://img.icons8.com/color/96/garlic.png', minPrice: 65, maxPrice: 95, chance: 6.0, rarity: 'Uncommon' },
+    paprika:     { name: 'Paprika', time: 240, img: 'https://img.icons8.com/color/96/paprika.png', minPrice: 70, maxPrice: 100, chance: 6.0, rarity: 'Uncommon' },
+
+    // RARE
+    aloeVera:    { name: 'Aloe Vera', time: 300, img: 'https://img.icons8.com/external-flaticons-lineal-color-flat-icons/64/external-aloe-vera-plants-flaticons-lineal-color-flat-icons.png', minPrice: 120, maxPrice: 180, chance: 3.0, rarity: 'Rare' },
+    mint:        { name: 'Mint Leaf', time: 300, img: 'https://img.icons8.com/color/96/mint.png', minPrice: 130, maxPrice: 190, chance: 3.0, rarity: 'Rare' },
+    lavender:    { name: 'Lavender', time: 300, img: 'https://img.icons8.com/color/96/lavender.png', minPrice: 150, maxPrice: 220, chance: 3.0, rarity: 'Rare' },
+    stevia:      { name: 'Stevia', time: 300, img: 'https://img.icons8.com/color/96/tea-plant.png', minPrice: 160, maxPrice: 240, chance: 3.0, rarity: 'Rare' },
+    basil:       { name: 'Basil', time: 300, img: 'https://img.icons8.com/color/96/basil.png', minPrice: 170, maxPrice: 250, chance: 3.0, rarity: 'Rare' },
+
+    // EPIC
+    cinnamon:    { name: 'Cinnamon', time: 360, img: 'https://img.icons8.com/external-flaticons-flat-flat-icons/64/external-cinnamon-coffee-flaticons-flat-flat-icons.png', minPrice: 400, maxPrice: 600, chance: 1.0, rarity: 'Epic' },
+    nutmeg:      { name: 'Nutmeg', time: 360, img: 'https://img.icons8.com/color/96/nutmeg.png', minPrice: 450, maxPrice: 650, chance: 1.0, rarity: 'Epic' },
+    cardamom:    { name: 'Cardamom', time: 360, img: 'https://img.icons8.com/color/96/waffle.png', minPrice: 500, maxPrice: 700, chance: 1.0, rarity: 'Epic' },
+    clove:       { name: 'Clove', time: 360, img: 'https://img.icons8.com/color/96/clove.png', minPrice: 550, maxPrice: 800, chance: 1.0, rarity: 'Epic' },
+
+    // LEGENDARY
+    vanilla:     { name: 'Vanilla', time: 600, img: 'https://img.icons8.com/color/96/vanilla.png', minPrice: 2000, maxPrice: 3500, chance: 0.5, rarity: 'Legendary' },
+    saffron:     { name: 'Saffron', time: 600, img: 'https://img.icons8.com/color/96/saffron.png', minPrice: 5000, maxPrice: 8000, chance: 0.5, rarity: 'Legendary' }
+};
+
+window.HerbData = HerbData;
+
+=== state.js ===
+
+// js/state.js
+
+const PlanConfig = {
+    FREE: { name: "Free Farmer", basePlots: 1, maxPlots: 3, warehouseLimit: 120, ads: "High" },
+    MORTGAGE: { name: "Mortgage Farmer", basePlots: 4, maxPlots: 6, warehouseLimit: 240, ads: "Medium" },
+    TENANT: { name: "Tenant Farmer", basePlots: 6, maxPlots: 8, warehouseLimit: 500, ads: "None" },
+    OWNER: { name: "Owner Farmer", basePlots: 8, maxPlots: 12, warehouseLimit: 9999, ads: "None" }
+};
+
+const PriceRanges = {};
+const CropRarity = {};
+if (window.HerbData) {
+    for (const key in HerbData) {
+        PriceRanges[key] = { min: HerbData[key].minPrice, max: HerbData[key].maxPrice };
+        CropRarity[key] = { chance: HerbData[key].chance, rarity: HerbData[key].rarity };
+    }
+}
+
+const DropEngine = {
+    roll() {
+        const rand = Math.random() * 100;
+        let cumulative = 0;
+        for (const key in CropRarity) {
+            cumulative += CropRarity[key].chance;
+            if (rand <= cumulative) return key;
+        }
+        return 'ginger';
+    }
+};
+
+const defaultUser = {
+    username: "Juragan Baru",
+    userId: "DC-" + Math.floor(Math.random() * 900000),
+    plan: "FREE", 
+    coins: 500,
+    lastActive: Date.now(),
+    isFirstPlantDone: false, 
+    totalHarvest: 0,
+    totalSold: 0,
+    has_withdrawn: false,
+    faucetpay_email: null,
+    landPurchasedCount: 0,   
+    extraStorage: 0,         
+    adBoosterCooldown: 0,    
+    activeBuffs: {},
+    upline: null,
+    referral_status: 'Pending',
+    affiliate: { total_friends: 0, total_earnings: 0, friends_list: [] }
+};
+
+let GameState = {
+    user: { ...defaultUser },
+    warehouse: {},
+    farmPlots: [],
+    market: { prices: {}, lastRefresh: 0 },
+    isLoaded: false,
+
+    // Fungsi Load Baru (Cloud-based)
+    async load() {
+        if (!window.db) return;
+
+        const localId = localStorage.getItem('dc_user_id');
+        if (localId) this.user.userId = localId;
+
+        const userRef = window.fs.doc(window.db, "users", this.user.userId);
+        try {
+            const docSnap = await window.fs.getDoc(userRef);
+
+            if (docSnap.exists()) {
+                const data = docSnap.data();
+                this.user = { ...defaultUser, ...data.user };
+                this.warehouse = data.warehouse || {};
+                this.market = data.market || { prices: {}, lastRefresh: 0 };
+                this.farmPlots = data.farmPlots || [];
+                console.log("Firebase Data Loaded");
+            } else {
+                localStorage.setItem('dc_user_id', this.user.userId);
+                await this.save();
+            }
+
+            this.isLoaded = true;
+            this.initSystems(); // Memicu Chain (Plan, Farm, UI)
+        } catch (e) {
+            console.error("Load Failed:", e);
+        }
+    },
+
+    // Inisialisasi sistem setelah data siap
+    initSystems() {
+        if (window.UIEngine) {
+            UIEngine.updateHeader();
+            UIEngine.navigate('Dashboard');
+        }
+        if (window.PlanSystem) PlanSystem.init();
+        if (window.FarmSystem) FarmSystem.init();
+    },
+
+    async save() {
+        if (!window.db || !this.isLoaded) return;
+        this.user.lastActive = Date.now();
+        
+        const userRef = window.fs.doc(window.db, "users", this.user.userId);
+        try {
+            await window.fs.setDoc(userRef, {
+                user: this.user,
+                warehouse: this.warehouse,
+                market: this.market,
+                farmPlots: this.farmPlots
+            }, { merge: true });
+            if(window.UIEngine) UIEngine.updateHeader();
+        } catch (e) {
+            console.error("Save Failed:", e);
+        }
+    },
+
+    refreshMarketPrices() {
+        const now = Date.now();
+        if (now - this.market.lastRefresh > 3600000 || Object.keys(this.market.prices).length === 0) {
+            let newPrices = {};
+            for (const key in PriceRanges) {
+                const range = PriceRanges[key];
+                newPrices[key] = Math.floor(Math.random() * (range.max - range.min + 1)) + range.min;
+            }
+            this.market.prices = newPrices;
+            this.market.lastRefresh = now;
+            this.save();
+            return true;
+        }
+        return false;
+    },
+
+    getPrice(key) {
+        return (this.market.prices && this.market.prices[key]) ? this.market.prices[key] : (PriceRanges[key]?.min || 10);
+    }
+};
+
+// Autosave setiap 10 detik
+setInterval(() => {
+    if(GameState.isLoaded) GameState.save();
+}, 10000);
+
+window.GameState = GameState;
+window.PlanConfig = PlanConfig;
+window.CropRarity = CropRarity;
+window.DropEngine = DropEngine;
+window.PriceRanges = PriceRanges;
+
+=== plan.js ===
+
+// js/plan.js
+const PlanSystem = {
+    // HARGA DALAM USDT (Sesuai Request: 20, 30, 50)
+    prices: {
+        FREE: 0,
+        MORTGAGE: 20,   // 20 USDT
+        TENANT: 30,     // 30 USDT
+        OWNER: 50       // 50 USDT
+    },
+
+    init() {
+        const container = document.getElementById('SubscibePlan');
+        if (container) {
+            this.render(container);
+        }
+    },
+
+    render(container) {
+        container.innerHTML = '';
+        container.className = "h-full flex flex-col p-5 overflow-y-auto no-scrollbar pb-32 bg-black/20";
+
+        const style = document.createElement('style');
+        style.innerHTML = `
+            @keyframes slideInUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+            @keyframes shimmer { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
+            .card-anim { animation: slideInUp 0.5s cubic-bezier(0.2, 0.8, 0.2, 1) forwards; opacity: 0; }
+            .shimmer-effect { background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent); background-size: 200% 100%; animation: shimmer 3s infinite linear; position: absolute; top: 0; left: 0; right: 0; bottom: 0; pointer-events: none; }
+        `;
+        container.appendChild(style);
+
+        const header = document.createElement('div');
+        header.className = "flex justify-between items-center mb-6 px-1";
+        header.innerHTML = `<div><h2 class="text-3xl font-black text-white italic uppercase tracking-wider drop-shadow-[0_2px_2px_rgba(0,0,0,0.8)]">Membership</h2><p class="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-1">Unlock Premium Features</p></div>`;
+        container.appendChild(header);
+
+        // DATA VISUAL & BENEFIT
+        const tierData = {
+            'FREE': { 
+                title: "FREE FARMER", sub: "STARTER", 
+                desc: [
+                    { i: 'fa-seedling', t: '1 Active Plot', c: 'text-emerald-400' }, 
+                    { i: 'fa-warehouse', t: 'Max 50 Items', c: 'text-blue-400' }, 
+                    { i: 'fa-ban', t: 'Base Sell Price', c: 'text-gray-400' }, 
+                    { i: 'fa-tv', t: 'Standard Ads', c: 'text-gray-400' }
+                ], 
+                bg: "bg-slate-800", border: "border-slate-950" 
+            },
+            'MORTGAGE': { 
+                title: "MORTGAGE", sub: "TIER 2", 
+                desc: [
+                    { i: 'fa-th-large', t: '4 Active Plots', c: 'text-emerald-400' }, 
+                    { i: 'fa-warehouse', t: 'Max 240 Items', c: 'text-blue-400' }, 
+                    { i: 'fa-chart-line', t: '+5% Sell Bonus', c: 'text-yellow-400' }, 
+                    { i: 'fa-star', t: 'Bronze Badge', c: 'text-amber-600' }
+                ], 
+                bg: "bg-blue-900", border: "border-blue-950" 
+            },
+            'TENANT': { 
+                title: "TENANT", sub: "TIER 3", 
+                desc: [
+                    { i: 'fa-th', t: '6 Active Plots', c: 'text-emerald-400' }, 
+                    { i: 'fa-warehouse', t: 'Max 500 Items', c: 'text-blue-400' }, 
+                    { i: 'fa-chart-line', t: '+15% Sell Bonus', c: 'text-yellow-400' }, 
+                    { i: 'fa-crown', t: 'Silver Badge', c: 'text-gray-300' }
+                ], 
+                bg: "bg-purple-900", border: "border-purple-950" 
+            },
+            'OWNER': { 
+                title: "LANDLORD", sub: "TYCOON", 
+                desc: [
+                    { i: 'fa-border-all', t: '8 Active Plots', c: 'text-emerald-400' }, 
+                    { i: 'fa-infinity', t: 'UNLIMITED Storage', c: 'text-blue-400' }, 
+                    { i: 'fa-rocket', t: '+30% Sell Bonus', c: 'text-yellow-400' }, 
+                    { i: 'fa-gem', t: 'VIP Status', c: 'text-amber-400 font-black' }
+                ], 
+                bg: "bg-gradient-to-r from-amber-700 to-red-900", border: "border-red-950" 
+            }
+        };
+
+        const grid = document.createElement('div');
+        grid.className = "flex flex-col gap-6";
+        const plans = ['FREE', 'MORTGAGE', 'TENANT', 'OWNER'];
+        
+        plans.forEach((planKey, index) => {
+            const data = tierData[planKey];
+            const price = this.prices[planKey];
+            const isCurrent = GameState.user.plan === planKey;
+            
+            // Logic Cek Plan
+            const tiers = { 'FREE': 1, 'MORTGAGE': 2, 'TENANT': 3, 'OWNER': 4 };
+            const currentTier = tiers[GameState.user.plan];
+            const thisTier = tiers[planKey];
+            const isOwned = thisTier < currentTier;
+
+            let cardBaseClass = `relative flex w-full h-36 rounded-2xl overflow-hidden shadow-xl transition-transform duration-300 card-anim border-b-[6px] active:border-b-0 active:translate-y-[6px]`;
+            let rightHTML = "";
+            let overlayHTML = "";
+            const animDelay = `animation-delay: ${index * 150}ms`;
+
+            if (isCurrent) {
+                cardBaseClass += ` bg-emerald-700 border-emerald-900`;
+                rightHTML = `<div class="h-full w-full flex flex-col items-center justify-center bg-black/20 text-white gap-2"><div class="p-2 bg-white/20 rounded-full animate-pulse"><i class="fas fa-check text-xl"></i></div><span class="text-[9px] font-black uppercase tracking-widest">Active</span></div>`;
+                overlayHTML = `<div class="shimmer-effect opacity-30"></div>`;
+            } else if (isOwned) {
+                cardBaseClass += ` bg-gray-700 border-gray-900 opacity-60 grayscale`;
+                rightHTML = `<div class="h-full w-full flex flex-col items-center justify-center bg-black/40 text-gray-400 gap-1"><i class="fas fa-lock-open text-xl"></i><span class="text-[9px] font-bold uppercase">Unlocked</span></div>`;
+            } else {
+                if(planKey === 'OWNER') {
+                    cardBaseClass += ` bg-gradient-to-r from-amber-600 to-red-700 border-red-900`;
+                    overlayHTML = `<div class="shimmer-effect opacity-50"></div>`;
+                } else {
+                    cardBaseClass += ` ${data.bg} ${data.border}`;
+                }
+                
+                // TOMBOL UPGRADE MENGARAH KE DEPOSIT
+                // Tampilan Harga: "20 USDT", "30 USDT"
+                rightHTML = `
+                <button onclick="PlanSystem.redirectToDeposit('${planKey}', ${price})" class="w-full h-full flex flex-col items-center justify-center bg-black/20 hover:bg-black/10 transition-colors gap-1 text-white relative overflow-hidden group">
+                    <span class="text-[9px] font-bold opacity-80 group-hover:scale-110 transition-transform">UPGRADE</span>
+                    <div class="font-black text-xs bg-black/40 px-2 py-1 rounded shadow-lg whitespace-nowrap group-hover:bg-amber-500 group-hover:text-black transition-colors">
+                        ${price} USDT
+                    </div>
+                    <i class="fas fa-chevron-right mt-1 opacity-50 group-hover:opacity-100 group-hover:translate-x-1 transition-all"></i>
+                </button>`;
+            }
+
+            const featuresHTML = data.desc.map(d => `<div class="flex items-center gap-2 text-white/90"><div class="w-4 flex justify-center"><i class="fas ${d.i} text-[10px] ${d.c}"></i></div><span class="text-[9px] font-bold uppercase tracking-wide text-gray-200 shadow-black drop-shadow-sm truncate">${d.t}</span></div>`).join('');
+
+            const card = document.createElement('div');
+            card.className = cardBaseClass;
+            card.style = animDelay;
+            card.innerHTML = `${overlayHTML}<div class="flex-1 p-3 flex flex-col justify-between relative z-10 pl-4"><div class="border-b border-white/10 pb-2 mb-1"><div class="text-[9px] font-black text-amber-400 uppercase tracking-widest mb-0.5">${data.sub}</div><h3 class="text-xl font-black text-white italic uppercase tracking-wider leading-none drop-shadow-md">${data.title}</h3></div><div class="grid grid-cols-1 gap-1">${featuresHTML}</div></div><div class="w-20 border-l border-black/20 relative z-20 flex-shrink-0 backdrop-blur-sm">${rightHTML}</div><div class="absolute -bottom-2 right-20 text-7xl text-white opacity-5 pointer-events-none z-0 rotate-12"><i class="fas ${data.desc[0].i.replace('fa-', 'fa-')}"></i></div>`;
+            grid.appendChild(card);
+        });
+        container.appendChild(grid);
+    },
+
+    // FUNGSI BARU: REDIRECT KE DEPOSIT
+    redirectToDeposit(planKey, price) {
+        // Cek Urutan Level dulu agar rapi
+        const tiers = { 'FREE': 1, 'MORTGAGE': 2, 'TENANT': 3, 'OWNER': 4 };
+        const currentTier = tiers[GameState.user.plan];
+        const targetTier = tiers[planKey];
+
+        if (targetTier > currentTier + 1) {
+            UIEngine.showRewardPopup("LOCKED", "Please upgrade to the previous level first.", null, "OK");
+            return;
+        }
+
+        // Arahkan ke Deposit Area
+        UIEngine.showRewardPopup(
+            "PREMIUM PLAN", 
+            `Upgrade to ${planKey} requires ${price} USDT. Go to Deposit?`, 
+            () => {
+                // Buka Modal Withdraw/Deposit
+                UIEngine.openWithdraw();
+                // Pindah ke Tab Deposit
+                if(window.WithdrawSystem) {
+                    WithdrawSystem.switchTab('deposit');
+                }
+            }, 
+            "GO TO DEPOSIT"
+        );
+    },
+
+    // Fungsi lama buyUpgrade dinonaktifkan sementara/diganti logic di atas
+    buyUpgrade(planKey, price) {
+       // Legacy code removed for Free Trial phase
+    }
+};
+
+window.PlanSystem = PlanSystem;
+
+=== farm.js ===
+
+// js/farm.js
+
+const FarmSystem = {
+    plantData: window.HerbData, 
+    tierVisuals: { 'FREE': 4, 'MORTGAGE': 6, 'TENANT': 8, 'OWNER': 12 },
+
+    dailyTasks: [
+        { id: 'daily_login', name: 'Daily Login', icon: 'fa-calendar-check', reward: 100 },
+        { id: 'free_reward', name: 'Claim Free Reward', icon: 'fa-gift', reward: 50 },
+        { id: 'visit_farm', name: 'Visit Farm', icon: 'fa-walking', reward: 30 },
+        { id: 'harvest_once', name: 'Harvest Once', icon: 'fa-sickle', reward: 50 },
+        { id: 'sell_item', name: 'Sell Any Item', icon: 'fa-coins', reward: 50 },
+        { id: 'claim_spin', name: 'Claim Free Spin', icon: 'fa-dharmachakra', reward: 0, action: 'spin' },
+        { id: 'water_plants', name: 'Water Plants', icon: 'fa-tint', reward: 40 },
+        { id: 'fertilizer', name: 'Plant Fertilizer', icon: 'fa-seedling', reward: 40 },
+        { id: 'kill_pests', name: 'Kill Pests', icon: 'fa-bug', reward: 40 },
+        { id: 'clean_farm', name: 'Clean Farm', icon: 'fa-broom', reward: 30 }
+    ],
+
+    init() {
+        // Init Data Farm Plots
+        if(!GameState.farmPlots || GameState.farmPlots.length === 0) {
+            GameState.farmPlots = Array(12).fill(null).map((_, i) => ({
+                id: i + 1, status: 'locked', plant: null, harvestAt: 0 
+            }));
+        }
+
+        const now = Date.now();
+        // LOGIKA OFFLINE GROWTH: Cek tanaman yang sudah selesai saat user offline
+        GameState.farmPlots.forEach(plot => {
+            if (plot.status === 'growing' && plot.harvestAt > 0) {
+                if (now >= plot.harvestAt) {
+                    plot.status = 'ready';
+                    plot.harvestAt = 0;
+                }
+            }
+        });
+
+        this.renderLayout();
+        this.applyPlanLimits();
+        this.renderFarmGrid();
+        this.startEngine();
+        this.startTaskTimer();
+    },
+
+    renderLayout() {
+        const container = document.getElementById('FarmingHouse');
+        if (!container) return;
+        container.innerHTML = '';
+        
+        const header = document.createElement('div');
+        header.className = "glass p-3 rounded-2xl border border-white/10 mb-3 flex justify-between items-center shrink-0 relative overflow-hidden";
+        header.innerHTML = `
+            <div class="flex items-center gap-3 w-1/3">
+                <div class="w-10 h-10 bg-emerald-500/20 rounded-xl flex items-center justify-center border border-emerald-500/30">
+                     <i class="fas fa-tractor text-emerald-400 text-lg animate-bounce"></i>
+                </div>
+                <div>
+                    <h3 class="text-[9px] font-black text-white uppercase tracking-wider leading-tight">${GameState.user.username || 'FARMER'}</h3>
+                    <p class="text-[7px] text-emerald-500 font-bold uppercase">FARM HOUSE</p>
+                </div>
+            </div>
+            <div id="target-warehouse-icon" onclick="WarehouseSystem.show()" class="w-1/3 flex justify-center cursor-pointer active:scale-90 transition-transform">
+                <div class="relative w-12 h-12 bg-gradient-to-b from-amber-700 to-amber-900 rounded-2xl border-2 border-amber-600 shadow-lg flex items-center justify-center">
+                    <i class="fas fa-warehouse text-white text-xl drop-shadow-md"></i>
+                    <div class="absolute -top-2 -right-2 bg-red-500 text-white text-[8px] font-black px-1.5 rounded-full border border-white">Storage</div>
+                </div>
+            </div>
+            <div class="w-1/3 flex justify-end">
+                <button onclick="SpinSystem.show()" class="group flex items-center gap-2 bg-indigo-600/20 border border-indigo-500/50 px-3 py-1.5 rounded-xl hover:bg-indigo-600/40 transition-all active:scale-95">
+                    <div class="text-right">
+                        <p class="text-[6px] text-indigo-300 font-bold uppercase">Lucky</p>
+                        <p class="text-[8px] font-black text-white uppercase">SPIN</p>
+                    </div>
+                    <i class="fas fa-dharmachakra text-indigo-400 animate-spin-slow group-hover:text-white"></i>
+                </button>
+            </div>
+        `;
+        container.appendChild(header);
+
+        const mainArea = document.createElement('div');
+        mainArea.className = "flex-1 flex gap-3 min-h-0 overflow-hidden";
+        const sidebar = document.createElement('div');
+        sidebar.id = "task-sidebar";
+        sidebar.className = "w-20 flex flex-col gap-2 overflow-y-auto no-scrollbar pb-24 shrink-0 pr-1";
+        mainArea.appendChild(sidebar);
+
+        const farmContainer = document.createElement('div');
+        farmContainer.className = "flex-1 flex flex-col min-h-0";
+        farmContainer.innerHTML = `<div id="farm-grid" class="grid grid-cols-2 gap-3 overflow-y-auto no-scrollbar pb-32 pr-1 content-start"></div>`;
+        mainArea.appendChild(farmContainer);
+        container.appendChild(mainArea);
+        
+        this.renderTaskButtons();
+    },
+
+    renderTaskButtons() {
+        const sidebar = document.getElementById('task-sidebar');
+        if(!sidebar) return;
+        const cooldowns = JSON.parse(localStorage.getItem('dc_task_cooldowns') || '{}');
+        const now = Date.now();
+        sidebar.innerHTML = '';
+        this.dailyTasks.forEach(task => {
+            const lastClaim = cooldowns[task.id] || 0;
+            const isCooldown = (now - lastClaim) < 86400000;
+            const btn = document.createElement('button');
+            let btnClass = "w-full aspect-square rounded-2xl flex flex-col items-center justify-center transition-all shadow-lg border relative overflow-hidden group ";
+            if (isCooldown) {
+                btnClass += "bg-gray-800/50 border-gray-700 cursor-not-allowed grayscale opacity-70";
+                const timeLeft = 86400000 - (now - lastClaim);
+                const hours = Math.floor((timeLeft / (1000 * 60 * 60)));
+                btn.innerHTML = `<i class="fas fa-clock text-gray-400 text-xs mb-1"></i><span class="text-[6px] font-black text-gray-500 uppercase">${hours}H LEFT</span>`;
+                btn.disabled = true;
+            } else {
+                btnClass += "glass border-white/10 hover:bg-emerald-500/20 active:scale-90 hover:border-emerald-500/50";
+                btn.innerHTML = `<i class="fas ${task.icon} text-emerald-400 text-sm mb-1 group-hover:scale-110 transition-transform"></i><span class="text-[6px] font-black uppercase text-center text-white">${task.name}</span>`;
+                btn.onclick = () => this.handleTaskClick(task, btn);
+            }
+            btn.className = btnClass;
+            sidebar.appendChild(btn);
+        });
+    },
+
+    handleTaskClick(task, btnElement) {
+        if (task.action === 'spin') { SpinSystem.show(); return; }
+        UIEngine.showRewardPopup(task.name, `Complete "${task.name}"?`, async () => {
+            GameState.user.coins += task.reward;
+            const cooldowns = JSON.parse(localStorage.getItem('dc_task_cooldowns') || '{}');
+            cooldowns[task.id] = Date.now();
+            localStorage.setItem('dc_task_cooldowns', JSON.stringify(cooldowns));
+            
+            if(btnElement) this.playCoinAnimation(btnElement);
+            await GameState.save();
+            this.renderTaskButtons();
+        }, "CLAIM");
+    },
+
+    applyPlanLimits() {
+        const userPlan = GameState.user.plan || "FREE";
+        const config = (window.PlanConfig && PlanConfig[userPlan]) ? PlanConfig[userPlan] : { basePlots: 1, maxPlots: 3 };
+        const visualLimit = this.tierVisuals[userPlan];
+
+        GameState.farmPlots.forEach((plot, index) => {
+            if (index < config.basePlots) {
+                if (plot.status === 'locked' || plot.status === 'disabled') plot.status = 'empty';
+            } else if (index < config.maxPlots) {
+                if (plot.status === 'disabled' || plot.status === 'empty') plot.status = 'locked';
+            } else if (index < visualLimit) {
+                plot.status = 'disabled';
+            }
+        });
+    },
+
+    async plantAll() {
+        const buffs = GameState.user.activeBuffs || {};
+        let speedMultiplier = 1;
+        if (buffs['growth_speed'] && buffs['growth_speed'] > Date.now()) speedMultiplier *= 0.8;
+        if (buffs['speed_soil'] && buffs['speed_soil'] > Date.now()) speedMultiplier *= 0.9;
+
+        let planted = 0;
+        const now = Date.now();
+
+        GameState.farmPlots.forEach(plot => {
+            if (plot.status === 'empty') {
+                plot.status = 'growing';
+                plot.plant = DropEngine.roll(); 
+                const baseTimeSeconds = this.plantData[plot.plant] ? this.plantData[plot.plant].time : 5;
+                const durationMs = Math.ceil(baseTimeSeconds * speedMultiplier) * 1000;
+                plot.harvestAt = now + durationMs; // Tentukan waktu panen di masa depan
+                planted++;
+            }
+        });
+        
+        if (planted > 0) {
+            await GameState.save();
+            this.renderFarmGrid();
+        }
+    },
+
+async harvestAll() {
+        // 1. Cek apakah ada yang siap panen
+        let potentialHarvest = 0;
+        GameState.farmPlots.forEach(plot => { 
+            if (plot.status === 'ready') potentialHarvest++; 
+        });
+        
+        if (potentialHarvest === 0) return;
+
+        // 2. Cek Gudang (The Chain)
+        if (window.WarehouseSystem && WarehouseSystem.isFull(potentialHarvest)) {
+            UIEngine.showRewardPopup("STORAGE FULL", "Warehouse is full!", () => { 
+                WarehouseSystem.show(); 
+            }, "CHECK");
+            return; 
+        }
+
+        // 3. Konfirmasi Nonton Iklan untuk Panen
+        UIEngine.showRewardPopup(
+            "HARVEST READY", 
+            `Watch a short ad to harvest ${potentialHarvest} herbs and replant automatically?`, 
+            () => {
+                // 4. Simulasi Loading Iklan (5 Detik)
+                UIEngine.showRewardPopup("ADVERTISEMENT", "Harvesting... 0:05", null, "...");
+                
+                let timeLeft = 5;
+                const adTimer = setInterval(async () => {
+                    timeLeft--;
+                    const popupDesc = document.querySelector('#reward-popup p');
+                    if(popupDesc) popupDesc.innerText = `Harvesting... 0:0${timeLeft}`;
+                    
+                    if(timeLeft <= 0) {
+                        clearInterval(adTimer);
+                        // 5. Eksekusi Panen setelah Iklan Selesai
+                        await this.executeHarvestLogic();
+                    }
+                }, 1000);
+            }, 
+            "WATCH AD & HARVEST"
+        );
+    },
+
+    // Fungsi Logika Panen Internal (Tetap menjaga variabel asli Anda)
+    async executeHarvestLogic() {
+        const buffs = GameState.user.activeBuffs || {};
+        const hasYieldBuff = (buffs['yield_bonus'] && buffs['yield_bonus'] > Date.now());
+        let speedMultiplier = 1;
+        if (buffs['growth_speed'] && buffs['growth_speed'] > Date.now()) speedMultiplier *= 0.8;
+
+        let count = 0;
+        const now = Date.now();
+
+        GameState.farmPlots.forEach((plot, index) => {
+            if (plot.status === 'ready') {
+                let yieldAmount = 1;
+                if (hasYieldBuff && Math.random() < 0.25) yieldAmount = 2;
+                
+                const plantName = plot.plant || 'ginger';
+                GameState.warehouse[plantName] = (GameState.warehouse[plantName] || 0) + yieldAmount;
+                
+                // Efek visual terbang ke gudang
+                if(this.plantData[plantName]) this.playFlyAnimation(this.plantData[plantName].img, index);
+                
+                // Auto Replant (Gacha Tanaman Baru)
+                plot.status = 'growing';
+                plot.plant = DropEngine.roll();
+                const baseTimeSeconds = this.plantData[plot.plant] ? this.plantData[plot.plant].time : 5;
+                const durationMs = Math.ceil(baseTimeSeconds * speedMultiplier) * 1000;
+                plot.harvestAt = now + durationMs;
+                
+                count += yieldAmount;
+            }
+        });
+
+        if(count > 0) {
+            GameState.user.totalHarvest += count;
+            // Simpan ke Cloud (The Chain)
+            await GameState.save();
+            this.renderFarmGrid();
+            
+            // Tutup popup iklan dan beri notifikasi sukses
+            UIEngine.showRewardPopup("HARVEST SUCCESS", `Successfully collected ${count} items to warehouse!`, null, "GREAT!");
+        }
+    },
+
+    startEngine() {
+        if(this.interval) clearInterval(this.interval);
+        this.interval = setInterval(() => {
+            let change = false;
+            const now = Date.now();
+            GameState.farmPlots.forEach(plot => {
+                if (plot.status === 'growing') {
+                    if (now >= plot.harvestAt) {
+                        plot.status = 'ready';
+                        plot.harvestAt = 0;
+                        change = true;
+                    } else {
+                        change = true; 
+                    }
+                }
+            });
+            if (change) this.renderFarmGrid();
+        }, 1000);
+    },
+
+    startTaskTimer() {
+        setInterval(() => { this.renderTaskButtons(); }, 60000);
+    },
+
+    renderFarmGrid() {
+        const grid = document.getElementById('farm-grid');
+        if (!grid) return;
+        grid.innerHTML = '';
+        const userPlan = GameState.user.plan || "FREE";
+        const limit = this.tierVisuals[userPlan] || 4;
+        const now = Date.now();
+
+        for (let i = 0; i < limit; i++) {
+            const plot = GameState.farmPlots[i];
+            let content = '';
+            let clickAction = '';
+            
+            if (plot.status === 'disabled') {
+                content = `<div class="h-full w-full bg-black/60 rounded-3xl border border-white/5 flex flex-col items-center justify-center opacity-70"><i class="fas fa-arrow-up text-gray-400"></i><span class="text-[7px] font-black uppercase">Upgrade</span></div>`;
+                clickAction = `UIEngine.navigate('SubscibePlan')`;
+            } else if (plot.status === 'locked') {
+                content = `<div class="h-full w-full bg-[#3e2723] rounded-3xl border-2 border-dashed border-white/10 flex flex-col items-center justify-center"><i class="fas fa-lock text-yellow-500/80 text-lg"></i><span class="text-[6px] font-black uppercase tracking-widest">Rent Land</span></div>`;
+                clickAction = `UIEngine.navigate('Shop')`; 
+            } else if (plot.status === 'empty') {
+                content = `<div class="h-full w-full bg-[#5d4037] rounded-3xl border border-white/10 flex items-center justify-center relative"><i class="fas fa-plus absolute text-white/10 text-2xl"></i></div>`;
+                clickAction = `FarmSystem.plantAll()`;
+            } else if (plot.status === 'growing') {
+                const remainingSec = Math.max(0, Math.ceil((plot.harvestAt - now) / 1000));
+                content = `<div class="h-full w-full bg-[#5d4037] rounded-3xl border border-white/10 flex flex-col items-center justify-center"><i class="fas fa-seedling text-emerald-400 text-3xl animate-bounce mb-2"></i><div class="bg-black/50 px-3 py-1 rounded-full z-10"><span class="text-[8px] font-mono font-bold text-white">${this.formatTime(remainingSec)}</span></div></div>`;
+            } else if (plot.status === 'ready') {
+                const img = this.plantData[plot.plant]?.img || 'https://img.icons8.com/color/96/question-mark.png';
+                content = `<div class="h-full w-full bg-[#5d4037] rounded-3xl border border-emerald-500/30 flex flex-col items-center justify-center relative animate-pulse"><img src="${img}" class="w-16 h-16 object-contain drop-shadow-2xl z-10"><div class="absolute bottom-3 bg-emerald-600 text-white text-[6px] font-black px-3 py-1 rounded-full uppercase shadow-lg z-20">Harvest</div></div>`;
+                clickAction = `FarmSystem.harvestAll()`;
+            }
+            const div = document.createElement('div');
+            div.className = "w-full aspect-square relative active:scale-95 transition-transform duration-200"; 
+            div.innerHTML = content;
+            if (clickAction) div.setAttribute('onclick', clickAction);
+            grid.appendChild(div);
+        }
+    },
+    
+    playFlyAnimation(imgUrl, index) {
+        const grid = document.getElementById('farm-grid');
+        if (!grid || !grid.children[index]) return;
+        const rect = grid.children[index].getBoundingClientRect();
+        const targetEl = document.getElementById('target-warehouse-icon');
+        const targetRect = targetEl ? targetEl.getBoundingClientRect() : { left: window.innerWidth/2, top: 50, width: 0, height: 0 };
+        const flyItem = document.createElement('img');
+        flyItem.src = imgUrl; flyItem.className = "fixed z-[9999] w-10 h-10 object-contain pointer-events-none transition-all duration-700 ease-in-out";
+        flyItem.style.left = `${rect.left + rect.width/2}px`; flyItem.style.top = `${rect.top + rect.height/2}px`;
+        document.body.appendChild(flyItem);
+        setTimeout(() => {
+            flyItem.style.left = `${targetRect.left + targetRect.width/2}px`; flyItem.style.top = `${targetRect.top + targetRect.height/2}px`;
+            flyItem.style.opacity = "0"; flyItem.style.transform = "scale(0.2)";
+        }, 50);
+        setTimeout(() => flyItem.remove(), 700);
+    },
+
+    playCoinAnimation(startElement) {
+        const startRect = startElement.getBoundingClientRect();
+        const walletEl = document.getElementById('header-coins'); 
+        const targetRect = walletEl ? walletEl.getBoundingClientRect() : { left: window.innerWidth - 50, top: 20 };
+        const coin = document.createElement('div');
+        coin.className = "fixed z-[9999] w-8 h-8 rounded-full bg-yellow-400 border-2 border-yellow-600 flex items-center justify-center shadow-lg transition-all duration-1000 ease-in-out";
+        coin.innerHTML = '<i class="fas fa-dollar-sign text-yellow-800 text-xs"></i>';
+        coin.style.left = `${startRect.left + startRect.width/2}px`; coin.style.top = `${startRect.top + startRect.height/2}px`;
+        document.body.appendChild(coin);
+        setTimeout(() => { coin.style.left = `${targetRect.left}px`; coin.style.top = `${targetRect.top}px`; coin.style.opacity = "0"; }, 50);
+        setTimeout(() => coin.remove(), 1000);
+    },
+
+    formatTime(s) {
+        const m = Math.floor(s/60); const sec = s%60;
+        return `${m}:${sec<10?'0':''}${sec}`;
+    }
+};
+
+window.FarmSystem = FarmSystem;
+
+=== warehouse.js ===
+
+
+// js/warehouse.js
+const WarehouseSystem = {
+    // --- UTILITIES ---
+    
+    getTotalItems() {
+        // Tetap menggunakan GameState.warehouse sesuai Chain
+        if (!GameState.warehouse) return 0;
+        return Object.values(GameState.warehouse).reduce((a, b) => a + b, 0);
+    },
+
+    getMaxLimit() {
+        const userPlan = GameState.user.plan || "FREE";
+        // Ambil base limit dari PlanConfig di state.js
+        const baseLimit = (window.PlanConfig && PlanConfig[userPlan]) ? PlanConfig[userPlan].warehouseLimit : 50;
+        
+        // Extra Storage dari Market
+        const extra = GameState.user.extraStorage || 0; 
+        
+        // Jika Plan Owner (9999), tetap unlimited
+        return baseLimit === 9999 ? 9999 : (baseLimit + extra);
+    },
+
+    isFull(amountToAdd = 1) {
+        const current = this.getTotalItems();
+        const max = this.getMaxLimit();
+        if (max === 9999) return false;
+        return (current + amountToAdd) > max;
+    },
+
+    // --- UI CONTROLLER ---
+
+    show() {
+        // Cek apakah data sudah dimuat dari Firebase sebelum tampil
+        if (!GameState.isLoaded) {
+             console.log("Waiting for Firebase...");
+             return;
+        }
+        this.renderLayout();
+        this.renderInventory();
+        const modal = document.getElementById('warehouse-modal');
+        if (modal) {
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
+    },
+
+    close() {
+        const modal = document.getElementById('warehouse-modal');
+        if (modal) {
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        }
+    },
+
+    renderLayout() {
+        const modalContent = document.querySelector('#warehouse-modal .glass');
+        if (!modalContent) return;
+
+        modalContent.innerHTML = '';
+        modalContent.className = "glass w-full max-w-sm rounded-[2.5rem] p-6 border border-white/10 relative overflow-hidden flex flex-col max-h-[85vh] shadow-2xl shadow-emerald-900/20";
+
+        const current = this.getTotalItems();
+        const max = this.getMaxLimit();
+        const percent = Math.min((current / max) * 100, 100);
+        
+        let barColor = "bg-emerald-500 shadow-[0_0_10px_#10b981]";
+        let limitColor = "text-white";
+        
+        if (percent >= 100) {
+            barColor = "bg-red-500 shadow-[0_0_15px_red] animate-pulse";
+            limitColor = "text-red-400 animate-pulse";
+        } else if (percent > 70) {
+            barColor = "bg-amber-400 shadow-[0_0_10px_orange]";
+            limitColor = "text-amber-400";
+        }
+
+        modalContent.innerHTML = `
+            <button onclick="WarehouseSystem.close()" class="absolute top-5 right-5 w-8 h-8 rounded-full bg-white/5 flex items-center justify-center text-gray-400 hover:bg-red-500 hover:text-white transition-all z-20"><i class="fas fa-times text-xs"></i></button>
+
+            <div class="mb-6 relative z-10">
+                <div class="flex items-center gap-3 mb-2">
+                    <div class="w-10 h-10 bg-gradient-to-br from-amber-700 to-amber-900 rounded-xl flex items-center justify-center border border-white/10 shadow-lg"><i class="fas fa-warehouse text-white text-lg"></i></div>
+                    <div><h2 class="text-xl font-black text-white italic uppercase tracking-wider">Storage</h2><p class="text-[8px] text-gray-400 font-bold uppercase tracking-widest">Manage your harvest</p></div>
+                </div>
+
+                <div class="w-full h-6 bg-black/60 rounded-full border border-white/10 relative overflow-hidden">
+                    <div id="wh-progress-bar" class="h-full ${barColor} transition-all duration-700 ease-out flex items-center justify-end pr-2" style="width: ${percent}%">
+                        ${percent >= 95 ? '<i class="fas fa-exclamation-circle text-[8px] text-white animate-bounce"></i>' : ''}
+                    </div>
+                    <div class="absolute inset-0 flex items-center justify-center"><span class="text-[9px] font-black uppercase tracking-widest drop-shadow-md ${limitColor}">${current} / ${max === 9999 ? '∞' : max} ITEMS</span></div>
+                </div>
+            </div>
+
+            <div id="warehouse-grid" class="flex-1 overflow-y-auto no-scrollbar grid grid-cols-3 gap-3 content-start pb-4 min-h-0"></div>
+
+            <div class="pt-4 mt-auto border-t border-white/5 shrink-0">
+                <button onclick="WarehouseSystem.goToSell()" class="w-full py-4 bg-gradient-to-r from-emerald-500 to-emerald-600 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-lg active:scale-95 transition-all flex items-center justify-center gap-2 group">
+                    <i class="fas fa-store group-hover:rotate-12 transition-transform"></i> Go to Market (Sell)
+                </button>
+            </div>
+        `;
+    },
+
+    renderInventory() {
+        const container = document.getElementById('warehouse-grid');
+        if (!container) return;
+
+        container.innerHTML = '';
+        const items = Object.keys(GameState.warehouse);
+        let isEmpty = true;
+
+        items.forEach(key => {
+            const count = GameState.warehouse[key];
+            // Mengambil data visual tanaman dari HerbData melalui state.js
+            const plantInfo = (window.HerbData && HerbData[key]) ? HerbData[key] : { name: key, img: '' };
+            const activeClass = "bg-white/5 border-emerald-500/30 opacity-100";
+            const emptyClass = "bg-black/20 border-white/5 opacity-40 grayscale";
+
+            if (count > 0) {
+                isEmpty = false;
+                container.innerHTML += `
+                    <div class="glass p-2 rounded-2xl flex flex-col items-center justify-center relative border transition-all aspect-square ${activeClass}">
+                        <div class="absolute top-1 right-1 bg-emerald-500 text-black text-[7px] font-black px-1.5 py-0.5 rounded-md shadow-sm">x${count}</div>
+                        <img src="${plantInfo.img}" class="w-8 h-8 object-contain mb-1 drop-shadow-md">
+                        <span class="text-[7px] font-black text-white uppercase text-center leading-tight">${plantInfo.name}</span>
+                    </div>
+                `;
+            }
+        });
+
+        if (isEmpty) {
+            container.innerHTML = `<div class="col-span-3 flex flex-col items-center justify-center py-10 opacity-50"><i class="fas fa-box-open text-4xl text-gray-600 mb-2"></i><p class="text-[9px] uppercase font-bold text-gray-500">Storage Empty</p></div>`;
+        }
+    },
+
+    goToSell() {
+        this.close();
+        if(window.UIEngine) {
+            UIEngine.navigate('Shop');
+            // Pastikan MarketSystem sudah ada sebelum pindah tab
+            if(window.MarketSystem && typeof MarketSystem.switchTab === 'function') {
+                MarketSystem.switchTab('sell');
+            }
+        }
+    }
+};
+
+window.WarehouseSystem = WarehouseSystem;
+
+=== market.js ===
+
+// js/market.js
+const MarketSystem = {
+    currentTab: 'sell', 
+    
+    shopItems: [
+        { id: 'land_permit', type: 'land', name: "Land Certificate", icon: "fa-map-marked-alt", color: "text-emerald-400", desc: "Unlock Plot (Max 2x via Coin)", special: true },
+        { id: 'storage_plus', type: 'storage', name: "Warehouse Limit", icon: "fa-box", color: "text-blue-400", price: 5000, desc: "+20 Storage Slots (Perm)" },
+        { id: 'growth_fert', type: 'buff', buffKey: 'growth_speed', name: "Growth Fertilizer", icon: "fa-leaf", color: "text-green-400", price: 1500, desc: "-20% Growth Time (24h)" },
+        { id: 'speed_soil', type: 'buff', buffKey: 'speed_soil', name: "Speed Soil", icon: "fa-bolt", color: "text-yellow-400", price: 1000, desc: "-10% Growth Time (24h)" },
+        { id: 'yield_boost', type: 'buff', buffKey: 'yield_bonus', name: "Yield Booster", icon: "fa-cubes", color: "text-amber-500", price: 3000, desc: "+25% Double Crop Chance" },
+        { id: 'trade_permit', type: 'buff', buffKey: 'sell_bonus', name: "Trade Permit", icon: "fa-file-invoice-dollar", color: "text-purple-400", price: 2500, desc: "+20% Sell Price (24h)" },
+        { id: 'rare_boost', type: 'buff', buffKey: 'rare_luck', name: "Rare Essence", icon: "fa-gem", color: "text-pink-400", price: 4000, desc: "+20% Rare Luck (24h)" }
+    ],
+
+    init() {
+        const shopContainer = document.getElementById('Shop');
+        if (shopContainer) this.renderLayout(shopContainer);
+        
+        GameState.refreshMarketPrices();
+        this.checkExpiredBuffs();
+        this.switchTab(this.currentTab);
+    },
+
+    // --- LOGIC AFFILIATE (PEMICU KOMISI CLOUD) ---
+    async triggerAffiliateCommission(totalSales) {
+        const commission = Math.floor(totalSales * 0.10); 
+
+        // 1. Aktivasi Akun (First Market Sell)
+        if (GameState.user.referral_status === 'Pending') {
+            GameState.user.referral_status = 'Active'; 
+            console.log("[AFFILIATE] Account Activated via Cloud");
+        }
+
+        // 2. Simulasi Komisi (Akan diolah lebih lanjut di affiliate.js)
+        if (GameState.user.upline && commission > 0) {
+            console.log(`[AFFILIATE] Commission of ${commission} tracked for upline`);
+        }
+    },
+
+    renderLayout(container) {
+        container.innerHTML = '';
+        container.className = "h-full flex flex-col p-5 animate-in pb-24";
+        
+        const header = document.createElement('div');
+        header.innerHTML = `<div class="flex justify-between items-center mb-6 px-1"><div><h2 class="text-3xl font-black text-white italic uppercase tracking-wider drop-shadow-md">Market</h2><p class="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-1">Global Trading Post</p></div><div class="w-12 h-12 bg-gradient-to-br from-emerald-500 to-teal-700 rounded-xl shadow-lg flex items-center justify-center border-2 border-white/20 transform -rotate-6"><i class="fas fa-store text-white text-xl drop-shadow"></i></div></div>`;
+        container.appendChild(header);
+
+        const tabContainer = document.createElement('div');
+        tabContainer.className = "flex gap-3 bg-black/20 p-1.5 rounded-2xl border border-white/5 mb-6 shrink-0 backdrop-blur-sm";
+        tabContainer.innerHTML = `<button id="tab-sell" onclick="MarketSystem.switchTab('sell')" class="flex-1 py-3 rounded-xl text-[10px] font-black uppercase transition-all duration-300 flex items-center justify-center gap-2"><i class="fas fa-coins text-sm"></i> Sell Crops</button><button id="tab-buy" onclick="MarketSystem.switchTab('buy')" class="flex-1 py-3 rounded-xl text-[10px] font-black uppercase transition-all duration-300 flex items-center justify-center gap-2"><i class="fas fa-shopping-cart text-sm"></i> Buy Items</button>`;
+        container.appendChild(tabContainer);
+
+        const contentArea = document.createElement('div');
+        contentArea.className = "flex-1 relative overflow-hidden min-h-0"; 
+        contentArea.innerHTML = `
+            <div id="area-sell" class="absolute inset-0 flex flex-col gap-4 transition-all duration-300 overflow-y-auto no-scrollbar pb-10">
+                <div class="glass p-5 rounded-[2rem] border border-white/10 relative overflow-hidden shrink-0">
+                    <div class="absolute -right-6 -top-6 w-32 h-32 bg-emerald-500/20 rounded-full blur-2xl"></div>
+                    <div class="relative z-10 flex justify-between items-end">
+                        <div>
+                            <p class="text-[9px] text-gray-400 font-bold uppercase mb-1 tracking-widest">Total Valuation</p>
+                            <h3 id="preview-coins" class="text-3xl font-black text-white tracking-tight">0 <span class="text-xs text-emerald-500">PTS</span></h3>
+                            <p class="text-[8px] text-emerald-400 mt-1"><i class="fas fa-sync-alt animate-spin-slow"></i> Prices update hourly</p>
+                        </div>
+                        <button id="price-booster-btn" onclick="MarketSystem.applyPriceBooster()" class="bg-purple-500/20 border border-purple-500/50 text-purple-300 px-3 py-1.5 rounded-lg text-[8px] font-black uppercase flex items-center gap-1 active:scale-95 transition-transform"><i class="fas fa-ad"></i> Boost +20%</button>
+                    </div>
+                </div>
+                <div id="sell-inventory" class="grid grid-cols-1 gap-2 content-start"></div>
+                <button id="btn-sell-all" onclick="MarketSystem.sellAll()" class="w-full py-4 bg-gradient-to-r from-emerald-500 to-emerald-600 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-lg shadow-emerald-900/30 active:scale-95 transition-all mt-auto shrink-0 flex items-center justify-center gap-2"><i class="fas fa-money-bill-wave"></i> Sell All Warehouse</button>
+            </div>
+            <div id="area-buy" class="absolute inset-0 flex flex-col gap-4 transition-all duration-300 hidden overflow-y-auto no-scrollbar pb-10">
+                <div id="booster-list" class="flex flex-col gap-3"></div>
+            </div>`;
+        container.appendChild(contentArea);
+    },
+
+    switchTab(tab) {
+        this.currentTab = tab;
+        const areaBuy = document.getElementById('area-buy');
+        const areaSell = document.getElementById('area-sell');
+        if (!areaBuy || !areaSell) return;
+
+        if (tab === 'buy') {
+            areaBuy.classList.remove('hidden');
+            areaSell.classList.add('hidden');
+            this.renderShopItems();
+        } else {
+            areaSell.classList.remove('hidden');
+            areaBuy.classList.add('hidden');
+            this.renderSellInventory();
+            this.calculatePreview();
+            this.checkBoosterStatus();
+        }
+    },
+
+    async processSell(key, qty, price) {
+        const multiplier = this.getSellMultiplier();
+        const totalEarn = Math.floor(price * multiplier) * qty;
+
+        GameState.user.coins += totalEarn;
+        GameState.user.totalSold += totalEarn;
+        GameState.warehouse[key] -= qty;
+        
+        await this.triggerAffiliateCommission(totalEarn);
+        await GameState.save(); // Simpan ke Cloud
+
+        UIEngine.updateHeader();
+        this.renderSellInventory();
+        this.calculatePreview();
+        UIEngine.showRewardPopup("SOLD", `Sold ${qty}x for ${totalEarn} Coins!`, null, "OK");
+    },
+
+    async sellAll() {
+        const total = this.calculatePreview();
+        if (total <= 0) return;
+
+        UIEngine.showRewardPopup("CONFIRM SALE", `Sell everything for ${total.toLocaleString()} Coins?`, async () => {
+            Object.keys(GameState.warehouse).forEach(k => { GameState.warehouse[k] = 0; });
+            GameState.user.coins += total;
+            GameState.user.totalSold += total;
+            
+            await this.triggerAffiliateCommission(total);
+            await GameState.save(); // Simpan ke Cloud
+
+            UIEngine.updateHeader();
+            this.renderSellInventory();
+            this.calculatePreview();
+            UIEngine.showRewardPopup("SOLD!", `Total Earned: ${total.toLocaleString()} Coins!`, null, "AWESOME");
+        }, "SELL ALL");
+    },
+
+    renderSellInventory() {
+        const container = document.getElementById('sell-inventory');
+        if (!container) return;
+        container.innerHTML = '';
+        let isEmpty = true;
+        
+        Object.keys(GameState.warehouse).forEach(key => {
+            const count = GameState.warehouse[key];
+            if (count > 0) {
+                isEmpty = false;
+                const plantInfo = (window.HerbData && HerbData[key]) ? HerbData[key] : { img: '', name: key };
+                const currentPrice = GameState.getPrice(key);
+                container.innerHTML += `
+                    <div onclick="MarketSystem.openSellModal('${key}', ${count}, ${currentPrice})" class="glass p-3 rounded-2xl flex items-center justify-between border border-white/5 group active:scale-95 transition-all cursor-pointer hover:bg-white/5">
+                        <div class="flex items-center gap-3">
+                            <img src="${plantInfo.img}" class="w-10 h-10 object-contain drop-shadow-md">
+                            <div><h4 class="text-[9px] font-black text-white uppercase tracking-wide">${plantInfo.name}</h4><span class="text-[8px] text-gray-400">Stock: <b class="text-white">${count}</b></span></div>
+                        </div>
+                        <div class="flex flex-col items-end">
+                            <span class="text-[10px] font-black text-emerald-400 flex items-center gap-1">${currentPrice} PTS</span>
+                        </div>
+                    </div>`;
+            }
+        });
+        if (isEmpty) container.innerHTML = `<div class="flex flex-col items-center justify-center py-10 opacity-50"><i class="fas fa-basket-shopping text-4xl text-gray-600 mb-2"></i><p class="text-[9px] uppercase font-bold text-gray-500">Warehouse Empty</p></div>`;
+    },
+
+    openSellModal(key, maxQty, price) {
+        const plantName = (window.HerbData && HerbData[key]) ? HerbData[key].name : key;
+        UIEngine.showRewardPopup("SELL ITEM", `
+            <div class="text-center mb-4"><h3 class="text-lg font-black text-emerald-400 uppercase">${plantName}</h3><p class="text-[9px] text-gray-400">Price: ${price} PTS/unit</p></div>
+            <div class="bg-black/40 p-3 rounded-xl mb-4 border border-white/10">
+                <input type="range" id="sell-slider" min="1" max="${maxQty}" value="${maxQty}" class="w-full accent-emerald-500 mb-2" oninput="document.getElementById('sell-qty-display').innerText = this.value; document.getElementById('sell-total-display').innerText = (this.value * ${price}).toLocaleString();">
+                <div class="flex justify-between text-[9px] font-bold text-white"><span>Qty: <span id="sell-qty-display" class="text-emerald-400">${maxQty}</span></span><span>Total: <span id="sell-total-display" class="text-yellow-400">${(maxQty * price).toLocaleString()}</span></span></div>
+            </div>`, () => {
+            const qtyToSell = parseInt(document.getElementById('sell-slider').value);
+            this.processSell(key, qtyToSell, price);
+        }, "CONFIRM SELL");
+    },
+
+    getSellMultiplier() {
+        let multiplier = 1;
+        if (GameState.user.adBoosterCooldown > Date.now()) multiplier += 0.2;
+        if (GameState.user.activeBuffs && GameState.user.activeBuffs['sell_bonus'] > Date.now()) multiplier += 0.2;
+        return multiplier;
+    },
+
+    calculatePreview() {
+        let total = 0;
+        Object.keys(GameState.warehouse).forEach(item => {
+            total += GameState.warehouse[item] * GameState.getPrice(item);
+        });
+        total = Math.floor(total * this.getSellMultiplier());
+        const previewEl = document.getElementById('preview-coins');
+        if (previewEl) previewEl.innerHTML = `${total.toLocaleString()} <span class="text-[10px] text-emerald-500 font-bold">PTS</span>`;
+        return total;
+    },
+
+    renderShopItems() {
+       const list = document.getElementById('booster-list');
+       if (!list) return;
+       const activeBuffs = GameState.user.activeBuffs || {};
+       list.innerHTML = this.shopItems.map(item => {
+            let price = item.price;
+            let btnText = `${price ? price.toLocaleString() : 0} PTS`;
+            let disabled = false;
+            if (item.type === 'land') {
+                const purchased = GameState.user.landPurchasedCount || 0;
+                if (purchased >= 2) { disabled = true; btnText = "MAX"; }
+            }
+            if (item.type === 'buff' && activeBuffs[item.buffKey] > Date.now()) { disabled = true; btnText = "ACTIVE"; }
+            return `<div class="glass p-4 rounded-2xl flex justify-between items-center border border-white/5"><div class="flex items-center gap-4"><i class="fas ${item.icon} ${item.color} text-xl"></i><div><p class="text-[10px] font-black uppercase text-white">${item.name}</p><p class="text-[8px] text-gray-400 font-bold uppercase">${item.desc}</p></div></div><button onclick="MarketSystem.buyItem('${item.id}', ${price})" class="${disabled ? 'bg-gray-700' : 'bg-emerald-500 text-black'} px-4 py-2 rounded-xl text-[9px] font-black" ${disabled ? 'disabled' : ''}>${btnText}</button></div>`;
+       }).join('');
+    },
+
+    async buyItem(id, price) {
+        const item = this.shopItems.find(i => i.id === id);
+        if (GameState.user.coins < price) { UIEngine.showRewardPopup("LOCKED", "Not enough coins!", null, "OK"); return; }
+        UIEngine.showRewardPopup("CONFIRM", `Buy ${item.name}?`, async () => {
+            GameState.user.coins -= price;
+            if (item.type === 'land') {
+                const lockedPlot = GameState.farmPlots.find(p => p.status === 'locked');
+                if (lockedPlot) {
+                    lockedPlot.status = 'empty';
+                    GameState.user.landPurchasedCount = (GameState.user.landPurchasedCount || 0) + 1;
+                }
+            } else if (item.type === 'storage') {
+                GameState.user.extraStorage = (GameState.user.extraStorage || 0) + 20;
+            } else if (item.type === 'buff') {
+                if (!GameState.user.activeBuffs) GameState.user.activeBuffs = {};
+                GameState.user.activeBuffs[item.buffKey] = Date.now() + 86400000;
+            }
+            await GameState.save(); // Simpan ke Cloud
+            UIngine.updateHeader(); this.renderShopItems();
+            UIEngine.showRewardPopup("SUCCESS", "Item Purchased!", null, "OK");
+        }, "BUY");
+    },
+
+    applyPriceBooster() {
+        UIEngine.showRewardPopup("PRICE BOOSTER", "Watch Ad for +20% sell price?", async () => {
+            GameState.user.adBoosterCooldown = Date.now() + 86400000;
+            await GameState.save(); // Simpan ke Cloud
+            this.checkBoosterStatus();
+            this.calculatePreview();
+        }, "WATCH AD");
+    },
+
+    checkBoosterStatus() {
+        const btn = document.getElementById('price-booster-btn');
+        if(!btn) return;
+        const now = Date.now();
+        if (now < (GameState.user.adBoosterCooldown || 0)) {
+            btn.innerHTML = `<i class="fas fa-clock"></i> Active`;
+            btn.onclick = null;
+        } else {
+            btn.innerHTML = `<i class="fas fa-ad"></i> Boost +20%`;
+            btn.onclick = () => this.applyPriceBooster();
+        }
+    },
+
+    checkExpiredBuffs() {
+        if (!GameState.user.activeBuffs) return;
+        Object.keys(GameState.user.activeBuffs).forEach(k => {
+            if(GameState.user.activeBuffs[k] < Date.now()) delete GameState.user.activeBuffs[k];
+        });
+        GameState.save();
+    }
+};
+
+window.MarketSystem = MarketSystem;
+
+=== withdraw.js ===
+
+// js/withdraw.js
+const WithdrawSystem = {
+    selectedCurrency: 'USDT',
+    selectedMethod: 'faucetpay', 
+    
+    quickAmounts: [1000, 2500, 5000, 10000, 50000],
+
+    rates: {
+        USDT: 0.00001,
+        TRX: 0.00006,
+        LTC: 0.0000001,
+        DOGE: 0.00003,
+        SOL: 0.00000005,
+        BTC: 0.0000000001
+    },
+
+    init() {
+        this.renderForm();
+        this.switchTab('withdraw');
+        this.selectMethod('faucetpay'); 
+    },
+
+    selectMethod(method) {
+        this.selectedMethod = method;
+        this.renderForm(); 
+    },
+
+    getBindingStatus() {
+        return GameState.user.faucetpay_email || null;
+    },
+
+    setAmount(val) {
+        if (val === 'MAX') {
+            this.setMax();
+        } else {
+            const input = document.getElementById('wd-amount');
+            if (input) {
+                input.value = val;
+                this.updatePreview();
+            }
+        }
+    },
+
+    renderForm() {
+        const wdArea = document.getElementById('withdraw-area');
+        if (!wdArea) return;
+
+        const currentMin = GameState.user.has_withdrawn ? 2500 : 100;
+        const limitLabel = GameState.user.has_withdrawn ? "Min 2,500" : "Promo Min 100";
+        const boundEmail = this.getBindingStatus();
+        const currentBalance = GameState.user.coins.toLocaleString(); 
+        
+        let feeLabel = "";
+        let inputPlaceholder = "";
+        let inputReadOnly = "";
+        let inputValue = "";
+        let helperText = "";
+
+        if (this.selectedMethod === 'faucetpay') {
+            feeLabel = "0 PTS (Free)";
+            inputPlaceholder = "Enter FaucetPay Email";
+            helperText = "Instant & No Fee. Email locked after success.";
+            
+            if (boundEmail) {
+                inputValue = boundEmail;
+                inputReadOnly = "readonly disabled class='w-full bg-gray-800/50 border border-gray-600 rounded-2xl px-4 py-3 text-[10px] font-bold text-gray-400 cursor-not-allowed'";
+                helperText = "<i class='fas fa-lock text-emerald-500'></i> Account Bound.";
+            } else {
+                inputReadOnly = "class='w-full bg-black/40 border border-white/10 rounded-2xl px-4 py-3 text-[10px] font-bold text-white outline-none focus:border-emerald-500/50'";
+            }
+        } else {
+            feeLabel = "5% (Network Fee)";
+            inputPlaceholder = "Enter Blockchain Address";
+            inputReadOnly = "class='w-full bg-black/40 border border-white/10 rounded-2xl px-4 py-3 text-[10px] font-bold text-white outline-none focus:border-emerald-500/50'";
+            helperText = "Direct transfer to blockchain. Fee applied.";
+        }
+
+        wdArea.innerHTML = `
+            <div class="flex gap-2 mb-4 bg-black/40 p-1 rounded-2xl border border-white/5">
+                <button onclick="WithdrawSystem.selectMethod('faucetpay')" class="flex-1 py-3 rounded-xl flex flex-col items-center gap-1 transition-all ${this.selectedMethod === 'faucetpay' ? 'bg-blue-600 text-white shadow-lg' : 'text-gray-500 hover:text-white'}">
+                    <span class="text-[9px] font-black uppercase">FaucetPay</span>
+                    <span class="text-[7px] opacity-80">Fee 0%</span>
+                </button>
+                <button onclick="WithdrawSystem.selectMethod('direct')" class="flex-1 py-3 rounded-xl flex flex-col items-center gap-1 transition-all ${this.selectedMethod === 'direct' ? 'bg-orange-600 text-white shadow-lg' : 'text-gray-500 hover:text-white'}">
+                    <span class="text-[9px] font-black uppercase">Direct Wallet</span>
+                    <span class="text-[7px] opacity-80">Fee 5%</span>
+                </button>
+            </div>
+
+            <p class="text-[9px] text-gray-400 font-bold uppercase mb-2 tracking-widest">Select Currency</p>
+            <div id="wd-coin-grid" class="grid grid-cols-3 gap-2 mb-4">
+                ${Object.keys(this.rates).map(key => `
+                    <button id="btn-coin-${key}" onclick="WithdrawSystem.select('${key}')" class="p-2 glass rounded-2xl flex flex-col items-center border border-white/5 active:scale-95 transition-all hover:bg-white/5 group">
+                        <span class="text-[9px] font-black uppercase text-gray-300 group-hover:text-emerald-400">${key}</span>
+                    </button>
+                `).join('')}
+            </div>
+
+            <div class="flex flex-col gap-4 mb-4">
+                <div class="space-y-1">
+                    <label class="text-[8px] text-gray-500 font-bold uppercase ml-1">Destination</label>
+                    <input type="text" id="wd-address" value="${inputValue}" ${inputReadOnly} placeholder="${inputPlaceholder}">
+                    <p class="text-[7px] text-gray-400 px-2">${helperText}</p>
+                </div>
+
+                <div class="space-y-2">
+                    <div class="flex gap-2 overflow-x-auto no-scrollbar pb-1">
+                        ${this.quickAmounts.map(amt => `
+                            <button onclick="WithdrawSystem.setAmount(${amt})" class="px-3 py-1.5 glass rounded-lg border border-white/10 text-[8px] font-bold text-gray-300 hover:bg-emerald-500/20 hover:text-white hover:border-emerald-500 transition-all active:scale-90 whitespace-nowrap">${amt >= 1000 ? (amt/1000)+'K' : amt}</button>
+                        `).join('')}
+                    </div>
+                    <div>
+                        <div class="flex justify-between px-1 mb-1">
+                            <span class="text-[8px] text-gray-500 font-bold uppercase">Amount (${limitLabel})</span>
+                            <span class="text-[9px] text-white font-black uppercase flex items-center gap-1 bg-white/5 px-2 py-0.5 rounded-lg border border-white/5"><i class="fas fa-wallet text-emerald-500 text-xs"></i> ${currentBalance} PTS</span>
+                        </div>
+                        <div class="relative">
+                            <input type="number" id="wd-amount" oninput="WithdrawSystem.updatePreview()" class="w-full bg-black/40 border border-white/10 rounded-2xl pl-4 pr-16 py-3 text-sm font-black text-white outline-none focus:border-emerald-500/50 transition-all" placeholder="0">
+                            <button onclick="WithdrawSystem.setMax()" class="absolute right-2 top-1.5 bottom-1.5 bg-emerald-500/20 hover:bg-emerald-500 text-emerald-400 hover:text-black text-[8px] font-black px-3 rounded-xl transition-all uppercase">MAX</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-black/20 rounded-xl p-3 border border-white/5 mb-4 space-y-1">
+                <div class="flex justify-between items-center text-[8px] text-gray-400"><span>Admin Fee:</span><span class="font-bold text-white">${feeLabel}</span></div>
+                <div class="flex justify-between items-center text-[8px] text-gray-400">
+                    <span>You Receive:</span>
+                    <div class="text-right">
+                        <p id="wd-preview-amount" class="text-sm font-black text-white leading-none">0.00</p>
+                        <p id="wd-preview-symbol" class="text-[7px] font-bold text-emerald-500 uppercase">${this.selectedCurrency}</p>
+                    </div>
+                </div>
+            </div>
+
+            <button onclick="WithdrawSystem.process()" class="w-full bg-gradient-to-r from-emerald-600 to-emerald-500 text-white py-4 rounded-[1.5rem] font-black uppercase text-[10px] shadow-lg active:scale-95 transition-all flex items-center justify-center gap-2">Process <i class="fas fa-arrow-right"></i></button>
+        `;
+        this.select(this.selectedCurrency);
+    },
+
+    select(symbol) {
+        this.selectedCurrency = symbol;
+        Object.keys(this.rates).forEach(k => {
+            const btn = document.getElementById(`btn-coin-${k}`);
+            if(btn) btn.className = k === symbol ? "p-2 glass rounded-2xl flex flex-col items-center border border-emerald-500/50 bg-emerald-500/10 scale-95" : "p-2 glass rounded-2xl flex flex-col items-center border border-white/5 opacity-70";
+        });
+        this.updatePreview();
+    },
+
+    setMax() {
+        if (!GameState.user) return;
+        const input = document.getElementById('wd-amount');
+        if (input) {
+            input.value = GameState.user.coins;
+            this.updatePreview();
+        }
+    },
+
+    updatePreview() {
+        const inputAmt = document.getElementById('wd-amount');
+        const previewAmt = document.getElementById('wd-preview-amount');
+        const previewSym = document.getElementById('wd-preview-symbol');
+        if (!inputAmt || !previewAmt) return;
+
+        const amount = parseInt(inputAmt.value) || 0;
+        let fee = (this.selectedMethod === 'direct') ? Math.floor(amount * 0.05) : 0;
+        const netAmount = Math.max(0, amount - fee);
+        const cryptoValue = (netAmount * this.rates[this.selectedCurrency]).toFixed(8);
+
+        previewAmt.innerText = cryptoValue;
+        previewSym.innerText = this.selectedCurrency;
+    },
+
+    async process() {
+        const inputAmt = document.getElementById('wd-amount');
+        const inputAddr = document.getElementById('wd-address');
+        const amount = parseInt(inputAmt.value);
+        const address = inputAddr.value.trim();
+        const minLimit = GameState.user.has_withdrawn ? 2500 : 100;
+
+        if (!amount || amount < minLimit) { UIEngine.showRewardPopup("LIMIT ERROR", `Minimum withdrawal is ${minLimit} PTS.`, null, "FIX"); return; }
+        if (!address) { UIEngine.showRewardPopup("EMPTY DATA", "Please fill in the destination.", null, "FIX"); return; }
+        if (amount > GameState.user.coins) { UIEngine.showRewardPopup("NO FUNDS", "Not enough coins.", null, "CLOSE"); return; }
+
+        if (this.selectedMethod === 'faucetpay') {
+            if (!address.includes('@')) { UIEngine.showRewardPopup("INVALID EMAIL", "FaucetPay requires a valid Email.", null, "FIX"); return; }
+            if (GameState.user.faucetpay_email && address !== GameState.user.faucetpay_email) {
+                UIEngine.showRewardPopup("ACCOUNT LOCKED", "Account bound to: " + GameState.user.faucetpay_email, null, "OK"); return;
+            }
+        }
+
+        let fee = (this.selectedMethod === 'direct') ? Math.floor(amount * 0.05) : 0;
+        const cryptoVal = ((amount - fee) * this.rates[this.selectedCurrency]).toFixed(8);
+
+        UIEngine.showRewardPopup("CONFIRM", `Withdraw ${amount - fee} PTS (${cryptoVal} ${this.selectedCurrency})?`, async () => {
+            // 1. Potong Saldo & Update Status
+            GameState.user.coins -= amount;
+            if (!GameState.user.has_withdrawn) GameState.user.has_withdrawn = true;
+            if (this.selectedMethod === 'faucetpay' && !GameState.user.faucetpay_email) GameState.user.faucetpay_email = address;
+
+            // 2. Simpan Riwayat
+            const tx = { id: 'TX-' + Math.floor(Math.random() * 999999), date: new Date().toLocaleDateString(), amount, method: this.selectedMethod, destination: address, status: 'Pending' };
+            if(!GameState.user.history) GameState.user.history = [];
+            GameState.user.history.unshift(tx);
+
+            // 3. Simpan ke Cloud (The Chain)
+            await GameState.save();
+
+            UIEngine.updateHeader();
+            UIEngine.closeWithdraw();
+            setTimeout(() => { UIEngine.showRewardPopup("SUCCESS", "Request submitted!", null, "OK"); }, 500);
+        }, "WITHDRAW");
+    },
+
+    
+    
+    switchTab(tab) {
+        const wdArea = document.getElementById('withdraw-area');
+        const depArea = document.getElementById('deposit-area');
+        const btnWd = document.getElementById('tab-wd-btn');
+        const btnDep = document.getElementById('tab-dep-btn');
+        if (!wdArea || !depArea) return;
+
+        if (tab === 'withdraw') {
+            wdArea.classList.remove('hidden'); depArea.classList.add('hidden');
+            if(btnWd) { btnWd.classList.add('bg-emerald-500', 'text-black', 'shadow-lg'); btnWd.classList.remove('text-gray-400'); }
+            if(btnDep) { btnDep.classList.remove('bg-emerald-500', 'text-black', 'shadow-lg'); btnDep.classList.add('text-gray-400'); }
+        } else {
+            wdArea.classList.add('hidden'); depArea.classList.remove('hidden');
+            if(btnDep) { btnDep.classList.add('bg-emerald-500', 'text-black', 'shadow-lg'); btnDep.classList.remove('text-gray-400'); }
+            if(btnWd) { btnWd.classList.remove('bg-emerald-500', 'text-black', 'shadow-lg'); btnWd.classList.add('text-gray-400'); }
+        }
+    }
+};
+window.WithdrawSystem = WithdrawSystem;
+
+=== affilate.js ===
+
+// js/affiliate.js
+const AffiliateSystem = {
+    
+    init() {
+        // Cek URL Param saat start (Simulasi menangkap referral code)
+        this.checkReferralParam();
+        this.render();
+    },
+
+    // Menangkap "startapp=USERID" dari Telegram/URL dan simpan ke Cloud
+    async checkReferralParam() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const refCode = urlParams.get('startapp') || urlParams.get('ref');
+        
+        // Aturan: Ada kode ref, belum punya upline, dan bukan diri sendiri
+        if (refCode && !GameState.user.upline && refCode !== GameState.user.userId) {
+            GameState.user.upline = refCode;
+            
+            // Simpan ke Cloud agar hubungan pengundang terkunci permanen
+            if (typeof GameState.save === 'function') {
+                await GameState.save();
+            }
+            console.log(`[AFFILIATE] Cloud Bound to Upline: ${refCode}`);
+        }
+    },
+
+    render() {
+        const container = document.getElementById('Affiliate');
+        if (!container) return;
+
+        // Ambil Data dari State (Data yang sudah dimuat dari Firebase)
+        const myLink = `https://t.me/DailyCropBot/start?startapp=${GameState.user.userId}`;
+        const totalFriends = GameState.user.affiliate?.total_friends || 0;
+        const totalEarnings = GameState.user.affiliate?.total_earnings || 0;
+        const friendList = GameState.user.affiliate?.friends_list || [];
+
+        container.innerHTML = '';
+        container.className = "h-full flex flex-col p-5 animate-in pb-24 overflow-y-auto no-scrollbar";
+
+        // 1. HEADER CARD (Visual Tetap Asli)
+        const header = document.createElement('div');
+        header.innerHTML = `
+            <div class="glass p-6 rounded-[2.5rem] border border-white/10 relative overflow-hidden mb-6 shadow-2xl">
+                <div class="absolute -top-10 -right-10 w-40 h-40 bg-indigo-500/20 rounded-full blur-3xl animate-pulse"></div>
+                <div class="relative z-10 text-center">
+                    <p class="text-[9px] text-gray-400 font-bold uppercase tracking-widest mb-1">Total Earnings</p>
+                    <h1 class="text-4xl font-black text-white mb-4 drop-shadow-md">
+                        ${totalEarnings.toLocaleString()} <span class="text-lg text-emerald-400">PTS</span>
+                    </h1>
+                    <div class="flex gap-3 justify-center">
+                        <div class="bg-black/30 px-4 py-2 rounded-xl border border-white/5 flex items-center gap-2">
+                            <i class="fas fa-users text-indigo-400"></i>
+                            <div class="text-left">
+                                <p class="text-[7px] text-gray-500 font-bold uppercase">Friends</p>
+                                <p class="text-[10px] font-black text-white">${totalFriends}</p>
+                            </div>
+                        </div>
+                        <div class="bg-black/30 px-4 py-2 rounded-xl border border-white/5 flex items-center gap-2">
+                            <i class="fas fa-percent text-amber-400"></i>
+                            <div class="text-left">
+                                <p class="text-[7px] text-gray-500 font-bold uppercase">Rate</p>
+                                <p class="text-[10px] font-black text-white">10%</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        container.appendChild(header);
+
+        // 2. INVITE SECTION
+        const inviteSec = document.createElement('div');
+        inviteSec.className = "mb-6";
+        inviteSec.innerHTML = `
+            <div class="flex justify-between items-end mb-2 px-2">
+                <h3 class="text-sm font-black text-white uppercase italic tracking-wider">Invite Friends</h3>
+                <span class="text-[8px] text-emerald-400 font-bold bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">Earn 10% Passive</span>
+            </div>
+            <div class="bg-white/5 p-1.5 rounded-2xl border border-white/10 flex items-center gap-2">
+                <div class="bg-black/40 h-10 flex-1 rounded-xl flex items-center px-4 overflow-hidden">
+                    <p class="text-[9px] text-gray-400 truncate font-mono">${myLink}</p>
+                </div>
+                <button onclick="AffiliateSystem.copyLink('${myLink}')" class="h-10 w-10 bg-indigo-500 rounded-xl flex items-center justify-center text-white shadow-lg active:scale-90 transition-all">
+                    <i class="fas fa-copy"></i>
+                </button>
+            </div>
+            <p class="text-[8px] text-gray-500 mt-2 px-2 leading-relaxed italic opacity-80">
+                <i class="fas fa-info-circle mr-1"></i> Commission starts after friend's First Market Sell.
+            </p>
+        `;
+        container.appendChild(inviteSec);
+
+        // 3. FRIENDS LIST
+        const listSec = document.createElement('div');
+        listSec.className = "flex-1 flex flex-col min-h-0";
+        
+        let listHTML = "";
+        if (friendList.length === 0) {
+            listHTML = `
+                <div class="flex flex-col items-center justify-center py-10 opacity-40">
+                    <i class="fas fa-user-plus text-4xl text-gray-500 mb-3"></i>
+                    <p class="text-[9px] font-bold text-gray-400 uppercase">No friends yet</p>
+                </div>`;
+        } else {
+            listHTML = friendList.map(f => `
+                <div class="glass p-3 rounded-2xl flex items-center justify-between border border-white/5 mb-2">
+                    <div class="flex items-center gap-3">
+                        <div class="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center font-black text-[10px] text-white">
+                            ${f.name.substring(0, 2).toUpperCase()}
+                        </div>
+                        <div>
+                            <p class="text-[9px] font-black text-white uppercase">${f.name}</p>
+                            <p class="text-[7px] font-bold text-emerald-400">Active Member</p>
+                        </div>
+                    </div>
+                    <div class="text-right">
+                        <p class="text-[9px] font-black text-white">+${f.earnings.toLocaleString()} PTS</p>
+                        <p class="text-[7px] text-gray-500 uppercase tracking-tighter">Earnings</p>
+                    </div>
+                </div>`).join('');
+        }
+
+        listSec.innerHTML = `<h3 class="text-sm font-black text-white uppercase italic tracking-wider mb-3 px-2">Referral List</h3><div class="overflow-y-auto no-scrollbar pb-10">${listHTML}</div>`;
+        container.appendChild(listSec);
+    },
+
+    copyLink(text) {
+        navigator.clipboard.writeText(text).then(() => {
+            if (window.UIEngine) UIEngine.showRewardPopup("COPIED", "Referral link copied!", null, "OK");
+        });
+    }
+};
+
+window.AffiliateSystem = AffiliateSystem;
+
+=== spin.js ===
+
+// js/spin.js
+const SpinSystem = {
+    cooldownTime: 1 * 60 * 60 * 1000, // 1 Jam
+
+    show() {
+        const herbKeys = Object.keys(window.HerbData || {});
+        const previewImgs = herbKeys.slice(0, 4).map(k => HerbData[k].img);
+
+        const overlay = document.createElement('div');
+        overlay.id = "spin-popup";
+        overlay.className = "fixed inset-0 bg-black/95 backdrop-blur-xl z-[999] flex items-center justify-center p-6 animate-in";
+        
+        overlay.innerHTML = `
+            <div class="glass w-full max-w-sm rounded-[2.5rem] p-6 border border-white/10 text-center relative overflow-hidden shadow-2xl">
+                <button onclick="SpinSystem.close()" class="absolute top-6 right-6 w-8 h-8 rounded-full bg-white/5 flex items-center justify-center text-gray-400 hover:bg-red-500 hover:text-white transition-all z-10"><i class="fas fa-times text-xs"></i></button>
+                <h2 class="text-2xl font-black text-white mb-1 uppercase italic tracking-widest text-indigo-400">Lucky Spin</h2>
+                <p class="text-[9px] text-gray-400 font-bold mb-8 uppercase tracking-widest px-10">Win Premium Boosters & Ready-to-Sell Herbs</p>
+                <div class="relative w-56 h-56 mx-auto mb-8">
+                    <div id="main-wheel" class="w-full h-full rounded-full border-4 border-indigo-500/30 bg-indigo-500/10 flex items-center justify-center transition-all duration-[4000ms] cubic-bezier(0.25, 0.1, 0.25, 1) relative overflow-hidden">
+                        <div class="absolute inset-0 grid grid-cols-2 grid-rows-2 p-10 opacity-40">
+                             <img src="${previewImgs[0] || ''}" class="w-8 h-8 object-contain mx-auto animate-pulse">
+                             <img src="${previewImgs[1] || ''}" class="w-8 h-8 object-contain mx-auto animate-pulse">
+                             <img src="${previewImgs[2] || ''}" class="w-8 h-8 object-contain mx-auto animate-pulse">
+                             <img src="${previewImgs[3] || ''}" class="w-8 h-8 object-contain mx-auto animate-pulse">
+                        </div>
+                    </div>
+                    <div class="absolute -top-4 left-1/2 -translate-x-1/2 text-amber-400 text-3xl z-20"><i class="fas fa-caret-down"></i></div>
+                </div>
+                <div class="flex flex-col gap-3">
+                    <button id="btn-spin-free" onclick="SpinSystem.start('free')" class="w-full bg-gradient-to-r from-indigo-500 to-indigo-700 text-white py-4 rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-lg border border-white/10 group">
+                        <span class="flex items-center justify-center gap-2"><i class="fas fa-play-circle group-hover:rotate-12 transition-transform"></i> Spin Now (FREE)</span>
+                    </button>
+                    <button id="btn-spin-paid" onclick="SpinSystem.start('paid')" class="w-full bg-white/5 hover:bg-white/10 text-white py-4 rounded-2xl font-black uppercase text-[10px] tracking-widest border border-white/5">
+                        <span class="flex items-center justify-center gap-2"><i class="fas fa-coins text-amber-400"></i> Pay 150 PTS</span>
+                    </button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(overlay);
+        this.updateTimer();
+    },
+
+    async start(type) {
+        if (type === 'paid') {
+            if (GameState.user.coins < 150) {
+                UIEngine.showRewardPopup("NO COINS", "You need 150 PTS to spin!", null, "CLOSE");
+                return;
+            }
+            GameState.user.coins -= 150;
+            UIEngine.updateHeader();
+        }
+
+        // Simpan cooldown ke Cloud (Firebase) agar tidak bisa di-reset dengan hapus cache
+        if (type === 'free') {
+            GameState.user.spin_free_cooldown = Date.now();
+            if (typeof GameState.save === 'function') await GameState.save();
+        }
+
+        this.executeSpin(type);
+    },
+
+    executeSpin(type) {
+        const wheel = document.getElementById('main-wheel');
+        const btnFree = document.getElementById('btn-spin-free');
+        const btnPaid = document.getElementById('btn-spin-paid');
+        if(btnFree) btnFree.disabled = true;
+        if(btnPaid) btnPaid.disabled = true;
+
+        const deg = Math.floor(Math.random() * 360) + 3600;
+        if(wheel) wheel.style.transform = `rotate(${deg}deg)`;
+
+        setTimeout(() => { this.showRewardSelection(type); }, 4500);
+    },
+
+    showRewardSelection(type) {
+        const rewards = [];
+        while (rewards.length < 4) {
+            if (Math.random() > 0.3) {
+                let key = DropEngine.roll();
+                let data = window.HerbData[key];
+                rewards.push({ type: 'herb', key: key, name: data.name, img: data.img, rarity: data.rarity });
+            } else {
+                const boosterPool = window.MarketSystem.shopItems;
+                let b = boosterPool[Math.floor(Math.random() * boosterPool.length)];
+                rewards.push({ type: 'booster', key: b.id, name: b.name, img: b.icon, rarity: 'Special', isIcon: true, data: b });
+            }
+        }
+
+        const resOverlay = document.createElement('div');
+        resOverlay.id = "reward-selection-popup";
+        resOverlay.className = "fixed inset-0 bg-black/95 z-[1000] flex items-center justify-center p-6 backdrop-blur-2xl animate-in";
+        resOverlay.innerHTML = `
+            <div class="glass w-full max-w-xs rounded-[3rem] p-6 border border-white/10 text-center relative shadow-2xl">
+                <div class="w-16 h-16 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-full flex items-center justify-center mx-auto mb-4 border-4 border-white/10 shadow-lg"><i class="fas fa-trophy text-white text-2xl"></i></div>
+                <h3 class="text-xl font-black text-white mb-1 uppercase tracking-wider italic">Jackpot Result!</h3>
+                <div class="grid grid-cols-2 gap-3 mb-6">
+                    ${rewards.map(r => `<div class="bg-white/5 p-3 rounded-2xl border border-white/5 flex flex-col items-center group"><span class="text-[6px] font-black uppercase px-2 py-0.5 rounded bg-black/40 text-indigo-400 mb-2">${r.rarity}</span>${r.isIcon ? `<i class="fas ${r.img} text-2xl text-amber-400 mb-2"></i>` : `<img src="${r.img}" class="w-10 h-10 object-contain mb-2 drop-shadow-xl">`}<span class="text-[7px] font-black text-white uppercase truncate w-full">${r.name}</span></div>`).join('')}
+                </div>
+                <div class="flex flex-col gap-2">
+                    <button id="claim-spin-btn" class="w-full py-4 bg-emerald-500 text-black rounded-2xl font-black uppercase text-[10px] tracking-widest active:scale-95 transition-all">${type === 'free' ? '<i class="fas fa-ad mr-1"></i> Claim (Watch Ad)' : 'Claim Rewards'}</button>
+                    <button onclick="SpinSystem.closeAll()" class="w-full py-2 text-gray-500 text-[8px] font-bold uppercase tracking-widest hover:text-white transition-colors">Cancel & Close</button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(resOverlay);
+
+        document.getElementById('claim-spin-btn').onclick = () => {
+            if (type === 'free') {
+                UIEngine.showRewardPopup("ADVERTISEMENT", "Watching video reward...", () => { this.processClaim(rewards); }, "FINISH VIDEO");
+            } else { this.processClaim(rewards); }
+        };
+    },
+
+    async processClaim(rewards) {
+        this.closeAll();
+        rewards.forEach((item, index) => {
+            setTimeout(() => {
+                if (item.type === 'herb') {
+                    GameState.warehouse[item.key] = (GameState.warehouse[item.key] || 0) + 1;
+                } else if (item.type === 'booster') {
+                    if (item.data.type === 'buff') {
+                        if (!GameState.user.activeBuffs) GameState.user.activeBuffs = {};
+                        GameState.user.activeBuffs[item.data.buffKey] = Date.now() + 86400000;
+                    } else if (item.data.type === 'storage') {
+                        GameState.user.extraStorage = (GameState.user.extraStorage || 0) + 20;
+                    }
+                }
+                const icon = item.isIcon ? 'https://img.icons8.com/color/96/gift.png' : item.img;
+                this.playFlyAnimation(icon);
+            }, index * 200);
+        });
+
+        if (typeof GameState.save === 'function') await GameState.save();
+        setTimeout(() => { UIEngine.showRewardPopup("REWARDS CLAIMED", "Items added to Cloud Storage.", null, "AWESOME"); }, 1200);
+    },
+
+    playFlyAnimation(imgUrl) {
+        const item = document.createElement('img');
+        item.src = imgUrl; item.className = "fixed z-[9999] w-12 h-12 object-contain pointer-events-none transition-all duration-1000 cubic-bezier(0.2, 0.8, 0.2, 1)";
+        item.style.left = "50%"; item.style.top = "50%"; item.style.transform = "translate(-50%, -50%) scale(1.5)";
+        document.body.appendChild(item);
+        setTimeout(() => { item.style.left = "80%"; item.style.top = "40px"; item.style.transform = "translate(-50%, -50%) scale(0.1) rotate(360deg)"; item.style.opacity = "0"; }, 50);
+        setTimeout(() => item.remove(), 1100);
+    },
+
+    updateTimer() {
+        const freeBtn = document.getElementById('btn-spin-free');
+        const lastSpin = GameState.user.spin_free_cooldown || 0;
+        if (!freeBtn) return;
+
+        if (this.timerInterval) clearInterval(this.timerInterval);
+        this.timerInterval = setInterval(() => {
+            const remaining = this.cooldownTime - (Date.now() - parseInt(lastSpin));
+            if (remaining > 0) {
+                freeBtn.disabled = true; freeBtn.classList.add('opacity-50', 'cursor-not-allowed');
+                const mins = Math.floor((remaining / 60000) % 60); const secs = Math.floor((remaining / 1000) % 60);
+                freeBtn.innerHTML = `<i class="fas fa-clock mr-2"></i> Wait ${mins}:${secs < 10 ? '0' : ''}${secs}`;
+            } else {
+                freeBtn.disabled = false; freeBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+                freeBtn.innerHTML = `<i class="fas fa-play-circle mr-2"></i> Spin Now (FREE)`;
+                clearInterval(this.timerInterval);
+            }
+        }, 1000);
+    },
+
+    closeAll() {
+        document.getElementById('reward-selection-popup')?.remove();
+        document.getElementById('spin-popup')?.remove();
+        if (this.timerInterval) clearInterval(this.timerInterval);
+    },
+
+    close() { this.closeAll(); }
+};
+
+window.SpinSystem = SpinSystem;
+
+=== bootstrap.js ====
+belum di buat tapi di rekomendasikan di buat hasil dari pembicaraan tadi

@@ -1,0 +1,303 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Daily Crop - Farming Game</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <script src="https://unpkg.com/@lottiefiles/lottie-player@latest/dist/lottie-player.js"></script>
+    
+    <link rel="stylesheet" href="style.css">
+</head>
+<body class="bg-[#05080f] text-white overflow-hidden h-screen w-screen selection:bg-emerald-500/30">
+
+    <header class="fixed top-0 left-0 right-0 z-50 bg-black/80 backdrop-blur-md border-b border-white/5 px-4 py-3 flex justify-between items-center transition-all duration-300">
+        <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500/20 to-emerald-900/20 border border-emerald-500/30 flex items-center justify-center relative overflow-hidden">
+                <i class="fas fa-user text-emerald-400 z-10"></i>
+                <div class="absolute inset-0 bg-emerald-500/10 animate-pulse"></div>
+            </div>
+            <div>
+                <p id="display-username" class="text-[10px] font-black uppercase text-white tracking-widest leading-tight">Farmer One</p>
+                <p id="display-plan" class="text-[7px] text-emerald-500 font-bold uppercase tracking-wider">Free Plan</p>
+            </div>
+        </div>
+
+        <button onclick="UIEngine.openWithdraw(); if(window.WithdrawSystem) WithdrawSystem.init();" 
+                class="group flex items-center gap-3 bg-white/5 border border-white/10 px-3 py-1.5 rounded-2xl active:scale-95 transition-all hover:border-emerald-500/30">
+            <div class="text-right">
+                <p class="text-[7px] text-gray-400 font-black uppercase group-hover:text-emerald-400 transition-colors">Balance</p>
+                <p id="header-coins" class="text-[10px] font-black text-white">0 PTS</p>
+            </div>
+            <div class="w-8 h-8 bg-[#1a1a1a] rounded-xl flex items-center justify-center border border-white/5 shadow-inner">
+                <img width="20" height="20" src="https://img.icons8.com/nolan/64/wallet.png" alt="wallet"/>
+            </div>
+        </button>
+    </header>
+
+    <main id="main-content" class="h-full pt-20 pb-28 px-4 overflow-y-auto no-scrollbar relative">
+        
+        <div id="Dashboard" class="flex flex-col gap-4 animate-in">
+            <div class="glass p-6 rounded-[2rem] border border-white/10 relative overflow-hidden group">
+                <div class="absolute top-0 right-0 p-6 opacity-5 group-hover:opacity-10 transition-opacity"><i class="fas fa-tractor text-8xl transform -rotate-12"></i></div>
+                <h3 class="text-[9px] text-gray-400 font-bold uppercase tracking-widest mb-1">Welcome Back</h3>
+                <h1 class="text-2xl font-black text-white uppercase italic tracking-wider">Farmer One</h1>
+                
+                <div class="mt-4 flex gap-3">
+                    <div class="bg-emerald-500/10 px-3 py-1 rounded-lg border border-emerald-500/20">
+                        <span class="text-[8px] font-black text-emerald-400 uppercase">Level 1</span>
+                    </div>
+                    <div class="bg-blue-500/10 px-3 py-1 rounded-lg border border-blue-500/20">
+                        <span class="text-[8px] font-black text-blue-400 uppercase">ID: 8829</span>
+                    </div>
+                </div>
+            </div>
+
+            <div onclick="WarehouseSystem.show()" class="glass p-4 rounded-[2rem] border border-white/10 flex items-center justify-between active:scale-95 transition-all cursor-pointer hover:bg-white/5">
+                <div class="flex items-center gap-4">
+                    <div class="w-12 h-12 rounded-full bg-amber-500/10 flex items-center justify-center text-amber-500 border border-amber-500/20">
+                        <i class="fas fa-warehouse text-xl"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-sm font-bold text-white uppercase">Warehouse</h3>
+                        <p class="text-[9px] text-gray-400 font-medium">Check your harvest stock</p>
+                    </div>
+                </div>
+                <i class="fas fa-chevron-right text-gray-600"></i>
+            </div>
+            
+            <div class="grid grid-cols-2 gap-3">
+                <div class="glass p-4 rounded-3xl border border-white/5 flex flex-col items-center justify-center py-6">
+                    <span class="text-2xl font-black text-white">0</span>
+                    <span class="text-[8px] text-gray-500 uppercase font-bold mt-1">Total Harvest</span>
+                </div>
+                <div class="glass p-4 rounded-3xl border border-white/5 flex flex-col items-center justify-center py-6">
+                    <span class="text-2xl font-black text-white">0</span>
+                    <span class="text-[8px] text-gray-500 uppercase font-bold mt-1">Total Sold</span>
+                </div>
+            </div>
+        </div>
+
+        <div id="FarmingHouse" class="hidden h-full flex flex-col animate-in">
+            <div class="flex-1 flex gap-3 h-full pb-6">
+                
+                <div class="w-16 flex flex-col gap-2 overflow-y-auto no-scrollbar py-1">
+                    <button id="task-plant" onclick="FarmSystem.useAction('plant')" class="w-full aspect-square glass rounded-2xl flex flex-col items-center justify-center border-emerald-500/20 active:scale-90 transition-all group hover:bg-emerald-500/10">
+                        <i class="fas fa-leaf text-emerald-500 text-xs mb-1 group-hover:animate-bounce"></i>
+                        <span class="text-[5px] font-black uppercase text-center leading-tight text-emerald-100">Plant<br>Herbs</span>
+                    </button>
+                    
+                    <button id="task-water" onclick="FarmSystem.completeDailyTask('water')" class="w-full aspect-square glass rounded-2xl flex flex-col items-center justify-center border-blue-500/20 active:scale-90 transition-all hover:bg-blue-500/10">
+                        <i class="fas fa-tint text-blue-400 text-xs mb-1"></i>
+                        <span class="text-[5px] font-black uppercase text-center leading-tight text-blue-100">Watering<br>Herb</span>
+                    </button>
+
+                    <button id="task-pest" onclick="FarmSystem.completeDailyTask('pest')" class="w-full aspect-square glass rounded-2xl flex flex-col items-center justify-center border-red-500/20 active:scale-90 transition-all hover:bg-red-500/10">
+                        <i class="fas fa-bug text-red-400 text-xs mb-1"></i>
+                        <span class="text-[5px] font-black uppercase text-center leading-tight text-red-100">Pest<br>Control</span>
+                    </button>
+                    
+                     <button id="task-fertilizer" onclick="FarmSystem.completeDailyTask('fertilizer')" class="w-full aspect-square glass rounded-2xl flex flex-col items-center justify-center border-amber-500/20 active:scale-90 transition-all hover:bg-amber-500/10">
+                        <i class="fas fa-poop text-amber-400 text-xs mb-1"></i>
+                        <span class="text-[5px] font-black uppercase text-center leading-tight text-amber-100">Apply<br>Fertilizer</span>
+                    </button>
+                </div>
+
+                <div id="farm-grid" class="flex-1 grid grid-cols-2 grid-rows-4 gap-3 h-full content-start">
+                    <div id="plot-1"></div>
+                    <div id="plot-2"></div>
+                    <div id="plot-3"></div>
+                    <div id="plot-4"></div>
+                    <div id="plot-5"></div>
+                    <div id="plot-6"></div>
+                    <div id="plot-7"></div>
+                    <div id="plot-8"></div>
+                </div>
+            </div>
+        </div>
+
+        <div id="Shop" class="hidden flex flex-col items-center justify-center h-full animate-in text-center opacity-50">
+            <i class="fas fa-store-slash text-4xl text-gray-600 mb-3"></i>
+            <h2 class="text-sm font-black uppercase">Market Closed</h2>
+            <p class="text-[9px] uppercase tracking-widest">Opening Soon</p>
+        </div>
+
+        <div id="SubscibePlan" class="hidden flex flex-col items-center justify-center h-full animate-in text-center opacity-50">
+            <i class="fas fa-crown text-4xl text-gray-600 mb-3"></i>
+            <h2 class="text-sm font-black uppercase">Subscription</h2>
+            <p class="text-[9px] uppercase tracking-widest">Upgrade Coming Soon</p>
+        </div>
+
+        <div id="Affiliate" class="hidden flex flex-col items-center justify-center h-full animate-in text-center opacity-50">
+            <i class="fas fa-users text-4xl text-gray-600 mb-3"></i>
+            <h2 class="text-sm font-black uppercase">Affiliate</h2>
+            <p class="text-[9px] uppercase tracking-widest">Invite Friends Soon</p>
+        </div>
+
+    </main>
+
+    <div class="fixed bottom-28 right-4 flex flex-col gap-3 z-40">
+        <a href="https://t.me/DailyCropBot" target="_blank" class="w-10 h-10 bg-[#229ED9] rounded-full flex items-center justify-center shadow-lg hover:scale-110 transition-transform border border-white/10">
+            <i class="fab fa-telegram-plane text-white text-lg"></i>
+        </a>
+        <button onclick="UIEngine.showPrivacy()" class="w-10 h-10 bg-gray-700 rounded-full flex items-center justify-center shadow-lg hover:scale-110 transition-transform border border-white/10">
+            <i class="fas fa-user-shield text-gray-300 text-sm"></i>
+        </button>
+        <button onclick="UIEngine.showTermsModal()" class="w-10 h-10 bg-gray-800 rounded-full flex items-center justify-center shadow-lg hover:scale-110 transition-transform border border-white/10">
+            <i class="fas fa-file-contract text-gray-300 text-sm"></i>
+        </button>
+    </div>
+
+    <nav class="fixed bottom-6 left-4 right-4 h-20 glass rounded-[2.5rem] flex justify-around items-center z-50 border border-white/10 shadow-2xl bg-black/60 backdrop-blur-xl">
+        <button onclick="UIEngine.navigate('Dashboard')" class="nav-item flex flex-col items-center text-emerald-500 scale-110 transition-all duration-300">
+            <i class="fas fa-th-large text-xl mb-1"></i>
+            <span class="text-[7px] font-black uppercase tracking-wider">Home</span>
+        </button>
+        <button onclick="UIEngine.navigate('FarmingHouse')" class="nav-item flex flex-col items-center text-gray-500 hover:text-emerald-400 transition-all duration-300">
+            <i class="fas fa-seedling text-xl mb-1"></i>
+            <span class="text-[7px] font-black uppercase tracking-wider">Farm</span>
+        </button>
+        <button onclick="UIEngine.navigate('Shop')" class="nav-item flex flex-col items-center text-gray-500 hover:text-emerald-400 transition-all duration-300">
+            <i class="fas fa-store text-xl mb-1"></i>
+            <span class="text-[7px] font-black uppercase tracking-wider">Market</span>
+        </button>
+        <button onclick="UIEngine.navigate('SubscibePlan')" class="nav-item flex flex-col items-center text-gray-500 hover:text-emerald-400 transition-all duration-300">
+            <i class="fas fa-gem text-xl mb-1"></i>
+            <span class="text-[7px] font-black uppercase tracking-wider">Plan</span>
+        </button>
+        <button onclick="UIEngine.navigate('Affiliate')" class="nav-item flex flex-col items-center text-gray-500 hover:text-emerald-400 transition-all duration-300 relative">
+            <i class="fas fa-users text-xl mb-1"></i>
+            <span id="affiliate-dot" class="absolute top-0 right-3 w-1.5 h-1.5 bg-red-500 rounded-full animate-ping hidden"></span>
+            <span class="text-[7px] font-black uppercase tracking-wider">Team</span>
+        </button>
+    </nav>
+
+    <div id="withdraw-modal" class="fixed inset-0 z-[200] hidden flex items-center justify-center p-6 bg-black/95 backdrop-blur-xl">
+        <div class="glass p-6 rounded-[2.5rem] border border-white/10 w-full max-w-sm animate-in relative overflow-hidden flex flex-col max-h-[90vh]">
+            <button onclick="UIEngine.closeWithdraw()" class="absolute top-6 right-6 text-gray-500 z-50 hover:text-white"><i class="fas fa-times"></i></button>
+            
+            <h2 class="text-xl font-black uppercase italic text-emerald-500 tracking-widest mb-6 flex items-center gap-2">
+                <i class="fas fa-wallet"></i> Wallet
+            </h2>
+
+            <div class="flex gap-2 mb-6 bg-white/5 p-1 rounded-2xl border border-white/5 shrink-0">
+                <button id="tab-wd-btn" onclick="WithdrawSystem.switchTab('withdraw')" class="flex-1 py-3 rounded-xl text-[10px] font-black uppercase transition-all bg-emerald-500 text-black shadow-lg">Withdraw</button>
+                <button id="tab-dep-btn" onclick="WithdrawSystem.switchTab('deposit')" class="flex-1 py-3 rounded-xl text-[10px] font-black uppercase transition-all text-gray-400 hover:text-white">Deposit</button>
+            </div>
+
+            <div class="overflow-y-auto no-scrollbar flex-1 pb-4">
+                <div id="withdraw-area" class="relative z-10 animate-in">
+                    <p class="text-[8px] text-gray-500 font-bold uppercase mb-2">Select Network</p>
+                    <div class="grid grid-cols-4 gap-2 mb-6">
+                        <button onclick="WithdrawSystem.select('BTC')" class="p-2 glass rounded-2xl flex flex-col items-center border border-white/5 active:scale-95 transition-all hover:bg-orange-500/10 hover:border-orange-500/30"><i class="fab fa-bitcoin text-orange-500 mb-1"></i><span class="text-[6px] font-black">BTC</span></button>
+                        <button onclick="WithdrawSystem.select('USDT')" class="p-2 glass rounded-2xl flex flex-col items-center border border-white/5 active:scale-95 transition-all hover:bg-emerald-500/10 hover:border-emerald-500/30"><i class="fas fa-dollar-sign text-emerald-500 mb-1"></i><span class="text-[6px] font-black">USDT</span></button>
+                        <button onclick="WithdrawSystem.select('ETH')" class="p-2 glass rounded-2xl flex flex-col items-center border border-white/5 active:scale-95 transition-all hover:bg-purple-500/10 hover:border-purple-500/30"><i class="fab fa-ethereum text-purple-400 mb-1"></i><span class="text-[6px] font-black">ETH</span></button>
+                        <button onclick="WithdrawSystem.select('TRX')" class="p-2 glass rounded-2xl flex flex-col items-center border border-white/5 active:scale-95 transition-all hover:bg-red-500/10 hover:border-red-500/30"><i class="fas fa-gem text-red-500 mb-1"></i><span class="text-[6px] font-black">TRX</span></button>
+                    </div>
+
+                    <div class="relative mb-2">
+                        <input type="number" id="wd-amount" class="w-full bg-black/40 border border-white/10 rounded-2xl px-5 py-4 text-sm font-black text-white outline-none focus:border-emerald-500/50 transition-all" placeholder="0.00">
+                        <button onclick="WithdrawSystem.setMax()" class="absolute right-3 top-3 bg-emerald-500 text-black text-[8px] font-black px-3 py-2 rounded-xl active:scale-95">MAX</button>
+                    </div>
+                    
+                    <p id="wd-preview" class="text-[8px] text-emerald-500 font-mono text-right mb-6">Receive: 0 <span id="selected-symbol">TRX</span></p>
+
+                    <button onclick="WithdrawSystem.process()" class="w-full bg-emerald-500 text-black py-4 rounded-[1.5rem] font-black uppercase text-[10px] shadow-[0_5px_20px_rgba(16,185,129,0.3)] active:scale-95 transition-all tracking-widest flex items-center justify-center gap-2">
+                        <span>Process</span> <i class="fas fa-arrow-right"></i>
+                    </button>
+                </div>
+
+                <div id="deposit-area" class="hidden relative z-10 py-10 text-center animate-in">
+                    <div class="w-20 h-20 mx-auto bg-amber-500/10 rounded-full flex items-center justify-center mb-4 border border-amber-500/20 animate-pulse">
+                        <i class="fas fa-tools text-amber-500 text-2xl"></i>
+                    </div>
+                    <h3 class="font-black italic text-lg text-white uppercase mb-2 tracking-widest">Maintenance</h3>
+                    <p class="text-[10px] text-gray-400 font-bold uppercase max-w-[200px] mx-auto leading-relaxed">
+                        Deposit gateway is currently undergoing upgrades.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="warehouse-modal" class="fixed inset-0 z-[200] hidden items-center justify-center p-6 bg-black/95 backdrop-blur-xl">
+        <div class="glass p-0 rounded-[2.5rem] border border-white/10 w-full max-w-sm animate-in relative overflow-hidden flex flex-col max-h-[85vh] shadow-2xl shadow-emerald-900/20">
+            
+            <div class="p-6 pb-4 bg-gradient-to-b from-white/5 to-transparent border-b border-white/5 relative">
+                <button onclick="WarehouseSystem.close()" class="absolute top-6 right-6 w-8 h-8 rounded-full bg-white/5 flex items-center justify-center text-gray-400 hover:bg-red-500 hover:text-white transition-all z-10">
+                    <i class="fas fa-times text-xs"></i>
+                </button>
+                
+                <h2 class="text-xl font-black uppercase italic text-emerald-500 tracking-widest flex items-center gap-2">
+                    <i class="fas fa-warehouse"></i> Storage
+                </h2>
+                
+                <div class="mt-4 w-full h-5 bg-black/60 rounded-full overflow-hidden border border-white/10 relative">
+                    <div id="warehouse-progress" class="h-full bg-emerald-500 w-0 transition-all duration-700 ease-out relative"></div>
+                    <span id="warehouse-limit-text" class="absolute inset-0 flex items-center justify-center text-[8px] font-black uppercase tracking-widest text-white drop-shadow-md z-10">Loading...</span>
+                </div>
+            </div>
+
+            <div id="warehouse-list" class="flex-1 overflow-y-auto p-6 grid grid-cols-3 gap-3 no-scrollbar content-start">
+                </div>
+
+            <div class="p-6 pt-4 border-t border-white/5 bg-black/40">
+                <button onclick="WarehouseSystem.goToSell()" class="w-full bg-gradient-to-r from-amber-500 to-orange-600 text-white py-4 rounded-[1.5rem] font-black uppercase text-[10px] shadow-lg shadow-orange-900/30 active:scale-95 transition-all tracking-widest flex items-center justify-center gap-2 group">
+                    <i class="fas fa-coins text-white group-hover:rotate-12 transition-transform"></i>
+                    Sell Items at Market
+                </button>
+            </div>
+        </div>
+    </div>
+
+<script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getFirestore, doc, getDoc, setDoc, updateDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+        const firebaseConfig = {
+            // ... config firebase Anda TETAP DISINI, JANGAN DIHAPUS ...
+            apiKey: "AIzaSyCGefQXaiXZBHHGDiQkhiEzZ81vE2g-kys",
+            authDomain: "herbgatherer-51ddf.firebaseapp.com",
+            projectId: "herbgatherer-51ddf",
+            storageBucket: "herbgatherer-51ddf.firebasestorage.app",
+            messagingSenderId: "51585903790",
+            appId: "1:51585903790:web:058a5df8dc5c44d912513f",
+            measurementId: "G-6FYEJ2TTL6"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        window.db = getFirestore(app);
+        window.fs = { doc, getDoc, setDoc, updateDoc, onSnapshot };
+        
+        // HAPUS bagian if (window.GameState...) yang lama
+        // GANTI dengan event listener ini:
+        
+        window.addEventListener('load', () => {
+            // Beri sedikit delay agar script lain (herbs.js, state.js, dll) terbaca browser
+            setTimeout(() => {
+                if(window.initGame) {
+                    window.initGame();
+                } else {
+                    console.error("Bootstrap not found");
+                }
+            }, 500);
+        });
+    </script>
+
+    <script src="js/herbs.js"></script>
+    <script src="js/state.js"></script>
+    <script src="js/plan.js"></script>
+    <script src="js/farm.js"></script> <script src="js/warehouse.js"></script>
+    <script src="js/market.js"></script>
+    <script src="js/spin.js"></script>
+    <script src="js/withdraw.js"></script>
+    <script src="js/affiliate.js"></script>
+    <script src="js/ui.js"></script>
+    
+    <script src="js/bootstrap.js"></script>
+
+</body>
+</html>
