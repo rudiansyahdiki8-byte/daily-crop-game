@@ -190,9 +190,9 @@
     </div>
 
     <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getFirestore, doc, getDoc, setDoc, updateDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+    // TAMBAHKAN: collection, query, where, getDocs
+    import { getFirestore, doc, getDoc, setDoc, updateDoc, onSnapshot, collection, query, where, getDocs } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
         // ==========================================
         // CONFIG FIREBASE ANDA DI BAWAH INI
         // ==========================================
@@ -209,7 +209,8 @@
 
         const app = initializeApp(firebaseConfig);
         window.db = getFirestore(app);
-        window.fs = { doc, getDoc, setDoc, updateDoc, onSnapshot };
+        // MASUKKAN KE WINDOW AGAR BISA DIPAKAI DI FILE LAIN
+         window.fs = { doc, getDoc, setDoc, updateDoc, onSnapshot, collection, query, where, getDocs };
 
         window.addEventListener('load', () => {
             setTimeout(() => {
