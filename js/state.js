@@ -81,70 +81,54 @@ let GameState = {
     market: { prices: {}, lastRefresh: 0 },
     isLoaded: false,
 
-    async load() {
+async load() {
         if (!window.db) return;
 
-        // --- DETEKSI IDENTITAS USER (SANGAT PENTING) ---
-        let finalUserId = null;
-        let finalUsername = "Juragan Baru";
-        let isTelegram = false;
-
-        // 1. Cek Apakah di dalam Telegram?
-        if (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.initDataUnsafe && window.Telegram.WebApp.initDataUnsafe.user) {
-            // YES: Pakai ID Telegram (Permanen walaupun clear history)
-            const tgUser = window.Telegram.WebApp.initDataUnsafe.user;
-            finalUserId = "TG-" + tgUser.id;
-            finalUsername = tgUser.first_name + (tgUser.last_name ? " " + tgUser.last_name : "");
-            isTelegram = true;
-            
-            // Expand tampilan Telegram agar full screen
-            window.Telegram.WebApp.expand(); 
-            console.log("Logged in as Telegram User:", finalUserId);
-        } 
-        else {
-            // NO: Pakai LocalStorage (Browser Biasa)
-            const localId = localStorage.getItem('dc_user_id');
-            if (localId) {
-                finalUserId = localId;
-            } else {
-                // Buat ID baru jika belum ada
-                finalUserId = "WEB-" + Math.floor(Math.random() * 9000000);
-                localStorage.setItem('dc_user_id', finalUserId);
-            }
-            console.log("Logged in as Web User:", finalUserId);
+        // --- 1. STRICT TELEGRAM CHECK ---
+        // Cek apakah data user dari Telegram tersedia
+        if (!window.Telegram || !window.Telegram.WebApp || !window.Telegram.WebApp.initDataUnsafe || !window.Telegram.WebApp.initDataUnsafe.user) {
+            // JIKA BUKAN TELEGRAM: Blokir Total
+            document.body.innerHTML = `
+                <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; height:100vh; background:#000; color:white; text-align:center;">
+                    <h1 style="color:#ef4444; font-size:24px; margin-bottom:10px;">ACCESS DENIED</h1>
+                    <p>This game can only be played inside Telegram App.</p>
+                </div>
+            `;
+            return; // Stop proses loading
         }
 
-        this.user.userId = finalUserId;
+        // --- 2. JIKA LULUS, AMBIL DATA ---
+        const tgUser = window.Telegram.WebApp.initDataUnsafe.user;
+        const finalUserId = "TG-" + tgUser.id;
+        const finalUsername = tgUser.first_name + (tgUser.last_name ? " " + tgUser.last_name : "");
         
-        // --- AMBIL DATA DARI FIREBASE ---
+        window.Telegram.WebApp.expand(); // Fullscreen
+        console.log("Logged in as Telegram User:", finalUserId);
+
+        this.user.userId = finalUserId;
+
+        // --- 3. LOAD DATA FIREBASE ---
         const userRef = window.fs.doc(window.db, "users", this.user.userId);
         try {
             const docSnap = await window.fs.getDoc(userRef);
-
             if (docSnap.exists()) {
                 const data = docSnap.data();
-                // Merge data (Prioritas Data Cloud, tapi update Username jika dari Telegram)
                 this.user = { ...defaultUser, ...data.user };
-                if (isTelegram) this.user.username = finalUsername; // Selalu update nama sesuai Telegram
-                
+                this.user.username = finalUsername; // Selalu update nama asli
                 this.warehouse = data.warehouse || {};
                 this.market = data.market || { prices: {}, lastRefresh: 0 };
                 this.farmPlots = data.farmPlots || [];
-                console.log("Firebase Data Loaded Successfully");
             } else {
-                // User Baru (Belum ada di Cloud)
-                this.user.username = isTelegram ? finalUsername : "Juragan Baru";
-                await this.save(); // Buat data baru di Cloud
-                console.log("New User Created in Cloud");
+                // User Baru
+                this.user.username = finalUsername;
+                await this.save();
             }
-
             this.isLoaded = true;
         } catch (e) {
             console.error("Load Failed:", e);
             this.isLoaded = true; 
         }
     },
-
     async save() {
         if (!window.db || !this.isLoaded || !this.user.userId) return;
         this.user.lastActive = Date.now();
