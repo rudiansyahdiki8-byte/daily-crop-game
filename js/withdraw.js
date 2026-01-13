@@ -256,57 +256,96 @@ const WithdrawSystem = {
         previewSym.innerText = this.selectedCurrency;
     },
 
-    async process() {
-        // Ambil value dari form yang sedang aktif
+async process() {
         const inputAmt = document.getElementById('wd-amount');
         const inputAddr = document.getElementById('wd-address');
         
-        // Safety check jika elemen hilang
         if(!inputAmt || !inputAddr) return;
-
+        
         const amount = parseInt(inputAmt.value);
         const address = inputAddr.value.trim();
-
         const cfg = window.GameConfig.Finance;
         const minLimit = GameState.user.has_withdrawn ? cfg.MinWdOld : cfg.MinWdNew;
 
-        // Validasi
+        // VALIDASI STANDAR
         if (!amount || amount < minLimit) { UIEngine.showRewardPopup("LIMIT ERROR", `Minimum withdrawal is ${minLimit} PTS.`, null, "FIX"); return; }
         if (!address) { UIEngine.showRewardPopup("EMPTY DATA", "Please fill in the destination.", null, "FIX"); return; }
         if (amount > GameState.user.coins) { UIEngine.showRewardPopup("NO FUNDS", "Not enough coins.", null, "CLOSE"); return; }
 
-        if (this.selectedMethod === 'faucetpay') {
-            if (!address.includes('@')) { UIEngine.showRewardPopup("INVALID EMAIL", "FaucetPay requires a valid Email.", null, "FIX"); return; }
-            if (GameState.user.faucetpay_email && address !== GameState.user.faucetpay_email) {
-                UIEngine.showRewardPopup("ACCOUNT LOCKED", "Account bound to: " + GameState.user.faucetpay_email, null, "OK"); return;
-            }
+        // --- 1. VALIDASI BINDING AKUN SENDIRI ---
+        // Jika user ini SUDAH pernah withdraw, dia WAJIB pakai alamat yang sama
+        if (GameState.user.faucetpay_email && address !== GameState.user.faucetpay_email) {
+             UIEngine.showRewardPopup("SECURITY", "One Account = One Wallet. You must use: " + GameState.user.faucetpay_email, null, "OK");
+             return;
         }
 
-        // Hitung Final
-        let fee = (this.selectedMethod === 'direct') ? Math.floor(amount * cfg.DirectFee) : 0;
-        const cryptoVal = ((amount - fee) * this.rates[this.selectedCurrency]).toFixed(8);
+        // --- 2. VALIDASI TUYUL (GLOBAL CHECK) ---
+        // Cek ke database: Apakah alamat ini dipakai orang lain?
+        UIEngine.showRewardPopup("SECURITY CHECK", "Checking wallet eligibility...", null, "...");
+        
+        try {
+            // Query ke Firestore: Cari user MANAPUN yang punya faucetpay_email == address ini
+            const usersRef = window.fs.collection(window.db, "users");
+            const q = window.fs.query(usersRef, window.fs.where("user.faucetpay_email", "==", address));
+            const querySnapshot = await window.fs.getDocs(q);
 
-        // Konfirmasi
-        UIEngine.showRewardPopup("CONFIRM", `Withdraw ${amount - fee} PTS (${cryptoVal} ${this.selectedCurrency})?`, async () => {
-            // 1. Potong Saldo & Update Status
-            GameState.user.coins -= amount;
-            if (!GameState.user.has_withdrawn) GameState.user.has_withdrawn = true;
-            if (this.selectedMethod === 'faucetpay' && !GameState.user.faucetpay_email) GameState.user.faucetpay_email = address;
+            let isUsedByOther = false;
+            querySnapshot.forEach((doc) => {
+                // Jika ketemu dokumen, DAN ID-nya bukan saya -> Berarti punya orang lain!
+                if (doc.id !== GameState.user.userId) {
+                    isUsedByOther = true;
+                }
+            });
 
-            // 2. Simpan Riwayat
-            const tx = { id: 'TX-' + Math.floor(Math.random() * 999999), date: new Date().toLocaleDateString(), amount, method: this.selectedMethod, destination: address, status: 'Pending' };
-            if(!GameState.user.history) GameState.user.history = [];
-            GameState.user.history.unshift(tx);
+            // Tutup popup loading
+            const popup = document.getElementById('system-popup');
+            if(popup) popup.remove();
 
-            // 3. Simpan ke Cloud
-            await GameState.save();
+            if (isUsedByOther) {
+                // JIKA TERDETEKSI TUYUL
+                UIEngine.showRewardPopup("MULTI-ACCOUNT DETECTED", "This Wallet/Email is already used by another player! Multi-account is forbidden.", null, "UNDERSTOOD");
+                return;
+            }
 
-            // 4. Update UI
-            UIEngine.updateHeader();
-            UIEngine.closeWithdraw();
-            setTimeout(() => { UIEngine.showRewardPopup("SUCCESS", "Request submitted!", null, "OK"); }, 500);
-        }, "WITHDRAW");
-    }
+            // --- 3. JIKA LOLOS SEMUA CEK, LANJUT PROSES ---
+            
+            let fee = (this.selectedMethod === 'direct') ? Math.floor(amount * cfg.DirectFee) : 0;
+            const cryptoVal = ((amount - fee) * this.rates[this.selectedCurrency]).toFixed(8);
+
+            UIEngine.showRewardPopup("CONFIRM", `Withdraw ${amount - fee} PTS (${cryptoVal} ${this.selectedCurrency})?`, async () => {
+                // Potong Saldo
+                GameState.user.coins -= amount;
+                
+                // BINDING PERMANEN: Kunci alamat ini ke user sekarang
+                if (!GameState.user.has_withdrawn) {
+                    GameState.user.has_withdrawn = true;
+                    GameState.user.faucetpay_email = address; // Kunci alamat di sini
+                }
+
+                // Simpan History
+                const tx = { 
+                    id: 'TX-' + Math.floor(Math.random() * 999999), 
+                    date: new Date().toLocaleDateString(), 
+                    amount, 
+                    method: this.selectedMethod, 
+                    destination: address, 
+                    status: 'Pending' 
+                };
+                if(!GameState.user.history) GameState.user.history = [];
+                GameState.user.history.unshift(tx);
+
+                await GameState.save();
+                
+                UIEngine.updateHeader();
+                UIEngine.closeWithdraw();
+                setTimeout(() => { UIEngine.showRewardPopup("SUCCESS", "Request submitted!", null, "OK"); }, 500);
+            }, "WITHDRAW");
+
+        } catch (error) {
+            console.error("Security Check Failed:", error);
+            UIEngine.showRewardPopup("ERROR", "Connection failed checking database.", null, "RETRY");
+        }
+    },
 };
 
-window.WithdrawSystem = WithdrawSystem;
+    window.WithdrawSystem = WithdrawSystem;
