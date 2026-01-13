@@ -4,13 +4,14 @@
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;700;800&display=swap');
 
 body { 
-    background: linear-gradient(to bottom, #0c1834, #343131);
+    /* Ganti background lama dengan ini */
+    background: radial-gradient(circle at center top, #1f2937, #05080f);
     color: #eaedf0;
     font-family: 'Plus Jakarta Sans', sans-serif; 
-    overflow: hidden; /* Mencegah scroll pada body utama */
+    overflow: hidden;
     height: 100vh;
     width: 100vw;
-    touch-action: manipulation; /* Mencegah zoom tidak sengaja di HP */
+    touch-action: manipulation;
 }
 
 /* Scrollbar Sembunyi tapi tetap bisa scroll */
@@ -81,10 +82,15 @@ body {
 /* =========================================
    5. NAVBAR & INTERAKSI
    ========================================= */
+/* 2. Navbar Polishing (Biar icon pas di tengah) */
 .nav-item {
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     cursor: pointer;
     position: relative;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center; /* Center Vertikal */
 }
 
 .nav-item:active {
@@ -138,3 +144,119 @@ body {
     aspect-ratio: 1 / 1;
     width: 100%;
 }
+
+/* [TAMBAHAN TAHAP 2] - VISUAL FARM BARU */
+
+/* 1. Pot Design */
+.pot-container {
+    background: linear-gradient(180deg, #5d4037 0%, #3e2723 100%);
+    border-radius: 10px 10px 25px 25px;
+    box-shadow: inset 0 5px 10px rgba(0,0,0,0.5), 0 5px 15px rgba(0,0,0,0.3);
+    border-top: 4px solid #795548;
+    position: relative;
+}
+.pot-rim {
+    position: absolute;
+    top: -5px; left: -5%; width: 110%; height: 10px;
+    background: #5d4037;
+    border-radius: 10px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.5);
+}
+
+/* 2. Floating Menu (Task Bubble) */
+.fab-menu {
+    position: absolute;
+    bottom: 20px; left: 10px;
+    display: flex; flex-direction: column-reverse;
+    gap: 10px; z-index: 50;
+    align-items: flex-start;
+}
+.fab-btn {
+    width: 45px; height: 45px;
+    border-radius: 50%;
+    display: flex; justify-content: center;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+    transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+.fab-btn:active { transform: scale(0.9); }
+.fab-content {
+    background: rgba(0,0,0,0.8);
+    backdrop-filter: blur(10px);
+    border-radius: 15px;
+    padding: 10px;
+    margin-bottom: 10px;
+    max-height: 0; opacity: 0; overflow: hidden;
+    transition: all 0.3s ease;
+    border: 1px solid rgba(255,255,255,0.1);
+}
+.fab-content.open { max-height: 400px; opacity: 1; pointer-events: auto; }
+
+/* 3. Harvest Bubble (Gelembung Panen) */
+.harvest-bubble {
+    animation: float-bubble 2s ease-in-out infinite;
+    cursor: pointer;
+}
+@keyframes float-bubble {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-5px); }
+}
+
+/* 4. Glowing Spin Orb */
+.spin-orb {
+    width: 50px; height: 50px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 30% 30%, #4f46e5, #312e81);
+    box-shadow: 0 0 0 2px rgba(255,255,255,0.1), inset 0 0 10px rgba(0,0,0,0.5);
+    display: flex; justify-content: center;
+    position: relative; overflow: hidden;
+    transition: all 0.5s ease;
+}
+.spin-ready {
+    background: radial-gradient(circle at 30% 30%, #fbbf24, #d97706);
+    box-shadow: 0 0 20px #fbbf24;
+    animation: pulse-glow 2s infinite;
+}
+@keyframes pulse-glow {
+    0% { box-shadow: 0 0 10px #fbbf24; }
+    50% { box-shadow: 0 0 25px #fbbf24, 0 0 50px rgba(251, 191, 36, 0.5); }
+    100% { box-shadow: 0 0 10px #fbbf24; }
+}
+
+/* [TAMBAHAN TAHAP 3] - ENCYCLOPEDIA & MARKET COMPACT */
+
+/* 1. Rarity Colors & Badges */
+.rarity-common { border-color: #9ca3af; box-shadow: 0 0 5px rgba(156, 163, 175, 0.2); }
+.rarity-uncommon { border-color: #34d399; box-shadow: 0 0 5px rgba(52, 211, 153, 0.2); }
+.rarity-rare { border-color: #60a5fa; box-shadow: 0 0 10px rgba(96, 165, 250, 0.3); }
+.rarity-epic { border-color: #f472b6; box-shadow: 0 0 15px rgba(244, 114, 182, 0.4); }
+.rarity-legendary { border-color: #fbbf24; box-shadow: 0 0 20px rgba(251, 191, 36, 0.5); border-width: 2px; }
+
+.bg-rarity-common { background: #374151; color: #d1d5db; }
+.bg-rarity-uncommon { background: #064e3b; color: #6ee7b7; }
+.bg-rarity-rare { background: #1e3a8a; color: #93c5fd; }
+.bg-rarity-epic { background: #831843; color: #fbcfe8; }
+.bg-rarity-legendary { background: linear-gradient(135deg, #78350f, #b45309); color: #fcd34d; }
+
+/* 2. Crypto Trend Colors */
+.trend-up { color: #34d399; } /* Hijau */
+.trend-down { color: #f87171; } /* Merah */
+.trend-flat { color: #9ca3af; } /* Abu */
+
+/* 3. Compact Market Item (List View) */
+.market-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 12px;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 12px;
+    margin-bottom: 6px;
+    transition: all 0.2s ease;
+}
+
+.text-content h3 { color: #34d399; margin-bottom: 0.5rem; font-weight: 800; text-transform: uppercase; font-size: 0.8rem; }
+.text-content p { color: #d1d5db; font-size: 0.7rem; line-height: 1.4; margin-bottom: 0.8rem; text-align: justify; }
+.text-content ul { list-style: disc; padding-left: 1rem; margin-bottom: 0.8rem; }
+.text-content li { color: #9ca3af; font-size: 0.7rem; margin-bottom: 0.2rem; }
+.market-row:active { transform: scale(0.98); background: rgba(255, 255, 255, 0.08); }
