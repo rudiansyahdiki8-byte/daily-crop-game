@@ -371,22 +371,40 @@ const FarmSystem = {
             } 
             else if (plot.status === 'growing') {
                 const remainingSec = Math.max(0, Math.ceil((plot.harvestAt - now) / 1000));
-                // Tanaman tumbuh (kecil)
+                
+                // Ambil durasi total tanaman (default 180 detik jika error)
+                const baseTime = this.plantData[plot.plant] ? this.plantData[plot.plant].time : 180;
+                
+                let growthImage = '';
+
+                // --- LOGIKA 2 TAHAP ---
+                
+                // TAHAP 1: KECAMBAH (BULB) - Jika sisa waktu masih di atas 50%
+                if (remainingSec > (baseTime / 2)) {
+                     growthImage = `<img src="https://img.icons8.com/external-filled-color-icons-papa-vector/78/external-Flower-Bulbs-gardening-store-categories-filled-color-icons-papa-vector.png" 
+                        class="w-50 h-50 object-contain absolute bottom-8 left-1/2 -translate-x-1/2 drop-shadow-lg animate-pulse" 
+                        style="filter: brightness(0.9);">`;
+                } 
+                // TAHAP 2: TUNAS (SPROUT) - Jika sisa waktu sudah di bawah 50%
+                else {
+                     growthImage = `<img src="https://img.icons8.com/bubbles/100/sprout.png" 
+                        class="w-50 h-50 object-contain absolute bottom-8 center -translate-x-1/2 drop-shadow-lg animate-bounce">`;
+                }
+
+                // Masukkan ke dalam Pot
                 content = `
                     <div class="pot-rim"></div>
-                    <i class="fas fa-seedling text-emerald-400 text-4xl absolute bottom-8 drop-shadow-lg animate-[soil-drift_3s_infinite]"></i>
+                    ${growthImage}
                     <div class="absolute bottom-2 bg-black/60 px-2 py-0.5 rounded text-[8px] font-mono font-bold text-white border border-white/10 z-10">
                         ${this.formatTime(remainingSec)}
                     </div>`;
-            } 
+            }   
             else if (plot.status === 'ready') {
                 const img = this.plantData[plot.plant]?.img || 'https://img.icons8.com/color/96/question-mark.png';
                 // Tanaman Siap Panen (Bubble)
                 content = `
-                    <div class="pot-rim"></div>
-                    <img src="${img}" class="w-16 h-16 object-contain absolute bottom-6 z-0 brightness-75">
                     
-                    <div class="harvest-bubble absolute -top-4 w-14 h-14 bg-white rounded-full border-2 border-emerald-500 shadow-[0_0_20px_#10b981] flex items-center justify-center z-20 overflow-hidden group">
+                    <div class="harvest-bubble absolute -top-4 w-20 h-20 bg-white rounded-full border-2 border-emerald-500 shadow-[0_0_20px_#10b981] flex items-center justify-center z-20 overflow-hidden group">
                         <div class="absolute inset-0 bg-emerald-100 opacity-0 group-hover:opacity-100 transition-opacity"></div>
                         <img src="${img}" class="w-10 h-10 object-contain relative z-10">
                         <div class="absolute bottom-0 right-0 bg-emerald-500 text-white text-[6px] font-black px-1.5 py-0.5 rounded-tl-lg z-20"><i class="fas fa-ad"></i></div>
