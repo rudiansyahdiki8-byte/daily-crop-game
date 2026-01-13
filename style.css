@@ -188,7 +188,14 @@ body {
     transition: all 0.3s ease;
     border: 1px solid rgba(255,255,255,0.1);
 }
-.fab-content.open { max-height: 400px; opacity: 1; pointer-events: auto; }
+.fab-content.open { 
+    max-height: 80vh; /* Menggunakan 80% tinggi layar agar muat semua task */
+    overflow-y: auto; /* Agar bisa discroll jika layar HP kecil */
+    opacity: 1; 
+    pointer-events: auto; 
+}
+
+.fab-content::-webkit-scrollbar { display: none; }
 
 /* 3. Harvest Bubble (Gelembung Panen) */
 .harvest-bubble {
