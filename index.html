@@ -10,7 +10,17 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body class="bg-[#05080f] text-white overflow-hidden h-screen w-screen selection:bg-emerald-500/30 font-sans">
-
+    <div id="loading-screen" class="fixed inset-0 z-[9999] bg-[#05080f] flex flex-col items-center justify-center transition-opacity duration-500">
+        <div class="relative w-24 h-24 mb-6">
+            <div class="absolute inset-0 border-4 border-emerald-500/20 rounded-full"></div>
+            <div class="absolute inset-0 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>
+            <div class="absolute inset-0 flex items-center justify-center">
+                <i class="fas fa-tractor text-emerald-400 text-3xl animate-bounce"></i>
+            </div>
+        </div>
+        <h2 class="text-2xl font-black text-white uppercase tracking-[0.2em] animate-pulse">Daily Crop</h2>
+        <p class="text-[9px] text-gray-500 font-bold uppercase mt-2 tracking-widest">Loading Resources...</p>
+    </div>
 <header class="fixed top-0 left-0 right-0 z-50 bg-black/80 backdrop-blur-md border-b border-white/5 px-4 py-3 flex justify-between items-center shadow-lg shadow-emerald-900/10">
         <div class="flex items-center gap-3">
             <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-800 border border-emerald-400/50 flex items-center justify-center shadow-lg shadow-emerald-500/20">
@@ -109,15 +119,21 @@
         <div id="Affiliate" class="hidden flex flex-col h-full animate-in"></div>
     </main>
 
-    <div class="fixed bottom-28 right-4 flex flex-col gap-3 z-40">
+<div class="fixed bottom-28 right-4 flex flex-col gap-3 z-40">
+        
         <a href="https://t.me/DailyCropBot" target="_blank" class="w-10 h-10 bg-[#229ED9] rounded-full flex items-center justify-center shadow-lg hover:scale-110 transition-transform border border-white/10 group">
-            <i class="fab fa-telegram-plane text-white text-lg group-hover:-rotate-12 transition-transform"></i>
+             <i class="fab fa-telegram-plane text-white text-lg group-hover:-rotate-12 transition-transform"></i>
         </a>
+
+        <button onclick="UIEngine.showTermsModal()" class="w-10 h-10 bg-gray-800 rounded-full flex items-center justify-center shadow-lg hover:scale-110 transition-transform border border-white/10 group">
+            <i class="fas fa-file-contract text-gray-300 text-xs group-hover:text-white"></i>
+        </button>
+
         <button onclick="UIEngine.showPrivacy()" class="w-10 h-10 bg-gray-800 rounded-full flex items-center justify-center shadow-lg hover:scale-110 transition-transform border border-white/10 group">
             <i class="fas fa-shield-alt text-gray-300 text-sm group-hover:text-white"></i>
         </button>
+        
     </div>
-
     <nav class="fixed bottom-6 left-4 right-4 h-20 glass rounded-[2.5rem] flex justify-around items-center z-50 border border-white/10 shadow-2xl bg-black/60 backdrop-blur-xl">
         <button onclick="UIEngine.navigate('Dashboard')" class="nav-item flex flex-col items-center text-emerald-500 scale-110 transition-all duration-300 group">
             <i class="fas fa-home text-xl mb-1 group-active:scale-90"></i>
