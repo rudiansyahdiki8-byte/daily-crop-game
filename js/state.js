@@ -89,9 +89,39 @@ async load() {
         if (!window.Telegram || !window.Telegram.WebApp || !window.Telegram.WebApp.initDataUnsafe || !window.Telegram.WebApp.initDataUnsafe.user) {
             // JIKA BUKAN TELEGRAM: Blokir Total
             document.body.innerHTML = `
-                <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; height:100vh; background:#000; color:white; text-align:center;">
-                    <h1 style="color:#ef4444; font-size:24px; margin-bottom:10px;">ACCESS DENIED</h1>
-                    <p>This game can only be played inside Telegram App.</p>
+                <div style="
+                    display:flex; 
+                    flex-direction:column; 
+                    align-items:center; 
+                    justify-content:center; 
+                    height:100vh; 
+                    background: radial-gradient(circle at center, #1f2937, #000); 
+                    color:white; 
+                    text-align:center; 
+                    font-family: sans-serif;
+                    padding: 20px;
+                ">
+                    <div style="font-size: 50px; margin-bottom: 20px;">⛔</div>
+                    <h1 style="color:#ef4444; font-size:24px; margin-bottom:10px; font-weight: 900; letter-spacing: 2px;">ACCESS DENIED</h1>
+                    <p style="color:#9ca3af; margin-bottom:30px; font-size: 14px;">
+                        This game is designed exclusively for Telegram.<br>
+                        Please open the bot to play.
+                    </p>
+                    <a href="https://t.me/Daily_Cropbot" 
+                       style="
+                           background: linear-gradient(to right, #10b981, #059669); 
+                           color:white; 
+                           padding: 15px 30px; 
+                           border-radius: 15px; 
+                           text-decoration:none; 
+                           font-weight:bold; 
+                           font-size: 14px;
+                           box-shadow: 0 10px 20px rgba(16,185,129,0.3);
+                           transition: transform 0.2s;
+                           border: 1px solid rgba(255,255,255,0.2);
+                       ">
+                        👉 OPEN TELEGRAM BOT
+                    </a>
                 </div>
             `;
             return; // Stop proses loading
@@ -179,3 +209,4 @@ window.PlanConfig = PlanConfig;
 window.CropRarity = CropRarity;
 window.DropEngine = DropEngine;
 window.PriceRanges = PriceRanges;
+
