@@ -29,7 +29,7 @@ const AffiliateSystem = {
         if (!container) return;
 
         // Ambil Data dari State (Data yang sudah dimuat dari Firebase)
-        const myLink = `https://t.me/DailyCropBot/start?startapp=${GameState.user.userId}`;
+        const myLink = `https://t.me/Daily_CropBot/start?startapp=${GameState.user.userId}`;
         const totalFriends = GameState.user.affiliate?.total_friends || 0;
         const totalEarnings = GameState.user.affiliate?.total_earnings || 0;
         const friendList = GameState.user.affiliate?.friends_list || [];
@@ -130,5 +130,6 @@ const AffiliateSystem = {
         });
     }
 };
+
 
 window.AffiliateSystem = AffiliateSystem;
