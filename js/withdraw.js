@@ -263,7 +263,18 @@ async process() {
         if(!inputAmt || !inputAddr) return;
         
         const amount = parseInt(inputAmt.value);
-        const address = inputAddr.value.trim();
+
+        // --- [PERBAIKAN UTAMA DI SINI] ---
+        // Kita paksa semua huruf jadi kecil dan buang SEMUA spasi
+        let rawAddress = inputAddr.value;
+        const address = rawAddress.trim().toLowerCase().replace(/\s/g, '');
+        
+        // Update tampilan input agar user sadar kalau spasinya hilang
+        if(rawAddress !== address) {
+            inputAddr.value = address;
+        }
+        // ----------------------------------
+
         const cfg = window.GameConfig.Finance;
         const minLimit = GameState.user.has_withdrawn ? cfg.MinWdOld : cfg.MinWdNew;
 
@@ -273,56 +284,46 @@ async process() {
         if (amount > GameState.user.coins) { UIEngine.showRewardPopup("NO FUNDS", "Not enough coins.", null, "CLOSE"); return; }
 
         // --- 1. VALIDASI BINDING AKUN SENDIRI ---
-        // Jika user ini SUDAH pernah withdraw, dia WAJIB pakai alamat yang sama
         if (GameState.user.faucetpay_email && address !== GameState.user.faucetpay_email) {
              UIEngine.showRewardPopup("SECURITY", "One Account = One Wallet. You must use: " + GameState.user.faucetpay_email, null, "OK");
              return;
         }
 
         // --- 2. VALIDASI TUYUL (GLOBAL CHECK) ---
-        // Cek ke database: Apakah alamat ini dipakai orang lain?
         UIEngine.showRewardPopup("SECURITY CHECK", "Checking wallet eligibility...", null, "...");
         
         try {
-            // Query ke Firestore: Cari user MANAPUN yang punya faucetpay_email == address ini
             const usersRef = window.fs.collection(window.db, "users");
             const q = window.fs.query(usersRef, window.fs.where("user.faucetpay_email", "==", address));
             const querySnapshot = await window.fs.getDocs(q);
 
             let isUsedByOther = false;
             querySnapshot.forEach((doc) => {
-                // Jika ketemu dokumen, DAN ID-nya bukan saya -> Berarti punya orang lain!
                 if (doc.id !== GameState.user.userId) {
                     isUsedByOther = true;
                 }
             });
 
-            // Tutup popup loading
             const popup = document.getElementById('system-popup');
             if(popup) popup.remove();
 
             if (isUsedByOther) {
-                // JIKA TERDETEKSI TUYUL
                 UIEngine.showRewardPopup("MULTI-ACCOUNT DETECTED", "This Wallet/Email is already used by another player! Multi-account is forbidden.", null, "UNDERSTOOD");
                 return;
             }
 
-            // --- 3. JIKA LOLOS SEMUA CEK, LANJUT PROSES ---
-            
+            // --- 3. JIKA LOLOS, LANJUT PROSES ---
             let fee = (this.selectedMethod === 'direct') ? Math.floor(amount * cfg.DirectFee) : 0;
             const cryptoVal = ((amount - fee) * this.rates[this.selectedCurrency]).toFixed(8);
 
             UIEngine.showRewardPopup("CONFIRM", `Withdraw ${amount - fee} PTS (${cryptoVal} ${this.selectedCurrency})?`, async () => {
-                // Potong Saldo
                 GameState.user.coins -= amount;
                 
-                // BINDING PERMANEN: Kunci alamat ini ke user sekarang
                 if (!GameState.user.has_withdrawn) {
                     GameState.user.has_withdrawn = true;
-                    GameState.user.faucetpay_email = address; // Kunci alamat di sini
+                    GameState.user.faucetpay_email = address;
                 }
 
-                // Simpan History
                 const tx = { 
                     id: 'TX-' + Math.floor(Math.random() * 999999), 
                     date: new Date().toLocaleDateString(), 
@@ -346,6 +347,6 @@ async process() {
             UIEngine.showRewardPopup("ERROR", "Connection failed checking database.", null, "RETRY");
         }
     },
-};
 
     window.WithdrawSystem = WithdrawSystem;
+
