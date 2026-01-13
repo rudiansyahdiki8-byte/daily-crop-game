@@ -262,91 +262,100 @@ async process() {
         
         if(!inputAmt || !inputAddr) return;
         
-        const amount = parseInt(inputAmt.value);
-
-        // --- [PERBAIKAN UTAMA DI SINI] ---
-        // Kita paksa semua huruf jadi kecil dan buang SEMUA spasi
+        const amountPTS = parseInt(inputAmt.value);
+        
+        // [FIX ANTI-TUYUL] Sanitasi Input (Hapus spasi & huruf kecil)
         let rawAddress = inputAddr.value;
         const address = rawAddress.trim().toLowerCase().replace(/\s/g, '');
-        
-        // Update tampilan input agar user sadar kalau spasinya hilang
-        if(rawAddress !== address) {
-            inputAddr.value = address;
-        }
-        // ----------------------------------
+        // Update tampilan input biar user tau
+        if(rawAddress !== address) inputAddr.value = address;
 
         const cfg = window.GameConfig.Finance;
         const minLimit = GameState.user.has_withdrawn ? cfg.MinWdOld : cfg.MinWdNew;
 
-        // VALIDASI STANDAR
-        if (!amount || amount < minLimit) { UIEngine.showRewardPopup("LIMIT ERROR", `Minimum withdrawal is ${minLimit} PTS.`, null, "FIX"); return; }
-        if (!address) { UIEngine.showRewardPopup("EMPTY DATA", "Please fill in the destination.", null, "FIX"); return; }
-        if (amount > GameState.user.coins) { UIEngine.showRewardPopup("NO FUNDS", "Not enough coins.", null, "CLOSE"); return; }
-
-        // --- 1. VALIDASI BINDING AKUN SENDIRI ---
+        // VALIDASI AWAL
+        if (!amountPTS || amountPTS < minLimit) { UIEngine.showRewardPopup("LIMIT ERROR", `Min withdraw: ${minLimit} PTS`, null, "FIX"); return; }
+        if (!address) { UIEngine.showRewardPopup("EMPTY DATA", "Fill destination address.", null, "FIX"); return; }
+        if (amountPTS > GameState.user.coins) { UIEngine.showRewardPopup("NO FUNDS", "Not enough coins.", null, "CLOSE"); return; }
+        
+        // VALIDASI KEPEMILIKAN (ANTI TUYUL)
         if (GameState.user.faucetpay_email && address !== GameState.user.faucetpay_email) {
-             UIEngine.showRewardPopup("SECURITY", "One Account = One Wallet. You must use: " + GameState.user.faucetpay_email, null, "OK");
+             UIEngine.showRewardPopup("SECURITY", "Use your bound wallet: " + GameState.user.faucetpay_email, null, "OK");
              return;
         }
 
-        // --- 2. VALIDASI TUYUL (GLOBAL CHECK) ---
-        UIEngine.showRewardPopup("SECURITY CHECK", "Checking wallet eligibility...", null, "...");
-        
-        try {
-            const usersRef = window.fs.collection(window.db, "users");
-            const q = window.fs.query(usersRef, window.fs.where("user.faucetpay_email", "==", address));
-            const querySnapshot = await window.fs.getDocs(q);
+        // KONFIRMASI (Hitung Estimasi Crypto)
+        let feePTS = (this.selectedMethod === 'direct') ? Math.floor(amountPTS * cfg.DirectFee) : 0;
+        const netPTS = amountPTS - feePTS;
+        const cryptoAmount = (netPTS * this.rates[this.selectedCurrency]).toFixed(8);
 
-            let isUsedByOther = false;
-            querySnapshot.forEach((doc) => {
-                if (doc.id !== GameState.user.userId) {
-                    isUsedByOther = true;
+        UIEngine.showRewardPopup("CONFIRM", `Send ${cryptoAmount} ${this.selectedCurrency} to ${address}?`, async () => {
+            
+            // TAMPILKAN LOADING
+            UIEngine.showRewardPopup("PROCESSING", "Contacting FaucetPay...", null, "...");
+
+            try {
+                // 1. PANGGIL API VERCEL (JALUR BELAKANG)
+                const response = await fetch('/api/withdraw', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        address: address,
+                        amount: cryptoAmount,   // Kirim jumlah Crypto
+                        currency: this.selectedCurrency // USDT, TRX, dll
+                    })
+                });
+
+                const result = await response.json();
+
+                // 2. JIKA SUKSES DIKIRIM
+                if (result.success) {
+                    // Potong Saldo Game
+                    GameState.user.coins -= amountPTS;
+                    
+                    // Bind Akun (Kunci Wallet)
+                    if (!GameState.user.has_withdrawn) {
+                        GameState.user.has_withdrawn = true;
+                        GameState.user.faucetpay_email = address;
+                    }
+
+                    // Simpan History
+                    const tx = { 
+                        id: 'FP-' + result.payout_id, // ID Asli FaucetPay
+                        date: new Date().toLocaleDateString(), 
+                        amount: amountPTS, 
+                        method: 'FaucetPay Auto', 
+                        destination: address, 
+                        status: 'Success' // Langsung Sukses!
+                    };
+                    
+                    if(!GameState.user.history) GameState.user.history = [];
+                    GameState.user.history.unshift(tx);
+
+                    // Simpan ke Firebase
+                    await GameState.save();
+
+                    // Update UI
+                    UIEngine.updateHeader();
+                    UIEngine.closeWithdraw();
+                    
+                    UIEngine.showRewardPopup("SUCCESS", "Payment Sent Instantly via FaucetPay!", null, "AWESOME");
+
+                } else {
+                    // JIKA GAGAL DARI FAUCETPAY (Misal saldo server habis / Error)
+                    console.error("FP Error:", result.message);
+                    UIEngine.showRewardPopup("FAILED", `FaucetPay Error: ${result.message}`, null, "REPORT");
                 }
-            });
 
-            const popup = document.getElementById('system-popup');
-            if(popup) popup.remove();
-
-            if (isUsedByOther) {
-                UIEngine.showRewardPopup("MULTI-ACCOUNT DETECTED", "This Wallet/Email is already used by another player! Multi-account is forbidden.", null, "UNDERSTOOD");
-                return;
+            } catch (error) {
+                console.error("API Error:", error);
+                UIEngine.showRewardPopup("ERROR", "Connection failed. Try again.", null, "CLOSE");
             }
 
-            // --- 3. JIKA LOLOS, LANJUT PROSES ---
-            let fee = (this.selectedMethod === 'direct') ? Math.floor(amount * cfg.DirectFee) : 0;
-            const cryptoVal = ((amount - fee) * this.rates[this.selectedCurrency]).toFixed(8);
-
-            UIEngine.showRewardPopup("CONFIRM", `Withdraw ${amount - fee} PTS (${cryptoVal} ${this.selectedCurrency})?`, async () => {
-                GameState.user.coins -= amount;
-                
-                if (!GameState.user.has_withdrawn) {
-                    GameState.user.has_withdrawn = true;
-                    GameState.user.faucetpay_email = address;
-                }
-
-                const tx = { 
-                    id: 'TX-' + Math.floor(Math.random() * 999999), 
-                    date: new Date().toLocaleDateString(), 
-                    amount, 
-                    method: this.selectedMethod, 
-                    destination: address, 
-                    status: 'Pending' 
-                };
-                if(!GameState.user.history) GameState.user.history = [];
-                GameState.user.history.unshift(tx);
-
-                await GameState.save();
-                
-                UIEngine.updateHeader();
-                UIEngine.closeWithdraw();
-                setTimeout(() => { UIEngine.showRewardPopup("SUCCESS", "Request submitted!", null, "OK"); }, 500);
-            }, "WITHDRAW");
-
-        } catch (error) {
-            console.error("Security Check Failed:", error);
-            UIEngine.showRewardPopup("ERROR", "Connection failed checking database.", null, "RETRY");
-        }
+        }, "SEND NOW");
     },
+};
 
-    window.WithdrawSystem = WithdrawSystem;
+window.WithdrawSystem = WithdrawSystem;
+
 
