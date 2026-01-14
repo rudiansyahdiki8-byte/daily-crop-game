@@ -21,7 +21,8 @@
         <h2 class="text-2xl font-black text-white uppercase tracking-[0.2em] animate-pulse">Daily Crop</h2>
         <p class="text-[9px] text-gray-500 font-bold uppercase mt-2 tracking-widest">Loading Resources...</p>
     </div>
-    <header class="fixed top-0 left-0 right-0 z-50 bg-black/80 backdrop-blur-md border-b border-white/5 px-4 py-3 flex justify-between items-center shadow-lg shadow-emerald-900/10">
+<header class="fixed top-0 left-0 right-0 z-50 bg-black/80 backdrop-blur-md border-b border-white/5 px-4 py-3 flex justify-between items-center shadow-lg shadow-emerald-900/10">
+<header class="fixed top-0 left-0 right-0 z-50 bg-black/80 backdrop-blur-md border-b border-white/5 px-4 py-3 flex justify-between items-center shadow-lg shadow-emerald-900/10">
         <div class="flex items-center gap-3">
             <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-800 border border-emerald-400/50 flex items-center justify-center shadow-lg shadow-emerald-500/20">
                 <i class="fas fa-tractor text-white text-lg animate-pulse"></i>
@@ -32,7 +33,7 @@
             </div>
         </div>
         
-    <button onclick="AdsManager.showAd('interstitial', () => { UIEngine.openWithdraw(); });" class="group flex items-center gap-3 bg-white/5 border border-white/10 px-3 py-1.5 rounded-2xl active:scale-95 transition-all hover:border-emerald-500/30 hover:bg-emerald-500/10">
+        <button onclick="AdsManager.showAd('Wallet Access', () => { alert('Iklan Sukses! Membuka Wallet...'); UIEngine.openWithdraw(); });" class="group flex items-center gap-3 bg-white/5 border border-white/10 px-3 py-1.5 rounded-2xl active:scale-95 transition-all hover:border-emerald-500/30 hover:bg-emerald-500/10">
             <div class="text-right">
                 <p class="text-[7px] text-gray-400 font-black uppercase group-hover:text-emerald-400 transition-colors">Wallet</p>
                 <p id="header-coins" class="text-[10px] font-black text-white">...</p>
@@ -41,6 +42,8 @@
                 <i class="fas fa-wallet text-emerald-500"></i>
             </div>
         </button>
+
+   </header>
    </header>
 
     <main id="main-content" class="h-full pt-20 pb-28 px-4 overflow-y-auto no-scrollbar relative">
@@ -244,6 +247,6 @@
     <script src="js/ui.js"></script>
     <script src="js/history.js"></script>
     <script src="js/bootstrap.js"></script>
-    
+
 </body>
 </html>
