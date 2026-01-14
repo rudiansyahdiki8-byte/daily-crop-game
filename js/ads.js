@@ -1,10 +1,10 @@
 // js/ads.js
 // ==========================================
-// SUPER WATERFALL ADS SYSTEM (ENGLISH & NO SKIP)
+// SUPER WATERFALL ADS SYSTEM (REORDERED TIER 5 POP)
 // ==========================================
 
 const AdsManager = {
-    // KONFIGURASI ID
+    // ID CONFIGURATION
     ids: {
         adsgramReward: "21143",           
         adsgramInter: "int-21085",        
@@ -46,31 +46,34 @@ const AdsManager = {
             console.warn("❌ Tier 2 Failed/Skipped:", e);
         }
 
-        // --- TIER 3: MONETAG REWARD (POP) ---
+        // --- TIER 3: ADSGRAM INTERSTITIAL (Moved Up) ---
+        // Sebelumnya Tier 4, naik ke Tier 3 karena lebih strict dibanding Monetag
         try {
-            console.log("3️⃣ [Tier 3] Trying Monetag Pop...");
-            await this.callMonetag('pop');
-            this.handleSuccess(onReward, "Monetag Pop");
-            return;
-        } catch (e) {
-            console.warn("❌ Tier 3 Failed:", e);
-        }
-
-        // --- TIER 4: ADSGRAM INTERSTITIAL (Backup) ---
-        try {
-            console.log("4️⃣ [Tier 4] Trying Adsgram Interstitial...");
+            console.log("3️⃣ [Tier 3] Trying Adsgram Interstitial...");
             await this.callAdsgram(this.ids.adsgramInter);
             this.handleSuccess(onReward, "Adsgram Interstitial");
             return;
         } catch (e) {
-            console.warn("❌ Tier 4 Failed/Skipped:", e);
+            console.warn("❌ Tier 3 Failed/Skipped:", e);
         }
 
-        // --- TIER 5: MONETAG INTERSTITIAL ---
+        // --- TIER 4: MONETAG INTERSTITIAL (Moved Up) ---
+        // Sebelumnya Tier 5, naik ke Tier 4
         try {
-            console.log("5️⃣ [Tier 5] Trying Monetag Interstitial...");
+            console.log("4️⃣ [Tier 4] Trying Monetag Interstitial...");
             await this.callMonetag('interstitial');
             this.handleSuccess(onReward, "Monetag Interstitial");
+            return;
+        } catch (e) {
+            console.warn("❌ Tier 4 Failed:", e);
+        }
+
+        // --- TIER 5: MONETAG POP (Moved Down - Last Resort) ---
+        // Pindah ke posisi terakhir karena validasinya paling lemah
+        try {
+            console.log("5️⃣ [Tier 5] Trying Monetag Pop (Backup)...");
+            await this.callMonetag('pop');
+            this.handleSuccess(onReward, "Monetag Pop");
             return;
         } catch (e) {
             console.warn("❌ Tier 5 Failed:", e);
@@ -82,7 +85,7 @@ const AdsManager = {
     },
 
     // ==========================================
-    // HELPER FUNCTIONS (STRICT MODE)
+    // HELPER FUNCTIONS (STRICT MODE & ENGLISH)
     // ==========================================
 
     callAdsgram(blockId) {
@@ -124,6 +127,7 @@ const AdsManager = {
                 const adWidget = new AdexiumWidget({
                     wid: this.ids.adexiumWidget,
                     adFormat: 'interstitial',
+                    debug: false
                     fallback: false 
                 });
 
