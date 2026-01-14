@@ -437,7 +437,7 @@ renderSellInventory() {
         UIEngine.showRewardPopup("PRICE BOOSTER", "Watch Ad for +20% sell price?", async () => {
             
             // PANGGIL IKLAN
-            AdsManager.showAd("Activate Booster", 3, async () => {
+            AdsManager.showAd("Activate Booster", async () => {
                 GameState.user.adBoosterCooldown = Date.now() + 86400000; 
                 await GameState.save();
                 this.checkBoosterStatus();
@@ -477,3 +477,4 @@ renderSellInventory() {
 
 
 window.MarketSystem = MarketSystem;
+
