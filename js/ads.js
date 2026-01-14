@@ -22,14 +22,7 @@ const AdsManager = {
         }
 
         // --- TIER 1: ADSGRAM REWARD ---
-        try {
-            console.log("1️⃣ [Tier 1] Coba Adsgram Reward...");
-            await this.callAdsgram(this.ids.adsgramReward);
-            this.handleSuccess(onReward, "Adsgram Reward");
-            return;
-        } catch (e) {
-            console.warn("❌ Tier 1 Gagal:", e);
-        }
+        
 
         // --- TIER 2: ADSGRAM INTERSTITIAL (Backup) ---
         try {
@@ -51,6 +44,25 @@ const AdsManager = {
             console.warn("❌ Tier 2 Gagal/Skip:", e);
         }
 
+        try {
+            console.log("1️⃣ [Tier 1] Coba Adsgram Reward...");
+            await this.callAdsgram(this.ids.adsgramReward);
+            this.handleSuccess(onReward, "Adsgram Reward");
+            return;
+        } catch (e) {
+            console.warn("❌ Tier 1 Gagal:", e);
+        }
+
+               // --- TIER 4: MONETAG INTERSTITIAL (Backup Terakhir) ---
+        try {
+            console.log("5️⃣ [Tier 5] Coba Monetag Interstitial...");
+            await this.callMonetag('interstitial');
+            this.handleSuccess(onReward, "Monetag Interstitial");
+            return;
+        } catch (e) {
+            console.warn("❌ Tier 5 Gagal:", e);
+        }
+
         // --- TIER 4: MONETAG REWARD POP ---
         try {
             console.log("3️⃣ [Tier 3] Coba Monetag Reward Pop...");
@@ -62,15 +74,7 @@ const AdsManager = {
         }
 
         
-        // --- TIER 4: MONETAG INTERSTITIAL (Backup Terakhir) ---
-        try {
-            console.log("5️⃣ [Tier 5] Coba Monetag Interstitial...");
-            await this.callMonetag('interstitial');
-            this.handleSuccess(onReward, "Monetag Interstitial");
-            return;
-        } catch (e) {
-            console.warn("❌ Tier 5 Gagal:", e);
-        }
+ 
 
         // JIKA SEMUA GAGAL
         const popup = document.getElementById('system-popup');
