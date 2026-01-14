@@ -46,16 +46,6 @@ const AdsManager = {
             console.warn("❌ Tier 2 Gagal/Skip:", e);
         }
 
-        // --- TIER 3: MONETAG REWARD POP ---
-        try {
-            console.log("3️⃣ [Tier 3] Coba Monetag Reward Pop...");
-            await this.callMonetag('pop');
-            this.handleSuccess(onReward, "Monetag Pop");
-            return;
-        } catch (e) {
-            console.warn("❌ Tier 3 Gagal:", e);
-        }
-
         // --- TIER 4: ADSGRAM INTERSTITIAL (Backup) ---
         try {
             console.log("4️⃣ [Tier 4] Coba Adsgram Interstitial...");
@@ -75,6 +65,16 @@ const AdsManager = {
             return;
         } catch (e) {
             console.warn("❌ Tier 5 Gagal:", e);
+        }
+
+                // --- TIER 3: MONETAG REWARD POP ---
+        try {
+            console.log("3️⃣ [Tier 3] Coba Monetag Reward Pop...");
+            await this.callMonetag('pop');
+            this.handleSuccess(onReward, "Monetag Pop");
+            return;
+        } catch (e) {
+            console.warn("❌ Tier 3 Gagal:", e);
         }
 
         // JIKA SEMUA GAGAL
@@ -181,3 +181,4 @@ const AdsManager = {
 
 // Expose ke Window agar bisa dipanggil file lain
 window.AdsManager = AdsManager;
+
