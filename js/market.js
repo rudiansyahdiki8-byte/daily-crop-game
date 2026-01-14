@@ -160,7 +160,7 @@ const MarketSystem = {
 
                 <div id="sell-inventory" class="grid grid-cols-2 gap-2 content-start"></div>
                 
-                <div class="fixed bottom-5 left-2 right-4 flex gap-3 z-100 w-full py-4">
+                <div class="fixed bottom-5 left-2 right-4 flex gap-3 z-50 w-full py-4">
                 <button id="btn-sell-all" onclick="MarketSystem.sellAll()" class="w-full py-4 bg-gradient-to-r from-emerald-500 to-emerald-600 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-lg shadow-emerald-900/30 active:scale-95 transition-all mt-auto shrink-0 flex items-center justify-center gap-2 border border-emerald-400/20">
                     <i class="fas fa-check-double"></i> Sell All Warehouse
                 </button>
@@ -477,4 +477,5 @@ renderSellInventory() {
 
 
 window.MarketSystem = MarketSystem;
+
 
