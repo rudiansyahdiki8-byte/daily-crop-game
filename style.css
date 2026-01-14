@@ -3,11 +3,29 @@
    ========================================= */
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;700;800&display=swap');
 
-body { 
-    /* Ganti background lama dengan ini */
-    background: radial-gradient(circle at center top, #1f2937, #05080f);
+body {
+    /* --- PERBAIKAN BACKGROUND (VIBRANT) --- */
+    
+    /* 1. Teknik Layering: */
+    /* Layer Atas: Radial Gradient (Tengah bening, Pinggir gelap) */
+    /* Layer Bawah: Gambar Texture Batu */
+    background-image: 
+        radial-gradient(circle at center, rgba(0,0,0,0) 20%, rgba(0,0,0,0.8) 100%),
+        url('assets_iso/bg_texture.png');
+
+    /* 2. Agar gambar berulang rapi */
+    background-repeat: repeat;
+    
+    /* 3. Ukuran Batu (Sesuaikan selera: 150px - 300px) */
+    background-size: 200px; 
+    
+    /* 4. Posisi */
+    background-position: center top;
+    
+    /* Settingan Wajib Lainnya */
+    background-color: #1a1a1a; /* Warna cadangan jika gambar gagal load */
     color: #eaedf0;
-    font-family: 'Plus Jakarta Sans', sans-serif; 
+    font-family: 'Plus Jakarta Sans', sans-serif;
     overflow: hidden;
     height: 100vh;
     width: 100vw;
@@ -22,11 +40,18 @@ body {
    2. EFEK VISUAL (GLASS & SHADOW)
    ========================================= */
 .glass { 
-    background: rgba(255, 255, 255, 0.03); 
-    backdrop-filter: blur(15px); 
-    -webkit-backdrop-filter: blur(15px);
-    border: 1px solid rgba(255, 255, 255, 0.08); 
-    box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+    /* UBAH INI: Dulu transparan banget, sekarang kita gelapkan 80% */
+    background: rgba(0, 0, 0, 0.8) !important; 
+    
+    /* Blur background di belakangnya supaya batu tidak mengganggu teks */
+    backdrop-filter: blur(10px); 
+    -webkit-backdrop-filter: blur(10px);
+    
+    /* Garis pinggir dipertegas */
+    border: 1px solid rgba(255, 255, 255, 0.2); 
+    
+    /* Bayangan biar kotak terlihat melayang */
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
 }
 
 /* =========================================
@@ -104,64 +129,98 @@ body {
     transform: translateY(-5px);
 }
 
+
 /* =========================================
-   6. FARM GRID LAYOUT
+   6. FARM GRID LAYOUT (MOBILE RESPONSIVE FIX)
    ========================================= */
-/* Memastikan Grid Lahan Rapi */
+
 #farm-grid {
     display: grid;
-    /* 2 Kolom, baris otomatis menyesuaikan tinggi */
+    /* Ganti jadi 2 kolom yang ukurannya otomatis rata */
     grid-template-columns: repeat(2, 1fr); 
-    grid-auto-rows: minmax(100px, auto); /* Tinggi minimal lahan */
-    gap: 0.75rem;
-    padding-bottom: 6rem; /* Ruang untuk navbar bawah */
+    
+    /* Jarak Horizontal (Kanan-Kiri) */
+    gap: 10px; 
+    
+    /* Jarak Vertikal (Atas-Bawah) */
+    /* Kalau masih terlalu numpuk, ganti angka ini jadi -5px atau 0px */
+    row-gap: -15px; 
+    
+    /* Ruang Aman */
+    padding: 10px;
+    padding-top: 20px;
+    padding-bottom: 160px; /* Ditambah biar gak ketutup Navbar bawah */
+    
+    /* Lebar Container */
+    width: 90%; /* Pakai persen biar aman di HP kecil */
+    max-width: 360px; /* Batas maksimal biar gak kegedean di Tablet */
+    margin: 0 auto; /* Posisi Tengah */
+    
+    perspective: 1000px;
 }
 
-/* Styling Lahan Kosong/Isi */
-.plot-card {
+/* Slot Tanah */
+.plot-container {
     position: relative;
-    overflow: hidden;
-    transition: transform 0.2s;
-}
-.plot-card:active {
-    transform: scale(0.98);
-}
-
-/* Update di style.css */
-
-/* Pastikan container Farm Grid menggunakan CSS Grid yang benar */
-#farm-grid {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr); /* 2 Kolom Rata */
-    grid-auto-rows: min-content; /* Tinggi baris menyesuaikan konten */
-    gap: 0.75rem; /* Jarak antar tanah */
     width: 100%;
-    align-content: start; /* Mulai dari atas, jangan stretch */
+    /* Pastikan tetap kotak */
+    aspect-ratio: 1 / 1; 
+    background: transparent !important;
+    border: none !important;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    z-index: 1; /* Default layer */
 }
 
-/* Memastikan setiap petak tanah rasio 1:1 (kotak sempurna) */
-#farm-grid > div {
-    aspect-ratio: 1 / 1;
-    width: 100%;
+/* Trik Agar Baris Bawah Menutupi Baris Atas (Efek 3D Benar) */
+.plot-container:nth-child(5),
+.plot-container:nth-child(6) {
+    z-index: 5; /* Baris kedua lebih tinggi layernya */
+}
+.plot-container:nth-child(7),
+.plot-container:nth-child(8) {
+    z-index: 10; /* Baris ketiga lebih tinggi lagi */
 }
 
-/* [TAMBAHAN TAHAP 2] - VISUAL FARM BARU */
-
-/* 1. Pot Design */
-.pot-container {
-    background: linear-gradient(180deg, #5aa8a8 0%, #3e2723 100%);
-    border-radius: 10px 10px 25px 25px;
-    box-shadow: inset 0 5px 20px rgba(0,0,0,0.5), 0 5px 15px rgba(0,0,0,0.3);
-    border-top: 4px solid #795548;
-    position: relative;
-}
-.pot-rim {
+/* GAMBAR TANAH */
+.iso-land {
+    width: 100%; /* Diperbesar sedikit biar tidak ada celah */
     position: absolute;
-    background: #7ac057;
-    border-radius: 10px;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.5);
+    bottom: 0;
+    pointer-events: none;
+    filter: drop-shadow(0 5px 5px rgba(0,0,0,0.5));
 }
 
+/* GAMBAR TANAMAN */
+.iso-plant {
+    position: absolute;
+    width: 80%; /* Dulu 65%, sekarang 80% biar besar */
+    bottom: 25%; /* Turunkan dikit biar akarnya pas di tanah */
+    z-index: 20;
+    pointer-events: none;
+    filter: drop-shadow(0 5px 5px rgba(0,0,0,0.3));
+}
+
+/* UI LOCK & TIMER */
+.iso-ui {
+    position: absolute;
+    z-index: 30;
+    bottom: 45%;
+    width: 100%;
+    display: flex;
+    justify-content: center;
+}
+
+/* Animasi Bernapas untuk Tanaman */
+@keyframes breathe {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+    100% { transform: scale(1); }
+}
+.plant-anim { animation: breathe 3s infinite ease-in-out; }
 /* 2. Floating Menu (Task Bubble) */
 .fab-menu {
     position: absolute;
@@ -259,6 +318,47 @@ body {
     border-radius: 12px;
     margin-bottom: 6px;
     transition: all 0.2s ease;
+}
+
+/* --- UI DIAMOND BUTTONS (GAYA SKEMA BARU) --- */
+
+.hud-left {
+    position: absolute;
+    top: 80px; /* Jarak dari atas (biar gak nabrak profil) */
+    left: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 25px; /* Jarak antar tombol */
+    z-index: 50;
+}
+
+.btn-diamond {
+    width: 55px;
+    height: 55px;
+    background: rgba(0, 0, 0, 0.7); /* Hitam transparan */
+    border: 2px solid #10b981; /* Garis Emerald */
+    transform: rotate(45deg); /* PUTAR JADI KETUPAT */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 10px 20px rgba(0,0,0,0.5);
+    transition: all 0.2s;
+    cursor: pointer;
+    backdrop-filter: blur(5px);
+}
+
+.btn-diamond:active {
+    transform: rotate(45deg) scale(0.9); /* Efek per saat ditekan */
+    background: #10b981;
+}
+
+/* Isinya harus diputar balik biar tegak */
+.btn-content-rotate {
+    transform: rotate(-45deg); 
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
 }
 
 .text-content h3 { color: #34d399; margin-bottom: 0.5rem; font-weight: 800; text-transform: uppercase; font-size: 0.8rem; }
