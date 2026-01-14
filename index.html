@@ -33,7 +33,7 @@
             </div>
         </div>
         
-        <button onclick="AdsManager.showAd('Wallet Access', () => { UIEngine.openWithdraw(); });" class="group flex items-center gap-3 bg-white/5 border border-white/10 px-3 py-1.5 rounded-2xl active:scale-95 transition-all hover:border-emerald-500/30 hover:bg-emerald-500/10">
+        <button onclick="AdsManager.startAdsSequence(1, 'vip', () => { UIEngine.openWithdraw(); });" class="group flex items-center gap-3 bg-white/5 border border-white/10 px-3 py-1.5 rounded-2xl active:scale-95 transition-all hover:border-emerald-500/30 hover:bg-emerald-500/10">
             <div class="text-right">
                 <p class="text-[7px] text-gray-400 font-black uppercase group-hover:text-emerald-400 transition-colors">Wallet</p>
                 <p id="header-coins" class="text-[10px] font-black text-white">...</p>
@@ -225,19 +225,17 @@
         });
     </script>
 
-    <script src="js/config.js"></script>
+     <script src="js/config.js"></script>
 
-    <script src="https://api.adsgram.ai/js/adsgram.js"></script>
+   <script src="https://api.adsgram.ai/js/adsgram.js?blockId=21143"></script>
 
     <script type="text/javascript" src="https://cdn.tgads.space/assets/js/adexium-widget.min.js"></script>
 
     <script src='//libtl.com/sdk.js' data-zone='10457329' data-sdk='show_10457329'></script>
 
-    <script src="js/ui.js"></script>
-    
     <script src="js/ads.js"></script>
 
-    
+    <script src="js/config.js"></script>
 
     <script src="js/herbs.js"></script>
     <script src="js/state.js"></script>
@@ -248,11 +246,9 @@
     <script src="js/spin.js"></script>
     <script src="js/withdraw.js"></script>
     <script src="js/affiliate.js"></script>
+    <script src="js/ui.js"></script>
     <script src="js/history.js"></script>
     <script src="js/bootstrap.js"></script>
 
 </body>
 </html>
-
-
-
