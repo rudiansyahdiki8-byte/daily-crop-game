@@ -126,6 +126,7 @@ const AdsManager = {
                 const adWidget = new AdexiumWidget({
                     wid: this.ids.adexiumWidget,
                     adFormat: 'interstitial',
+                    debug: false
                     fallback: false 
                 });
 
@@ -175,3 +176,4 @@ const AdsManager = {
 };
 
 window.AdsManager = AdsManager;
+
