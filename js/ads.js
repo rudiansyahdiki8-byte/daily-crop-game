@@ -23,6 +23,7 @@ const AdsManager = {
         
         // Tampilkan Loading
         if(window.UIEngine) {
+            UIEngine.showRewardPopup("ADVERTISEMENT", "Mencari sponsor terbaik...", null, "⏳ Loading...");
         }
 
         // --- TIER 1: ADSGRAM REWARD ---
@@ -32,7 +33,7 @@ const AdsManager = {
             this.handleSuccess(onReward, "Adsgram Reward");
             return;
         } catch (e) {
-            console.warn("❌, e);
+            console.warn("❌ Tier 1 Gagal:", e);
         }
 
         // --- TIER 2: ADEXIUM ---
@@ -42,7 +43,17 @@ const AdsManager = {
             this.handleSuccess(onReward, "Adexium");
             return;
         } catch (e) {
-            console.warn("❌", e);
+            console.warn("❌ Tier 2 Gagal/Skip:", e);
+        }
+
+        // --- TIER 3: MONETAG REWARD POP ---
+        try {
+            console.log("3️⃣ [Tier 3] Coba Monetag Reward Pop...");
+            await this.callMonetag('pop');
+            this.handleSuccess(onReward, "Monetag Pop");
+            return;
+        } catch (e) {
+            console.warn("❌ Tier 3 Gagal:", e);
         }
 
         // --- TIER 4: ADSGRAM INTERSTITIAL (Backup) ---
@@ -53,7 +64,7 @@ const AdsManager = {
             this.handleSuccess(onReward, "Adsgram Interstitial");
             return;
         } catch (e) {
-            console.warn("❌", e);
+            console.warn("❌ Tier 4 Gagal:", e);
         }
 
         // --- TIER 5: MONETAG INTERSTITIAL (Backup Terakhir) ---
@@ -63,19 +74,8 @@ const AdsManager = {
             this.handleSuccess(onReward, "Monetag Interstitial");
             return;
         } catch (e) {
-            console.warn("❌, e);
+            console.warn("❌ Tier 5 Gagal:", e);
         }
-
-          // --- TIER 3: MONETAG REWARD POP ---
-        try {
-            console.log("3️⃣ [Tier 3] Coba Monetag Reward Pop...");
-            await this.callMonetag('pop');
-            this.handleSuccess(onReward, "Monetag Pop");
-            return;
-        } catch (e) {
-            console.warn("❌", e);
-        }
-
 
         // JIKA SEMUA GAGAL
         console.error("☠️ [Waterfall] Semua iklan habis/error.");
@@ -83,7 +83,7 @@ const AdsManager = {
             // Tutup popup loading manual karena tidak ada success
             const popup = document.getElementById('system-popup');
             if(popup) popup.remove();
-            alert("Sorry, no ads available at the moment. Please try again later.");
+            alert("Maaf, stok iklan sedang kosong. Coba beberapa saat lagi.");
         }
     },
 
@@ -181,4 +181,3 @@ const AdsManager = {
 
 // Expose ke Window agar bisa dipanggil file lain
 window.AdsManager = AdsManager;
-
