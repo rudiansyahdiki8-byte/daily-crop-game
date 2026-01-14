@@ -48,15 +48,16 @@ const AdsManager = {
                     antrianIklan = [
                         { name: "Adexium",        func: () => this.callAdexium() },
                         { name: "Adsgram Inter",  func: () => this.callAdsgram(this.ids.adsgramInter) },
-                        { name: "Monetag Pop",    func: () => this.callMonetag('pop') }
+                        { name: "Monetag Inter",  func: () => this.callMonetag('interstitial') }
                     ];
                     this.markAdexiumAsShown = true; 
                 } else {
                     // Iklan Genap / Cooldown
                     antrianIklan = [
-                        { name: "Monetag Pop",    func: () => this.callMonetag('pop') },
                         { name: "Monetag Inter",  func: () => this.callMonetag('interstitial') },
-                        { name: "Adsgram Inter",  func: () => this.callAdsgram(this.ids.adsgramInter) }
+                        { name: "Adsgram Inter",  func: () => this.callAdsgram(this.ids.adsgramInter) },
+                        { name: "Monetag Pop",    func: () => this.callMonetag('pop') }
+                        
                     ];
                     this.markAdexiumAsShown = false;
                 }
@@ -117,30 +118,59 @@ const AdsManager = {
     // HELPER (SDK)
     // ==========================================
     
-    callAdsgram(blockId) {
+callAdsgram(blockId) {
         return new Promise((resolve, reject) => {
-            if (!window.Adsgram) return reject("Script Missing");
-            try {
-                const AdController = window.Adsgram.init({ blockId: blockId });
-                AdController.show().then((res) => {
-                    if (res.done) resolve(); 
-                    else reject("User SKIP");
-                }).catch((e) => reject(e));
-            } catch(e) { reject("Init Error"); }
+            if (!window.Adsgram) return reject("Script not loaded");
+            
+            const AdController = window.Adsgram.init({ blockId: blockId });
+            AdController.show().then((result) => {
+                // done: true (nonton habis), done: false (skip)
+                // Untuk Interstitial (Tier 4), kita anggap sukses walau di skip/done
+                // Tapi untuk Reward (Tier 1), harus done=true
+                
+                // Logic: Jika BlockID Interstitial, langsung Resolve.
+                // Jika BlockID Reward, cek result.done.
+                if (blockId === this.ids.adsgramInter) {
+                    resolve(); 
+                } else {
+                    if (result.done) resolve();
+                    else reject("User skipped video");
+                }
+            }).catch((err) => {
+                reject(err);
+            });
         });
     },
 
+    // Helper: Adexium (Promise Wrapper karena dia pakai Event Listener)
     callAdexium() {
         return new Promise((resolve, reject) => {
-            if (typeof AdexiumWidget === 'undefined') return reject("SDK Missing");
-            const w = new AdexiumWidget({ wid: this.ids.adexiumWidget, adFormat: 'interstitial', debug: false });
-            w.on('adReceived', (a) => w.displayAd(a));
-            w.on('noAdFound', () => reject("No Fill"));
-            w.on('adClosed', () => resolve());
-            w.on('adPlaybackCompleted', () => resolve());
-            w.on('error', () => reject("Error"));
-            setTimeout(() => reject("Timeout"), 8000);
-            w.requestAd('interstitial');
+            if (typeof AdexiumWidget === 'undefined') return reject("Adexium SDK missing");
+
+            const adWidget = new AdexiumWidget({
+                wid: this.ids.adexiumWidget,
+                adFormat: 'interstitial',
+                debug: false // Ubah true kalau mau test
+            });
+
+            // Listener
+            adWidget.on('adReceived', (ad) => {
+                adWidget.displayAd(ad); // Tampilkan jika dapat
+            });
+
+            adWidget.on('noAdFound', () => {
+                reject("No Fill Adexium");
+            });
+
+            adWidget.on('adClosed', () => {
+                resolve(); // Sukses ditonton/ditutup
+            });
+            
+            // Listener tambahan untuk error/complete
+            adWidget.on('adPlaybackCompleted', () => resolve());
+            
+            // Panggil Iklan
+            adWidget.requestAd('interstitial');
         });
     },
 
@@ -158,5 +188,6 @@ const AdsManager = {
         if (cb) cb();
     }
 };
+
 
 window.AdsManager = AdsManager;
