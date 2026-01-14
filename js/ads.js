@@ -12,70 +12,80 @@ const AdsManager = {
         adsgramInter: "int-21085"         
     },
 
-    // --- FUNGSI 1: SINGLE AD (UTAMA DENGAN 5 TIER) ---
+// --- FUNGSI 1: SINGLE AD (UTAMA DENGAN 5 TIER - ENGLISH VERSION) ---
     async showAd(type, onReward) {
-        console.log("🌊 [Waterfall] Memulai pencarian iklan...");
+        console.log("🌊 [Waterfall] Initializing ad sequence...");
         
-        // Tampilkan Loading
+        // Loading Popup in English
         if(window.UIEngine) {
-            UIEngine.showRewardPopup("ADVERTISEMENT", "Mencari sponsor terbaik...", null, "⏳ Loading...");
+            UIEngine.showRewardPopup("ADVERTISEMENT", "Looking for the best sponsor...", null, "⏳ Loading...");
         }
 
         // --- TIER 1: ADSGRAM REWARD ---
-        
-
-        // --- TIER 2: ADSGRAM INTERSTITIAL (Backup) ---
         try {
-            console.log("4️⃣ [Tier 4] Coba Adsgram Interstitial...");
-            await this.callAdsgram(this.ids.adsgramInter);
-            this.handleSuccess(onReward, "Adsgram Interstitial");
-            return;
-        } catch (e) {
-            console.warn("❌ Tier 4 Gagal:", e);
-        }
-
-        // --- TIER 3: ADEXIUM ---
-        try {
-            console.log("2️⃣ [Tier 2] Coba Adexium...");
-            await this.callAdexium();
-            this.handleSuccess(onReward, "Adexium");
-            return;
-        } catch (e) {
-            console.warn("❌ Tier 2 Gagal/Skip:", e);
-        }
-
-        try {
-            console.log("1️⃣ [Tier 1] Coba Adsgram Reward...");
+            console.log("1️⃣ [Tier 1] Trying Adsgram Reward...");
             await this.callAdsgram(this.ids.adsgramReward);
             this.handleSuccess(onReward, "Adsgram Reward");
             return;
         } catch (e) {
-            console.warn("❌ Tier 1 Gagal:", e);
+            console.warn("❌ Tier 1 Failed:", e);
         }
 
-               // --- TIER 4: MONETAG INTERSTITIAL (Backup Terakhir) ---
+        // --- TIER 2: ADSGRAM INTERSTITIAL ---
         try {
-            console.log("5️⃣ [Tier 5] Coba Monetag Interstitial...");
+            console.log("2️⃣ [Tier 2] Trying Adsgram Interstitial...");
+            await this.callAdsgram(this.ids.adsgramInter);
+            this.handleSuccess(onReward, "Adsgram Interstitial");
+            return;
+        } catch (e) {
+            console.warn("❌ Tier 2 Failed:", e);
+        }
+
+        // --- TIER 3: ADEXIUM ---
+        try {
+            console.log("3️⃣ [Tier 3] Trying Adexium...");
+            await this.callAdexium();
+            this.handleSuccess(onReward, "Adexium");
+            return;
+        } catch (e) {
+            console.warn("❌ Tier 3 Failed:", e);
+        }
+
+        // --- TIER 4: MONETAG INTERSTITIAL ---
+        try {
+            console.log("4️⃣ [Tier 4] Trying Monetag Interstitial...");
             await this.callMonetag('interstitial');
             this.handleSuccess(onReward, "Monetag Interstitial");
             return;
         } catch (e) {
-            console.warn("❌ Tier 5 Gagal:", e);
+            console.warn("❌ Tier 4 Failed:", e);
         }
 
-        // --- TIER 4: MONETAG REWARD POP ---
+        // --- TIER 5: MONETAG REWARD POP (Final Backup) ---
         try {
-            console.log("3️⃣ [Tier 3] Coba Monetag Reward Pop...");
+            console.log("5️⃣ [Tier 5] Trying Monetag Reward Pop...");
             await this.callMonetag('pop');
             this.handleSuccess(onReward, "Monetag Pop");
             return;
         } catch (e) {
-            console.warn("❌ Tier 3 Gagal:", e);
+            console.warn("❌ Tier 5 Failed:", e);
         }
 
-        
- 
+        // IF ALL TIERS FAIL
+        const popup = document.getElementById('system-popup');
+        if(popup) popup.remove();
+        alert("Sorry, no ads available at the moment. Please try again later.");
+    },
 
+    // --- Update handleSuccess message ---
+    handleSuccess(callback, source) {
+        console.log(`✅ [Waterfall] Success! Reward granted from: ${source}`);
+        
+        const popup = document.getElementById('system-popup');
+        if(popup) popup.remove();
+
+        if (callback) callback();
+    }
         // JIKA SEMUA GAGAL
         const popup = document.getElementById('system-popup');
         if(popup) popup.remove();
@@ -83,28 +93,36 @@ const AdsManager = {
     },
 
     // --- FUNGSI 2: STACK ADS (UNTUK MULTI-ADS) ---
-    async showStackAd(type, count, onFinalReward) {
-        console.log(`🌀 Memulai Stack Ads: ${count} iklan`);
-        let completed = 0;
+async showStackAd(type, count, onFinalReward) {
+    console.log(`🌀 Starting Priority Stack: Target ${count} ads`);
+    let completed = 0;
 
-        const runNext = () => {
-            // Memanggil fungsi showAd di atas agar tetap pakai sistem Waterfall
+    const runStep = async () => {
+        if (completed >= count) {
+            console.log("🏆 All stacked ads completed!");
+            if (onFinalReward) onFinalReward();
+            return;
+        }
+
+        // --- LANGKAH 1: Selalu coba ADSGRAM dulu sampai jatah 'count' habis ---
+        try {
+            console.log(`Trying Adsgram for ad #${completed + 1}`);
+            await this.callAdsgram(this.ids.adsgramReward);
+            completed++;
+            setTimeout(() => runStep(), 1500); 
+        } 
+        // --- LANGKAH 2: Jika Adsgram GAGAL/HABIS, baru lari ke Waterfall vendor lain ---
+        catch (e) {
+            console.warn("Adsgram exhausted, moving to backup vendors...");
             this.showAd(type, () => {
                 completed++;
-                if (completed < count) {
-                    console.log(`✅ Iklan ${completed}/${count} selesai. Lanjut...`);
-                    // Jeda agar transisi antar iklan tidak error
-                    setTimeout(() => runNext(), 1500); 
-                } else {
-                    console.log(`🏆 Semua ${count} iklan stack selesai!`);
-                    if (onFinalReward) onFinalReward();
-                }
+                setTimeout(() => runStep(), 1500);
             });
-        };
+        }
+    };
 
-        runNext();
-    },
-
+    runStep();
+}
     // ==========================================
     // FUNGSI PENGHUBUNG (HELPER)
     // ==========================================
@@ -199,3 +217,4 @@ const AdsManager = {
 
 
 window.AdsManager = AdsManager;
+
