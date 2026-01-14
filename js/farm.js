@@ -208,7 +208,7 @@ const FarmSystem = {
     handleTaskClick(task, btnElement) {
         if (task.action === 'spin') { SpinSystem.show(); return; }
         
-        AdsManager.showAd(`Task: ${task.name}`, 3, async () => {
+        AdsManager.showAd(`Task: ${task.name}`, async () => {
             GameState.user.coins += task.reward;
             const cooldowns = JSON.parse(localStorage.getItem('dc_task_cooldowns') || '{}');
             cooldowns[task.id] = Date.now();
@@ -264,7 +264,7 @@ const FarmSystem = {
             return; 
         }
 
-        AdsManager.showAd("Harvesting Crops", 2, async () => {
+        AdsManager.showAd("Harvesting Crops", async () => {
             await this.executeHarvestLogic(plotsToHarvest);
         });
     },
@@ -478,3 +478,4 @@ const FarmSystem = {
 
 
 window.FarmSystem = FarmSystem;
+
