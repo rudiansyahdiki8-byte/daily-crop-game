@@ -21,9 +21,7 @@ const WithdrawSystem = {
         TRX:  0.06, 
         LTC:  0.00001,
         DOGE: 0.03,
-        SOL:  0.00005,
-        BTC:  0.00000002
-    },
+        },
 
     // Mapping ID CoinGecko
     coinIds: {
@@ -31,8 +29,6 @@ const WithdrawSystem = {
         'TRX': 'tron',
         'LTC': 'litecoin',
         'DOGE': 'dogecoin',
-        'SOL': 'solana',
-        'BTC': 'bitcoin',
         'USDT': 'tether'
     },
 
@@ -69,9 +65,7 @@ const WithdrawSystem = {
                 if(data['tron'])             this.rates.TRX = baseValueUSD / data['tron'].usd;
                 if(data['litecoin'])         this.rates.LTC = baseValueUSD / data['litecoin'].usd;
                 if(data['dogecoin'])         this.rates.DOGE = baseValueUSD / data['dogecoin'].usd;
-                if(data['solana'])           this.rates.SOL = baseValueUSD / data['solana'].usd;
-                if(data['bitcoin'])          this.rates.BTC = baseValueUSD / data['bitcoin'].usd;
-                
+               
                 // Rate USDT biasanya tetap 1:1 dengan base config, tapi bisa diupdate juga
                 // this.rates.USDT = baseValueUSD; 
 
@@ -405,4 +399,5 @@ const WithdrawSystem = {
 };
 
 window.WithdrawSystem = WithdrawSystem;
+
 
