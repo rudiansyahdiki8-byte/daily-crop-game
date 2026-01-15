@@ -101,23 +101,28 @@ const AdsManager = {
     },
 
     // --- 1. ADSGRAM (DEBUG FALSE) ---
-    callAdsgram(blockId) {
+callAdsgram(blockId) {
         return new Promise((resolve, reject) => {
-            if (!window.Adsgram) return reject("Adsgram script missing");
+            // Cek apakah script sad.min.js sudah termuat
+            if (!window.Adsgram) return reject("Adsgram script (sad.min.js) missing");
 
+            // Inisialisasi sesuai panduan 
             const AdController = window.Adsgram.init({ 
                 blockId: blockId, 
-                debug: false, 
+                debug: false, // Wajib false untuk production 
                 debugBannerType: "FullscreenMedia" 
             });
 
+            // Panggil Show & Tangkap Promise 
             AdController.show().then((result) => {
+                // done: true artinya nonton sampai habis 
                 if (result.done) {
                     resolve(); 
                 } else {
-                    reject("User skipped Adsgram");
+                    reject("User skipped Adsgram"); // Masuk sini jika result.done == false
                 }
             }).catch((err) => {
+                // Masuk sini jika error saat playing atau skip 
                 reject(err);
             });
         });
@@ -186,3 +191,4 @@ const AdsManager = {
 };
 
 window.AdsManager = AdsManager;
+
