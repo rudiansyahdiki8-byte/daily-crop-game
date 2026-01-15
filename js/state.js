@@ -51,9 +51,9 @@ const DropEngine = {
     }
 };
 
-// 4. DATA DEFAULT USER
+// 4. DATA DEFAULT USER (UPDATED)
 const defaultUser = {
-    username: "New Tycoon", // Ganti "Juragan Baru" biar Inggris
+    username: "New Tycoon", // Ganti ke Inggris biar keren
     userId: null, 
     plan: "FREE", 
     coins: 0, 
@@ -66,13 +66,10 @@ const defaultUser = {
     landPurchasedCount: 0,   
     extraStorage: 0,         
     
-    // --- PERBAIKAN DATA COOLDOWN (DISIMPAN DI SERVER) ---
-    adBoosterCooldown: 0,    
-    spin_free_cooldown: 0, 
-    
-    // Kita tambah 2 variabel baru ini agar Task & Ads Adexium aman
-    task_cooldowns: {},      // Untuk simpan waktu Task Harian
-    ad_timers: {},           // Untuk simpan waktu Cooldown Iklan (Adexium)
+    // --- TEMPAT PENYIMPANAN BARU (SERVER SIDE) ---
+    // Agar data tidak hilang saat ganti HP
+    task_cooldowns: {},      // Simpan waktu claim daily task
+    ad_timers: {},           // Simpan waktu cooldown iklan (Adexium)
     
     activeBuffs: {},
     upline: null,
@@ -216,4 +213,5 @@ window.PlanConfig = PlanConfig;
 window.CropRarity = CropRarity;
 window.DropEngine = DropEngine;
 window.PriceRanges = PriceRanges;
+
 
