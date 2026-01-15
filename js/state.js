@@ -61,6 +61,8 @@ const defaultUser = {
     isFirstPlantDone: false, 
     totalHarvest: 0,
     totalSold: 0,
+    totalFreeEarnings: 0, // Koin dari Task
+    totalWithdrawn: 0,    // [BARU] Total yang sudah dicairkan
     has_withdrawn: false,
     faucetpay_email: null,
     landPurchasedCount: 0,   
@@ -213,5 +215,6 @@ window.PlanConfig = PlanConfig;
 window.CropRarity = CropRarity;
 window.DropEngine = DropEngine;
 window.PriceRanges = PriceRanges;
+
 
 
