@@ -1,6 +1,7 @@
 // js/withdraw.js
 // ==========================================
-// FINANCE SYSTEM (BANKING GRADE UI)
+// FINANCE SYSTEM (BANKING GRADE UI + TON + SAFETY MARGIN)
+// Fitur Baru: Preview Crypto ditampilkan 5% lebih rendah (Spread) agar user senang saat terima lebih.
 // ==========================================
 
 const WithdrawSystem = {
@@ -10,14 +11,20 @@ const WithdrawSystem = {
 
     quickAmounts: [100, 1000, 5000, 10000, 50000],
 
+    // --- CONFIG SPREAD / SAFETY MARGIN ---
+    // 0.95 artinya kita hanya menampilkan 95% dari nilai asli.
+    // 5% sisanya adalah "Jaga-jaga" (Spread).
+    SAFETY_MARGIN: 0.95, 
+
     get rates() {
         return {
             USDT: window.GameConfig.Finance.RateUSDT,
-            TRX: 0.00006, 
-            LTC: 0.0000001,
+            TON:  0.000002, // 100k PTS = ~0.2 TON
+            TRX:  0.00006, 
+            LTC:  0.0000001,
             DOGE: 0.00003,
-            SOL: 0.00000005,
-            BTC: 0.0000000001
+            SOL:  0.00000005,
+            BTC:  0.0000000001
         };
     },
 
@@ -90,7 +97,7 @@ const WithdrawSystem = {
                     </div>
                     <h3 class="text-lg font-black text-white uppercase mb-2">Security Update</h3>
                     <p class="text-[9px] text-gray-400 px-8 leading-relaxed">
-                        The Deposit Gateway is currently undergoing security maintenance to ensure fund safety. Please check back shortly.
+                        The Deposit Gateway is currently undergoing security maintenance. Please check back shortly.
                     </p>
                 </div>
             `;
@@ -127,13 +134,20 @@ const WithdrawSystem = {
                 helperText = "Standard network fees apply.";
             }
 
+            // LIST COIN (TERMASUK TON)
             const coinGridHTML = Object.keys(this.rates).map(key => {
                 const isActive = key === this.selectedCurrency;
                 const activeClass = "p-2 glass rounded-2xl flex flex-col items-center border border-emerald-500/50 bg-emerald-500/10 scale-95 transition-all";
                 const inactiveClass = "p-2 glass rounded-2xl flex flex-col items-center border border-white/5 opacity-70 hover:bg-white/5 transition-all";
+                
+                let iconHtml = `<span class="text-[9px] font-black uppercase text-gray-300 group-hover:text-emerald-400">${key}</span>`;
+                if(key === 'TON') {
+                    iconHtml = `<span class="text-[9px] font-black uppercase text-blue-400 drop-shadow-md">💎 ${key}</span>`;
+                }
+
                 return `
                     <button id="btn-coin-${key}" onclick="WithdrawSystem.selectCoin('${key}')" class="${isActive ? activeClass : inactiveClass}">
-                        <span class="text-[9px] font-black uppercase text-gray-300 group-hover:text-emerald-400">${key}</span>
+                        ${iconHtml}
                     </button>
                 `;
             }).join('');
@@ -189,7 +203,7 @@ const WithdrawSystem = {
                     <div class="bg-black/20 rounded-xl p-3 border border-white/5 mb-4 space-y-1">
                         <div class="flex justify-between items-center text-[8px] text-gray-400"><span>Service Fee:</span><span class="font-bold text-white">${feeLabel}</span></div>
                         <div class="flex justify-between items-center text-[8px] text-gray-400">
-                            <span>Estimated Receive:</span>
+                            <span>Estimated Receive (Min):</span>
                             <div class="text-right">
                                 <p id="wd-preview-amount" class="text-sm font-black text-white leading-none">0.00</p>
                                 <p id="wd-preview-symbol" class="text-[7px] font-bold text-emerald-500 uppercase">${this.selectedCurrency}</p>
@@ -217,6 +231,7 @@ const WithdrawSystem = {
         this.setAmount(GameState.user.coins);
     },
 
+    // --- LOGIK PREVIEW DENGAN SPREAD (SAFETY MARGIN) ---
     updatePreview() {
         const inputAmt = document.getElementById('wd-amount');
         const previewAmt = document.getElementById('wd-preview-amount');
@@ -229,9 +244,13 @@ const WithdrawSystem = {
         let fee = (this.selectedMethod === 'direct') ? Math.floor(amount * cfg.DirectFee) : 0;
         const netAmount = Math.max(0, amount - fee);
         const rate = this.rates[this.selectedCurrency] || 0;
-        const cryptoValue = (netAmount * rate).toFixed(8);
+        
+        // [FITUR SPREAD] Kalkulasi 95% dari nilai asli
+        const rawCrypto = netAmount * rate;
+        const safeCrypto = rawCrypto * this.SAFETY_MARGIN;
 
-        previewAmt.innerText = cryptoValue;
+        // Tampilkan 8 angka di belakang koma
+        previewAmt.innerText = safeCrypto.toFixed(8);
         previewSym.innerText = this.selectedCurrency;
     },
 
@@ -259,11 +278,15 @@ const WithdrawSystem = {
 
         let feePTS = (this.selectedMethod === 'direct') ? Math.floor(amountPTS * cfg.DirectFee) : 0;
         const netPTS = amountPTS - feePTS;
-        const cryptoAmount = (netPTS * this.rates[this.selectedCurrency]).toFixed(8);
+        
+        // UNTUK DISPLAY DI POPUP, KITA JUGA PAKAI SPREAD
+        // Agar konsisten dengan apa yang dilihat user sebelumnya
+        const rate = this.rates[this.selectedCurrency] || 0;
+        const estimatedCrypto = (netPTS * rate * this.SAFETY_MARGIN).toFixed(8);
 
-        UIEngine.showRewardPopup("CONFIRM TRANSFER", `Initiate transfer of ${cryptoAmount} ${this.selectedCurrency} to ${address}? This action cannot be undone.`, async () => {
+        UIEngine.showRewardPopup("CONFIRM TRANSFER", `Initiate transfer of ~${estimatedCrypto} ${this.selectedCurrency} to ${address}?`, async () => {
             
-            UIEngine.showRewardPopup("PROCESSING", "Establishing secure connection to Payment Gateway...", null, "...");
+            UIEngine.showRewardPopup("PROCESSING", "Contacting Payment Gateway...", null, "...");
 
             try {
                 const response = await fetch('/api/withdraw', {
@@ -271,7 +294,7 @@ const WithdrawSystem = {
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         address: address,
-                        amount: cryptoAmount,   
+                        amount: amountPTS, // [PENTING] Kirim PTS, biar Server yang hitung Crypto Asli
                         currency: this.selectedCurrency
                     })
                 });
