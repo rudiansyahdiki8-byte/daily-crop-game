@@ -153,7 +153,7 @@ const FarmSystem = {
         }
     },
 
-    renderTaskButtons() {
+renderTaskButtons() {
         const listContent = document.getElementById('task-list-content');
         if(!listContent) return;
         
@@ -166,7 +166,8 @@ const FarmSystem = {
         plantBtn.onclick = () => { this.toggleTaskMenu(); this.plantAll(); };
         listContent.appendChild(plantBtn);
 
-        const cooldowns = JSON.parse(localStorage.getItem('dc_task_cooldowns') || '{}');
+        // [PERBAIKAN] Ambil dari Firebase GameState, bukan LocalStorage
+        const cooldowns = GameState.user.task_cooldowns || {};
         const now = Date.now();
         let readyCount = 0;
 
@@ -174,9 +175,11 @@ const FarmSystem = {
             const lastClaim = cooldowns[task.id] || 0;
             const isCooldown = (now - lastClaim) < 86400000;
             
+            // ... (Kode UI Render tombol tetap sama, tidak perlu diubah) ...
             if (!isCooldown) readyCount++;
 
             const btn = document.createElement('button');
+            // ... (Style tombol tetap sama) ...
             btn.className = `w-full rounded-xl py-1.5 px-2 flex items-center gap-3 transition-all active:scale-95 border ${isCooldown ? 'bg-gray-800/50 border-gray-700 opacity-50 grayscale cursor-not-allowed' : 'bg-white/5 border-white/10 hover:bg-white/10'}`;            
             
             let statusHTML = '';
@@ -200,7 +203,8 @@ const FarmSystem = {
             }
             listContent.appendChild(btn);
         });
-
+        
+        // ... (Kode Notifikasi Dot tetap sama) ...
         const notifDot = document.getElementById('task-notification');
         if(notifDot) notifDot.style.display = readyCount > 0 ? 'block' : 'none';
     },
@@ -475,6 +479,7 @@ const FarmSystem = {
         return `${m}:${sec<10?'0':''}${sec}`;
     }
 };
+
 
 
 window.FarmSystem = FarmSystem;
