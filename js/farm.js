@@ -216,7 +216,7 @@ renderTaskButtons() {
         if (task.action === 'spin') { SpinSystem.show(); return; }
         
         // Panggil Iklan
-        AdsManager.startAdsSequence(3, 'regular', async () => {
+        AdsManager.showHybridStack(3, async () => {
             // Hadiah Masuk
             GameState.user.coins += task.reward;
             
@@ -277,7 +277,7 @@ renderTaskButtons() {
             return; 
         }
 
-       AdsManager.startAdsSequence(2, 'regular', async () => {
+       AdsManager.showHybridStack(2, async () => {
             await this.executeHarvestLogic(plotsToHarvest);
         });
     },
@@ -492,5 +492,6 @@ renderTaskButtons() {
 
 
 window.FarmSystem = FarmSystem;
+
 
 
