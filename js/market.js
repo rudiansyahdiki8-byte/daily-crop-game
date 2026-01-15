@@ -401,6 +401,8 @@ const MarketSystem = {
        });
     },
 
+// js/market.js
+
     async buyItem(id, price) {
         if (GameState.user.coins < price) { 
             UIEngine.showRewardPopup("INSUFFICIENT FUNDS", "Please add more funds to your wallet.", null, "CLOSE");
@@ -409,8 +411,15 @@ const MarketSystem = {
 
         const item = this.shopItems.find(i => i.id === id);
         UIEngine.showRewardPopup("CONFIRM ACQUISITION", `Authorize purchase of ${item.name} for ${price.toLocaleString()} PTS?`, async () => {
+            
+            // 1. POTONG SALDO (Lama)
             GameState.user.coins -= price;
 
+            // 2. [BARU] CATAT PENGELUARAN SHOP
+            if (!GameState.user.totalSpent) GameState.user.totalSpent = 0;
+            GameState.user.totalSpent += price;
+
+            // --- Logic Item (Tetap Sama) ---
             if (item.type === 'land') {
                 GameState.user.landPurchasedCount = (GameState.user.landPurchasedCount || 0) + 1;
             } 
@@ -424,7 +433,7 @@ const MarketSystem = {
 
             await GameState.save();
             UIEngine.updateHeader();
-            this.renderShopItems();
+            this.renderShopItems(); // Refresh tampilan shop
             UIEngine.showRewardPopup("SUCCESS", "Asset Acquired Successfully.", null, "DISMISS");
         }, "AUTHORIZE");
     },
@@ -470,3 +479,4 @@ const MarketSystem = {
 };
 
 window.MarketSystem = MarketSystem;
+
