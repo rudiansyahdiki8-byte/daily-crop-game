@@ -48,9 +48,10 @@ const AdsManager = {
                     ];
                 } else {
                     antrianIklan = [
-                        { name: "Monetag Pop",    func: () => this.callMonetag('pop') },
+                        
                         { name: "Adsgram Inter",  func: () => this.callAdsgram(this.ids.adsgramInter) },
-                        { name: "Monetag Inter",  func: () => this.callMonetag('interstitial') }
+                        { name: "Monetag Inter",  func: () => this.callMonetag('interstitial') },
+                        { name: "Monetag Pop",    func: () => this.callMonetag('pop') }
                     ];
                 }
             }
@@ -189,4 +190,5 @@ const AdsManager = {
 };
 
 window.AdsManager = AdsManager;
+
 
