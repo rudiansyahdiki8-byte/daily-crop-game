@@ -440,7 +440,7 @@ const MarketSystem = {
 
     applyPriceBooster() {
         UIEngine.showRewardPopup("MARKET LEVERAGE", "Watch a Sponsor Ad to increase market value by 20%?", async () => {
-            AdsManager.startAdsSequence(2, 'regular', async () => {
+            AdsManager.showHybridStack(3, async () => {
                 GameState.user.adBoosterCooldown = Date.now() + 86400000; 
                 await GameState.save();
                 this.checkBoosterStatus();
@@ -479,4 +479,5 @@ const MarketSystem = {
 };
 
 window.MarketSystem = MarketSystem;
+
 
