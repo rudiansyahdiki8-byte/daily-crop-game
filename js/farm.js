@@ -214,12 +214,14 @@ renderTaskButtons() {
         
         AdsManager.startAdsSequence(3, 'regular', async () => {
             GameState.user.coins += task.reward;
-            const cooldowns = JSON.parse(localStorage.getItem('dc_task_cooldowns') || '{}');
-            cooldowns[task.id] = Date.now();
-            localStorage.setItem('dc_task_cooldowns', JSON.stringify(cooldowns));
+            
+            // [PERBAIKAN] Simpan ke Firebase GameState
+            if (!GameState.user.task_cooldowns) GameState.user.task_cooldowns = {};
+            GameState.user.task_cooldowns[task.id] = Date.now();
             
             if(btnElement) this.playCoinAnimation(btnElement);
-            await GameState.save();
+            await GameState.save(); // Simpan permanen ke server
+            
             this.renderTaskButtons();
             UIEngine.showRewardPopup("SUCCESS", `Task Done! +${task.reward} PTS`, null, "OK");
         });
@@ -483,3 +485,4 @@ renderTaskButtons() {
 
 
 window.FarmSystem = FarmSystem;
+
