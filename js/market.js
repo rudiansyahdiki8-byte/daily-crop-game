@@ -91,17 +91,35 @@ const MarketSystem = {
     },
 
     // --- AFFILIATE LOGIC (TETAP SAMA) ---
-    async triggerAffiliateCommission(totalSales) {
-        if (!GameState.user) return;
-        const commission = Math.floor(totalSales * 0.10);
-        
+async triggerAffiliateCommission(totalSales) {
+        if (!GameState.user || !GameState.user.upline) return;
+
+        const commission = Math.floor(totalSales * 0.10); // 10%
+        if (commission <= 0) return;
+
+        // Aktifkan Status Sendiri
         if (GameState.user.referral_status === 'Pending') {
             GameState.user.referral_status = 'Active';
-            console.log("[AFFILIATE] Account Activated via Trading");
         }
 
-        if (GameState.user.upline && commission > 0) {
-            console.log(`[AFFILIATE] Commission ${commission} PTS`);
+        console.log(`[AFFILIATE] Sending ${commission} PTS to Upline: ${GameState.user.upline}`);
+
+        try {
+            // [LOGIKA BARU] Kirim Koin ke Upline via Firebase
+            const uplineRef = window.fs.doc(window.db, "users", GameState.user.upline);
+            
+            await window.fs.updateDoc(uplineRef, {
+                // Tambah Koin Upline
+                "user.coins": window.fs.increment(commission),
+                // Tambah Total Earnings Affiliate Upline
+                "user.affiliate.total_earnings": window.fs.increment(commission)
+            });
+            
+            // Note: Update "earnings" spesifik di dalam array friends_list agak kompleks di Firestore.
+            // Untuk versi simpel, kita update totalnya saja dulu.
+            
+        } catch (e) {
+            console.error("[AFFILIATE] Gagal kirim komisi:", e);
         }
     },
 
@@ -479,5 +497,6 @@ const MarketSystem = {
 };
 
 window.MarketSystem = MarketSystem;
+
 
 
