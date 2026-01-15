@@ -140,13 +140,12 @@ const AdsManager = {
     callAdexium() {
         return new Promise((resolve, reject) => {
             if (typeof AdexiumWidget === 'undefined') return reject("Adexium SDK missing");
-            const adWidget = new AdexiumWidget({ wid: this.ids.adexiumWidget, adFormat: 'interstitial' });
+            const adWidget = new AdexiumWidget({ wid: this.ids.adexiumWidget, adFormat: 'interstitial', debug: false });
             adWidget.on('adReceived', (ad) => adWidget.displayAd(ad));
             adWidget.on('noAdFound', () => reject("No Fill Adexium"));
             adWidget.on('adClosed', () => resolve());
             adWidget.on('adPlaybackCompleted', () => resolve());
             adWidget.requestAd('interstitial');
-            debug: false;
         });
     },
 
