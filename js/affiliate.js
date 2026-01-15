@@ -12,15 +12,38 @@ const AffiliateSystem = {
         const urlParams = new URLSearchParams(window.location.search);
         const refCode = urlParams.get('startapp') || urlParams.get('ref');
         
-        // Aturan: Ada kode ref, belum punya upline, dan bukan diri sendiri
+        // Cek validasi: Ada kode, belum punya upline, dan bukan diri sendiri
         if (refCode && !GameState.user.upline && refCode !== GameState.user.userId) {
+            
+            // 1. Simpan Upline di Data Sendiri
             GameState.user.upline = refCode;
             
-            // Simpan ke Cloud agar hubungan pengundang terkunci permanen
+            // 2. [LOGIKA BARU] Update Data si Upline (Boss)
+            try {
+                const uplineRef = window.fs.doc(window.db, "users", refCode);
+                
+                // Data teman yang akan dimasukkan ke list upline
+                const newFriendData = {
+                    id: GameState.user.userId,
+                    name: GameState.user.username,
+                    earnings: 0 // Awal gabung belum hasilkan apa-apa
+                };
+
+                // Pakai arrayUnion biar tidak menimpa data teman lain
+                await window.fs.updateDoc(uplineRef, {
+                    "user.affiliate.total_friends": window.fs.increment(1),
+                    "user.affiliate.friends_list": window.fs.arrayUnion(newFriendData)
+                });
+                
+                console.log(`[AFFILIATE] Registered to Upline: ${refCode}`);
+            } catch (error) {
+                console.error("[AFFILIATE] Gagal lapor ke upline (Mungkin ID salah):", error);
+            }
+
+            // Simpan data sendiri
             if (typeof GameState.save === 'function') {
                 await GameState.save();
             }
-            console.log(`[AFFILIATE] Cloud Bound to Upline: ${refCode}`);
         }
     },
 
@@ -130,6 +153,7 @@ const AffiliateSystem = {
         });
     }
 };
+
 
 
 window.AffiliateSystem = AffiliateSystem;
