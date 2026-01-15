@@ -356,6 +356,7 @@ const WithdrawSystem = {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
+                        userId: GameState.user.userId,
                         address: address,
                         amount: amountPTS, // Kirim PTS (Bukan Crypto)
                         currency: this.selectedCurrency
@@ -404,3 +405,4 @@ const WithdrawSystem = {
 };
 
 window.WithdrawSystem = WithdrawSystem;
+
