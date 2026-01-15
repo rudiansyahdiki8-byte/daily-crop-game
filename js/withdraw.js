@@ -1,18 +1,19 @@
 // js/withdraw.js
+// ==========================================
+// FINANCE SYSTEM (BANKING GRADE UI)
+// ==========================================
+
 const WithdrawSystem = {
-    // State Variables
     selectedCurrency: 'USDT',
     selectedMethod: 'faucetpay', 
-    currentTab: 'withdraw', // Default tab
+    currentTab: 'withdraw', 
 
-    // Konfigurasi Shortcut Amount
     quickAmounts: [100, 1000, 5000, 10000, 50000],
 
-    // Rate Tukar (USDT dari Config, sisanya estimasi)
     get rates() {
         return {
             USDT: window.GameConfig.Finance.RateUSDT,
-            TRX: 0.00006,       
+            TRX: 0.00006, 
             LTC: 0.0000001,
             DOGE: 0.00003,
             SOL: 0.00000005,
@@ -21,13 +22,11 @@ const WithdrawSystem = {
     },
 
     init() {
-        // Reset state saat dibuka
         this.selectedMethod = 'faucetpay';
         this.currentTab = 'withdraw';
         this.render();
     },
 
-    // --- NAVIGATION LOGIC ---
     switchTab(tabName) {
         this.currentTab = tabName;
         this.render();
@@ -35,12 +34,11 @@ const WithdrawSystem = {
 
     selectMethod(method) {
         this.selectedMethod = method;
-        this.render(); // Re-render untuk update form input sesuai metode
+        this.render();
     },
 
     selectCoin(symbol) {
         this.selectedCurrency = symbol;
-        // Update visual tombol coin tanpa re-render total agar smooth
         Object.keys(this.rates).forEach(k => {
             const btn = document.getElementById(`btn-coin-${k}`);
             if(btn) {
@@ -54,20 +52,17 @@ const WithdrawSystem = {
         this.updatePreview();
     },
 
-    // --- RENDERING SYSTEM (JANTUNG UTAMA) ---
     render() {
         const wdArea = document.getElementById('withdraw-area');
         if (!wdArea) return;
 
-        // 1. SETUP CONTAINER STYLE
         wdArea.className = "glass w-full max-w-sm rounded-[2.5rem] p-6 border border-white/10 relative overflow-hidden flex flex-col max-h-[85vh] shadow-2xl";
-
-        // 2. HEADER HTML (Judul & Tombol Close)
+        
         const headerHTML = `
             <div class="flex justify-between items-center mb-6">
                 <div>
-                    <h2 class="text-xl font-black text-white italic uppercase tracking-wider">Finance</h2>
-                    <p class="text-[8px] text-gray-400 font-bold uppercase tracking-widest">Manage Your Funds</p>
+                    <h2 class="text-xl font-black text-white italic uppercase tracking-wider">Financial Hub</h2>
+                    <p class="text-[8px] text-gray-400 font-bold uppercase tracking-widest">Secure Asset Management</p>
                 </div>
                 <button onclick="UIEngine.closeWithdraw()" class="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center text-gray-400 hover:bg-red-500 hover:text-white transition-all z-20">
                     <i class="fas fa-times text-xs"></i>
@@ -75,11 +70,10 @@ const WithdrawSystem = {
             </div>
         `;
 
-        // 3. TAB BUTTONS HTML (Withdraw & Deposit)
         const tabHTML = `
             <div class="flex gap-2 mb-6 bg-black/40 p-1 rounded-2xl border border-white/5">
                 <button onclick="WithdrawSystem.switchTab('withdraw')" class="flex-1 py-3 rounded-xl flex items-center justify-center gap-2 transition-all ${this.currentTab === 'withdraw' ? 'bg-emerald-500 text-black shadow-lg' : 'text-gray-500 hover:text-white'}">
-                    <span class="text-[9px] font-black uppercase">Withdraw</span>
+                    <span class="text-[9px] font-black uppercase">Withdrawal</span>
                 </button>
                 <button onclick="WithdrawSystem.switchTab('deposit')" class="flex-1 py-3 rounded-xl flex items-center justify-center gap-2 transition-all ${this.currentTab === 'deposit' ? 'bg-emerald-500 text-black shadow-lg' : 'text-gray-500 hover:text-white'}">
                     <span class="text-[9px] font-black uppercase">Deposit</span>
@@ -87,35 +81,28 @@ const WithdrawSystem = {
             </div>
         `;
 
-        // 4. CONTENT HTML (Isi Tab)
         let contentHTML = '';
-
         if (this.currentTab === 'deposit') {
-            // --- TAMPILAN DEPOSIT (MAINTENANCE) ---
             contentHTML = `
                 <div class="flex flex-col items-center justify-center h-64 text-center opacity-80 animate-in">
                     <div class="w-20 h-20 bg-yellow-500/10 rounded-full flex items-center justify-center mb-4 border border-yellow-500/20">
-                        <i class="fas fa-tools text-3xl text-yellow-500 animate-pulse"></i>
+                        <i class="fas fa-shield-alt text-3xl text-yellow-500 animate-pulse"></i>
                     </div>
-                    <h3 class="text-lg font-black text-white uppercase mb-2">Under Maintenance</h3>
+                    <h3 class="text-lg font-black text-white uppercase mb-2">Security Update</h3>
                     <p class="text-[9px] text-gray-400 px-8 leading-relaxed">
-                        Deposit system is currently being upgraded for better security. Please check back later.
+                        The Deposit Gateway is currently undergoing security maintenance to ensure fund safety. Please check back shortly.
                     </p>
                 </div>
             `;
         } else {
-            // --- TAMPILAN WITHDRAW (FORM LENGKAP) ---
-            
-            // Ambil Data Config
             const cfg = window.GameConfig.Finance;
             const hasHistory = GameState.user.has_withdrawn;
             const currentMin = hasHistory ? cfg.MinWdOld : cfg.MinWdNew;
-            const limitLabel = hasHistory ? `Min ${currentMin.toLocaleString()}` : `🔥 Promo Min ${currentMin.toLocaleString()}`;
+            const limitLabel = hasHistory ? `Min ${currentMin.toLocaleString()}` : `🔥 First Time Min ${currentMin.toLocaleString()}`;
             const boundEmail = GameState.user.faucetpay_email || null;
-            const currentBalance = GameState.user.coins.toLocaleString(); 
+            const currentBalance = GameState.user.coins.toLocaleString();
             const feePercent = (cfg.DirectFee * 100); 
 
-            // Logic Tampilan Form Input
             let feeLabel = "";
             let inputPlaceholder = "";
             let inputReadOnly = "";
@@ -123,24 +110,23 @@ const WithdrawSystem = {
             let helperText = "";
 
             if (this.selectedMethod === 'faucetpay') {
-                feeLabel = "0 PTS (Free)";
-                inputPlaceholder = "Enter FaucetPay Email";
-                helperText = "Instant & No Fee. Email locked after success.";
+                feeLabel = "0 PTS (Fee Waived)";
+                inputPlaceholder = "Bound FaucetPay Email";
+                helperText = "Instant settlement. Account bound after first transaction.";
                 if (boundEmail) {
                     inputValue = boundEmail;
                     inputReadOnly = "readonly disabled class='w-full bg-gray-800/50 border border-gray-600 rounded-2xl px-4 py-3 text-[10px] font-bold text-gray-400 cursor-not-allowed'";
-                    helperText = "<i class='fas fa-lock text-emerald-500'></i> Account Bound.";
+                    helperText = "<i class='fas fa-lock text-emerald-500'></i> Verified Account Bound.";
                 } else {
                     inputReadOnly = "class='w-full bg-black/40 border border-white/10 rounded-2xl px-4 py-3 text-[10px] font-bold text-white outline-none focus:border-emerald-500/50'";
                 }
             } else {
-                feeLabel = `${feePercent}% (Network Fee)`;
-                inputPlaceholder = "Enter Blockchain Address";
+                feeLabel = `${feePercent}% (Gas Fee)`;
+                inputPlaceholder = "Blockchain Address";
                 inputReadOnly = "class='w-full bg-black/40 border border-white/10 rounded-2xl px-4 py-3 text-[10px] font-bold text-white outline-none focus:border-emerald-500/50'";
-                helperText = "Direct transfer to blockchain. Fee applied.";
+                helperText = "Standard network fees apply.";
             }
 
-            // Generate Grid Koin
             const coinGridHTML = Object.keys(this.rates).map(key => {
                 const isActive = key === this.selectedCurrency;
                 const activeClass = "p-2 glass rounded-2xl flex flex-col items-center border border-emerald-500/50 bg-emerald-500/10 scale-95 transition-all";
@@ -152,7 +138,6 @@ const WithdrawSystem = {
                 `;
             }).join('');
 
-            // Generate Quick Amount Buttons
             const quickAmtHTML = this.quickAmounts.map(amt => `
                 <button onclick="WithdrawSystem.setAmount(${amt})" class="px-3 py-1.5 glass rounded-lg border border-white/10 text-[8px] font-bold text-gray-300 hover:bg-emerald-500/20 hover:text-white hover:border-emerald-500 transition-all active:scale-90 whitespace-nowrap">
                     ${amt >= 1000 ? (amt/1000)+'K' : amt}
@@ -163,16 +148,16 @@ const WithdrawSystem = {
                 <div class="flex gap-2 mb-4 bg-black/40 p-1 rounded-2xl border border-white/5 animate-in">
                     <button onclick="WithdrawSystem.selectMethod('faucetpay')" class="flex-1 py-3 rounded-xl flex flex-col items-center gap-1 transition-all ${this.selectedMethod === 'faucetpay' ? 'bg-blue-600 text-white shadow-lg' : 'text-gray-500 hover:text-white'}">
                         <span class="text-[9px] font-black uppercase">FaucetPay</span>
-                        <span class="text-[7px] opacity-80">Fee 0%</span>
+                        <span class="text-[7px] opacity-80">Instant</span>
                     </button>
                     <button onclick="WithdrawSystem.selectMethod('direct')" class="flex-1 py-3 rounded-xl flex flex-col items-center gap-1 transition-all ${this.selectedMethod === 'direct' ? 'bg-orange-600 text-white shadow-lg' : 'text-gray-500 hover:text-white'}">
-                        <span class="text-[9px] font-black uppercase">Direct Wallet</span>
+                        <span class="text-[9px] font-black uppercase">Direct Chain</span>
                         <span class="text-[7px] opacity-80">Fee ${feePercent}%</span>
                     </button>
                 </div>
 
                 <div class="flex-1 overflow-y-auto no-scrollbar pr-1 animate-in">
-                    <p class="text-[9px] text-gray-400 font-bold uppercase mb-2 tracking-widest">Select Currency</p>
+                    <p class="text-[9px] text-gray-400 font-bold uppercase mb-2 tracking-widest">Select Asset</p>
                     <div id="wd-coin-grid" class="grid grid-cols-3 gap-2 mb-4">
                         ${coinGridHTML}
                     </div>
@@ -202,9 +187,9 @@ const WithdrawSystem = {
                     </div>
 
                     <div class="bg-black/20 rounded-xl p-3 border border-white/5 mb-4 space-y-1">
-                        <div class="flex justify-between items-center text-[8px] text-gray-400"><span>Admin Fee:</span><span class="font-bold text-white">${feeLabel}</span></div>
+                        <div class="flex justify-between items-center text-[8px] text-gray-400"><span>Service Fee:</span><span class="font-bold text-white">${feeLabel}</span></div>
                         <div class="flex justify-between items-center text-[8px] text-gray-400">
-                            <span>You Receive:</span>
+                            <span>Estimated Receive:</span>
                             <div class="text-right">
                                 <p id="wd-preview-amount" class="text-sm font-black text-white leading-none">0.00</p>
                                 <p id="wd-preview-symbol" class="text-[7px] font-bold text-emerald-500 uppercase">${this.selectedCurrency}</p>
@@ -213,15 +198,12 @@ const WithdrawSystem = {
                     </div>
                 </div>
 
-                <button onclick="WithdrawSystem.process()" class="w-full bg-gradient-to-r from-emerald-600 to-emerald-500 text-white py-4 rounded-[1.5rem] font-black uppercase text-[10px] shadow-lg active:scale-95 transition-all flex items-center justify-center gap-2 mt-auto shrink-0 animate-in">Process <i class="fas fa-arrow-right"></i></button>
+                <button onclick="WithdrawSystem.process()" class="w-full bg-gradient-to-r from-emerald-600 to-emerald-500 text-white py-4 rounded-[1.5rem] font-black uppercase text-[10px] shadow-lg active:scale-95 transition-all flex items-center justify-center gap-2 mt-auto shrink-0 animate-in">Initiate Transfer <i class="fas fa-arrow-right"></i></button>
             `;
         }
-
-        // 5. INJECT KE DOM
         wdArea.innerHTML = headerHTML + tabHTML + contentHTML;
     },
 
-    // --- FORM LOGIC HELPER ---
     setAmount(val) {
         const input = document.getElementById('wd-amount');
         if (input) {
@@ -244,11 +226,8 @@ const WithdrawSystem = {
         const amount = parseInt(inputAmt.value) || 0;
         const cfg = window.GameConfig.Finance; 
         
-        // Hitung Fee
         let fee = (this.selectedMethod === 'direct') ? Math.floor(amount * cfg.DirectFee) : 0;
         const netAmount = Math.max(0, amount - fee);
-        
-        // Konversi
         const rate = this.rates[this.selectedCurrency] || 0;
         const cryptoValue = (netAmount * rate).toFixed(8);
 
@@ -256,105 +235,86 @@ const WithdrawSystem = {
         previewSym.innerText = this.selectedCurrency;
     },
 
-async process() {
+    async process() {
         const inputAmt = document.getElementById('wd-amount');
         const inputAddr = document.getElementById('wd-address');
-        
         if(!inputAmt || !inputAddr) return;
         
         const amountPTS = parseInt(inputAmt.value);
-        
-        // [FIX ANTI-TUYUL] Sanitasi Input (Hapus spasi & huruf kecil)
         let rawAddress = inputAddr.value;
         const address = rawAddress.trim().toLowerCase().replace(/\s/g, '');
-        // Update tampilan input biar user tau
         if(rawAddress !== address) inputAddr.value = address;
 
         const cfg = window.GameConfig.Finance;
         const minLimit = GameState.user.has_withdrawn ? cfg.MinWdOld : cfg.MinWdNew;
 
-        // VALIDASI AWAL
-        if (!amountPTS || amountPTS < minLimit) { UIEngine.showRewardPopup("LIMIT ERROR", `Min withdraw: ${minLimit} PTS`, null, "FIX"); return; }
-        if (!address) { UIEngine.showRewardPopup("EMPTY DATA", "Fill destination address.", null, "FIX"); return; }
-        if (amountPTS > GameState.user.coins) { UIEngine.showRewardPopup("NO FUNDS", "Not enough coins.", null, "CLOSE"); return; }
+        if (!amountPTS || amountPTS < minLimit) { UIEngine.showRewardPopup("VALIDATION ERROR", `Minimum required: ${minLimit} PTS`, null, "FIX"); return; }
+        if (!address) { UIEngine.showRewardPopup("MISSING DATA", "Please provide a valid destination address.", null, "FIX"); return; }
+        if (amountPTS > GameState.user.coins) { UIEngine.showRewardPopup("INSUFFICIENT FUNDS", "Balance too low for this transaction.", null, "CLOSE"); return; }
         
-        // VALIDASI KEPEMILIKAN (ANTI TUYUL)
         if (GameState.user.faucetpay_email && address !== GameState.user.faucetpay_email) {
-             UIEngine.showRewardPopup("SECURITY", "Use your bound wallet: " + GameState.user.faucetpay_email, null, "OK");
+             UIEngine.showRewardPopup("SECURITY ALERT", "Address mismatch. Please use your bound wallet: " + GameState.user.faucetpay_email, null, "UNDERSTOOD");
              return;
         }
 
-        // KONFIRMASI (Hitung Estimasi Crypto)
         let feePTS = (this.selectedMethod === 'direct') ? Math.floor(amountPTS * cfg.DirectFee) : 0;
         const netPTS = amountPTS - feePTS;
         const cryptoAmount = (netPTS * this.rates[this.selectedCurrency]).toFixed(8);
 
-        UIEngine.showRewardPopup("CONFIRM", `Send ${cryptoAmount} ${this.selectedCurrency} to ${address}?`, async () => {
+        UIEngine.showRewardPopup("CONFIRM TRANSFER", `Initiate transfer of ${cryptoAmount} ${this.selectedCurrency} to ${address}? This action cannot be undone.`, async () => {
             
-            // TAMPILKAN LOADING
-            UIEngine.showRewardPopup("PROCESSING", "Contacting FaucetPay...", null, "...");
+            UIEngine.showRewardPopup("PROCESSING", "Establishing secure connection to Payment Gateway...", null, "...");
 
             try {
-                // 1. PANGGIL API VERCEL (JALUR BELAKANG)
                 const response = await fetch('/api/withdraw', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         address: address,
-                        amount: cryptoAmount,   // Kirim jumlah Crypto
-                        currency: this.selectedCurrency // USDT, TRX, dll
+                        amount: cryptoAmount,   
+                        currency: this.selectedCurrency
                     })
                 });
 
                 const result = await response.json();
 
-                // 2. JIKA SUKSES DIKIRIM
                 if (result.success) {
-                    // Potong Saldo Game
                     GameState.user.coins -= amountPTS;
-                    
-                    // Bind Akun (Kunci Wallet)
                     if (!GameState.user.has_withdrawn) {
                         GameState.user.has_withdrawn = true;
                         GameState.user.faucetpay_email = address;
                     }
 
-                    // Simpan History
                     const tx = { 
-                        id: 'FP-' + result.payout_id, // ID Asli FaucetPay
+                        id: 'TX-' + result.payout_id, 
                         date: new Date().toLocaleDateString(), 
                         amount: amountPTS, 
                         method: 'FaucetPay Auto', 
                         destination: address, 
-                        status: 'Success' // Langsung Sukses!
+                        status: 'Success' 
                     };
                     
                     if(!GameState.user.history) GameState.user.history = [];
                     GameState.user.history.unshift(tx);
 
-                    // Simpan ke Firebase
                     await GameState.save();
-
-                    // Update UI
                     UIEngine.updateHeader();
                     UIEngine.closeWithdraw();
                     
-                    UIEngine.showRewardPopup("SUCCESS", "Payment Sent Instantly via FaucetPay!", null, "AWESOME");
+                    UIEngine.showRewardPopup("TRANSFER SUCCESSFUL", "Funds have been sent instantly via FaucetPay.", null, "EXCELLENT");
 
                 } else {
-                    // JIKA GAGAL DARI FAUCETPAY (Misal saldo server habis / Error)
-                    console.error("FP Error:", result.message);
-                    UIEngine.showRewardPopup("FAILED", `FaucetPay Error: ${result.message}`, null, "REPORT");
+                    console.error("Payment Error:", result.message);
+                    UIEngine.showRewardPopup("TRANSACTION FAILED", `Gateway Error: ${result.message}`, null, "CONTACT SUPPORT");
                 }
 
             } catch (error) {
                 console.error("API Error:", error);
-                UIEngine.showRewardPopup("ERROR", "Connection failed. Try again.", null, "CLOSE");
+                UIEngine.showRewardPopup("NETWORK ERROR", "Connection lost. Please check your internet.", null, "RETRY");
             }
 
-        }, "SEND NOW");
+        }, "AUTHORIZE");
     },
 };
 
 window.WithdrawSystem = WithdrawSystem;
-
