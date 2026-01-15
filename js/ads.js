@@ -1,10 +1,7 @@
 // js/ads.js
 // ==========================================
-// ADS MANAGER: HYBRID STACK V1.0
-// Logic:
-// 1. Premium Timer (30 Menit): Mengontrol Adsgram & Adexium.
-// 2. Stack System: Request X iklan, sistem pilihkan urutannya otomatis.
-// 3. Fallback: Jika Premium cooldown, otomatis switch ke Adsterra/Monetag.
+// ADS MANAGER: HYBRID STACK V1.1 (POP-UP LAST)
+// Update: Adsterra & Monetag Pop dipindah ke urutan paling belakang.
 // ==========================================
 
 const AdsManager = {
@@ -19,65 +16,54 @@ const AdsManager = {
 
     // --- 2. CONFIG WAKTU ---
     config: {
-        premiumCooldown: 30,   // Cooldown Iklan Mahal (Menit) - Global untuk semua tombol
-        clickSafety: 2         // Jeda 2 detik agar tidak double click tombol start
+        premiumCooldown: 30,   // Cooldown Iklan Mahal (Menit)
+        clickSafety: 2         
     },
 
-    isRunning: false, // Flag agar tidak tumpah tindih
+    isRunning: false, 
 
-    /**
-     * FUNGSI UTAMA: Panggil ini di tombol game Anda.
-     * @param {number} jumlahAds - Mau berapa iklan? (Contoh: Harvest=2, Task=3)
-     * @param {function} onReward - Callback function setelah SEMUA iklan selesai.
-     */
     async showHybridStack(jumlahAds, onReward) {
-        if (this.isRunning) return; // Cegah spam tombol start
+        if (this.isRunning) return; 
         this.isRunning = true;
 
         console.log(`🚀 [AdsSystem] Requesting Stack: ${jumlahAds} Ads`);
         
-        // 1. Cek Status Premium (30 Menit Timer)
+        // 1. Cek Status Premium
         const premiumStatus = this.checkPremiumTimer();
         const isPremiumReady = premiumStatus.ready;
-        console.log(`💎 Premium Status: ${isPremiumReady ? "READY" : "COOLDOWN (" + premiumStatus.timeLeft + "m)"}`);
 
-        // 2. Tentukan Playlist Iklan Berdasarkan Status
+        // 2. Tentukan Playlist (POP-UP DI TARUH BELAKANG)
         let playlist = [];
 
         if (isPremiumReady) {
             // --- MODE SULTAN (Timer Ready) ---
-            // Urutan: Adsgram (Video) -> Adexium (Inter) -> Adsterra -> Monetag
+            // Prioritas: Video -> Gambar Native -> Gambar Inter -> Pop-up Terakhir
             playlist = [
-                { name: "Adsgram (Premium)", type: 'adsgram_reward' }, // Wajib Nonton
-                { name: "Adexium (Native)",  type: 'adexium' },        // Gambar Native
-                { name: "Adsterra (Link)",   type: 'adsterra' },       // Tab Baru
-                { name: "Monetag (Inter)",   type: 'monetag_inter' },
-                { name: "Monetag (Pop)",     type: 'monetag_pop' }
+                { name: "Adsgram (Video)",   type: 'adsgram_reward' }, 
+                { name: "Adexium (Native)",  type: 'adexium' },        
+                { name: "Monetag (Inter)",   type: 'monetag_inter' },  // Gambar (No Pop-up)
+                { name: "Adsterra (Link)",   type: 'adsterra' },       // Pop-up 1
+                { name: "Monetag (Pop)",     type: 'monetag_pop' }     // Pop-up 2
             ];
         } else {
             // --- MODE RECEH (Timer Cooldown) ---
-            // Urutan: Adsterra -> Monetag Inter -> Monetag Pop -> Adsterra (Lagi)
+            // Prioritas: Gambar Inter -> Pop-up -> Pop-up
             playlist = [
-                { name: "Adsterra (Link)",   type: 'adsterra' },       // Tab Baru (Priority Spam)
-                { name: "Monetag (Inter)",   type: 'monetag_inter' },  // Gambar
-                { name: "Monetag (Pop)",     type: 'monetag_pop' },    // Pop under
-                { name: "Adsterra (Backup)", type: 'adsterra' },       // Ulangi Adsterra
-                { name: "Monetag (Backup)",  type: 'monetag_inter' }
+                { name: "Monetag (Inter)",   type: 'monetag_inter' },  // Gambar dulu (Lebih nyaman)
+                { name: "Adsterra (Link)",   type: 'adsterra' },       // Baru Pop-up
+                { name: "Monetag (Pop)",     type: 'monetag_pop' },    // Pop-up lagi
+                { name: "Adsterra (Backup)", type: 'adsterra' }        // Loop
             ];
         }
 
-        // 3. Potong Playlist sesuai jumlah permintaan (misal cuma minta 2)
-        // Jika minta 3, ambil index 0, 1, 2
+        // 3. Ambil sesuai jumlah permintaan
         let antrianFinal = playlist.slice(0, jumlahAds);
         
-        // Safety: Jika user minta 5 tapi playlist cuma 4, looping aman.
-
-        // 4. EKSEKUSI LOOPING (STACK)
+        // 4. EKSEKUSI LOOPING
         let suksesCount = 0;
 
         for (let i = 0; i < antrianFinal.length; i++) {
             const ad = antrianFinal[i];
-            const stepInfo = `Ads ${i+1}/${jumlahAds}`;
 
             // Tampilkan Loading UI
             if(window.UIEngine) {
@@ -85,20 +71,13 @@ const AdsManager = {
             }
 
             try {
-                console.log(`▶️ Playing [${stepInfo}]: ${ad.name}`);
-                
-                // Panggil Provider
+                console.log(`▶️ Playing: ${ad.name}`);
                 await this.callProvider(ad.type);
-                
                 console.log(`✅ Success: ${ad.name}`);
                 suksesCount++;
-                
-                // Jeda Sedikit Antar Iklan (Biar napas)
-                await new Promise(r => setTimeout(r, 1500));
-
+                await new Promise(r => setTimeout(r, 1500)); // Jeda
             } catch (err) {
-                console.warn(`⚠️ Skipped: ${ad.name}. Reason: ${err}`);
-                // Jika error, lanjut ke iklan berikutnya (Jangan berhenti total)
+                console.warn(`⚠️ Skipped: ${ad.name}`);
             }
         }
 
@@ -108,12 +87,7 @@ const AdsManager = {
         if(popup) popup.remove();
 
         if (suksesCount > 0) {
-            // Update Timer Premium HANYA JIKA tadi pakai mode Premium
-            if (isPremiumReady) {
-                this.setPremiumTimer(); 
-            }
-            
-            // Beri Hadiah
+            if (isPremiumReady) this.setPremiumTimer(); 
             if (onReward) onReward();
         } else {
             alert("No ads available. Please try again later.");
@@ -126,28 +100,26 @@ const AdsManager = {
     async callProvider(type) {
         switch (type) {
             case 'adsgram_reward':
-            case 'adsgram_inter':
-                return this.callAdsgram(this.ids.adsgramReward); // Pakai ID Reward biar aman
+                return this.callAdsgram(this.ids.adsgramReward);
             case 'adexium':
                 return this.callAdexium();
             case 'adsterra':
                 return this.callAdsterra();
             case 'monetag_inter':
-                return this.callMonetag('interstitial');
+                return this.callMonetag('interstitial'); // Gambar Interstitial
             case 'monetag_pop':
-                return this.callMonetag('pop');
+                return this.callMonetag('pop'); // Pop-under (Tab Baru)
             default:
                 return Promise.reject("Unknown Type");
         }
     },
 
     // ==========================================
-    // SDK IMPLEMENTATION
+    // SDK CALLS (TIDAK ADA PERUBAHAN)
     // ==========================================
     callAdsgram(blockId) {
         return new Promise((resolve, reject) => {
             if (!window.Adsgram) return reject("Script missing");
-            // DEBUG: FALSE (Wajib)
             const AdController = window.Adsgram.init({ blockId: blockId, debug: false, debugBannerType: "FullscreenMedia" });
             AdController.show().then((r) => { r.done ? resolve() : reject("Skipped"); }).catch(reject);
         });
@@ -159,7 +131,7 @@ const AdsManager = {
             const tg = window.Telegram.WebApp;
             try {
                 tg.openLink(this.ids.adsterraDirectLink);
-                setTimeout(resolve, 3000); // Asumsi sukses 3 detik
+                setTimeout(resolve, 3000); 
             } catch (e) { reject("Adsterra Failed"); }
         });
     },
@@ -187,29 +159,22 @@ const AdsManager = {
     },
 
     // ==========================================
-    // GLOBAL TIMER LOGIC (Premium Protection)
+    // TIMER LOGIC (30 MENIT GLOBAL)
     // ==========================================
     checkPremiumTimer() {
         if (!window.GameState || !GameState.user) return { ready: false, timeLeft: 30 }; 
-        
         const timers = GameState.user.ad_timers || {};
-        const last = timers['premium_stack']; // Satu Timer untuk SEMUA
-        
+        const last = timers['premium_stack']; 
         if (!last) return { ready: true }; 
-        
         const diffMinutes = (Date.now() - parseInt(last)) / 1000 / 60;
         if (diffMinutes >= this.config.premiumCooldown) return { ready: true };
-        
         return { ready: false, timeLeft: Math.ceil(this.config.premiumCooldown - diffMinutes) };
     },
 
     setPremiumTimer() {
         if (!window.GameState || !GameState.user) return;
         if (!GameState.user.ad_timers) GameState.user.ad_timers = {};
-        
         GameState.user.ad_timers['premium_stack'] = Date.now(); 
-        console.log("🔒 Premium Timer Locked for 30 mins");
-        
         if (GameState.save) GameState.save(); 
     }
 };
