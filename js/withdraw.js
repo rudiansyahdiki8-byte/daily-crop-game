@@ -1,7 +1,7 @@
 // js/withdraw.js
 // ==========================================
-// FINANCE SYSTEM (BANKING GRADE UI + TON + SAFETY MARGIN)
-// Fitur Baru: Preview Crypto ditampilkan 5% lebih rendah (Spread) agar user senang saat terima lebih.
+// FINANCE SYSTEM (REALTIME RATES + TON + SAFETY MARGIN)
+// Fitur: Mengambil harga live dari CoinGecko.
 // ==========================================
 
 const WithdrawSystem = {
@@ -11,27 +11,81 @@ const WithdrawSystem = {
 
     quickAmounts: [100, 1000, 5000, 10000, 50000],
 
-    // --- CONFIG SPREAD / SAFETY MARGIN ---
-    // 0.95 artinya kita hanya menampilkan 95% dari nilai asli.
-    // 5% sisanya adalah "Jaga-jaga" (Spread).
+    // SAFETY MARGIN 5% (Agar user senang dapat lebih, dan aman dari harga turun)
     SAFETY_MARGIN: 0.95, 
 
-    get rates() {
-        return {
-            USDT: window.GameConfig.Finance.RateUSDT,
-            TON:  0.000002, // 100k PTS = ~0.2 TON
-            TRX:  0.00006, 
-            LTC:  0.0000001,
-            DOGE: 0.00003,
-            SOL:  0.00000005,
-            BTC:  0.0000000001
-        };
+    // HARGA CADANGAN (Default) - Dipakai jika API Error/Loading
+    rates: {
+        USDT: window.GameConfig.Finance.RateUSDT || 0.001, // Base Rate (Misal 1 PTS = 0.001 USD)
+        TON:  0.0002, 
+        TRX:  0.06, 
+        LTC:  0.00001,
+        DOGE: 0.03,
+        SOL:  0.00005,
+        BTC:  0.00000002
+    },
+
+    // Mapping ID CoinGecko
+    coinIds: {
+        'TON': 'the-open-network',
+        'TRX': 'tron',
+        'LTC': 'litecoin',
+        'DOGE': 'dogecoin',
+        'SOL': 'solana',
+        'BTC': 'bitcoin',
+        'USDT': 'tether'
     },
 
     init() {
         this.selectedMethod = 'faucetpay';
         this.currentTab = 'withdraw';
+        
         this.render();
+        
+        // LANGSUNG AMBIL HARGA ASLI SAAT MENU DIBUKA
+        this.fetchLiveRates();
+    },
+
+    // --- FUNGSI BARU: AMBIL HARGA REALTIME ---
+    async fetchLiveRates() {
+        // Tampilkan indikator loading kecil di header atau console
+        console.log("Fetching live crypto prices...");
+        const updateStatus = document.getElementById('wd-rate-status');
+        if(updateStatus) updateStatus.innerHTML = '<span class="animate-pulse text-yellow-400">Syncing Rates...</span>';
+
+        try {
+            // Panggil API CoinGecko (Gratis)
+            const ids = Object.values(this.coinIds).join(',');
+            const response = await fetch(`https://api.coingecko.com/api/v3/simple/price?ids=${ids}&vs_currencies=usd`);
+            const data = await response.json();
+
+            // Rumus: Rate Koin = (Nilai 1 PTS dalam USD) / (Harga Koin dalam USD)
+            // Asumsi: GameConfig.Finance.RateUSDT adalah harga 1 PTS dalam Dollar.
+            const baseValueUSD = window.GameConfig.Finance.RateUSDT || 0.001; 
+
+            if (data) {
+                // Update Rate TON
+                if(data['the-open-network']) this.rates.TON = baseValueUSD / data['the-open-network'].usd;
+                if(data['tron'])             this.rates.TRX = baseValueUSD / data['tron'].usd;
+                if(data['litecoin'])         this.rates.LTC = baseValueUSD / data['litecoin'].usd;
+                if(data['dogecoin'])         this.rates.DOGE = baseValueUSD / data['dogecoin'].usd;
+                if(data['solana'])           this.rates.SOL = baseValueUSD / data['solana'].usd;
+                if(data['bitcoin'])          this.rates.BTC = baseValueUSD / data['bitcoin'].usd;
+                
+                // Rate USDT biasanya tetap 1:1 dengan base config, tapi bisa diupdate juga
+                // this.rates.USDT = baseValueUSD; 
+
+                console.log("✅ Live Rates Updated!", this.rates);
+                
+                // Refresh Tampilan Preview
+                this.updatePreview();
+                
+                if(updateStatus) updateStatus.innerHTML = '<span class="text-emerald-400">● Live Market Data</span>';
+            }
+        } catch (error) {
+            console.warn("⚠️ Failed to fetch live rates, using defaults.", error);
+            if(updateStatus) updateStatus.innerHTML = '<span class="text-gray-500">Using Standard Rates</span>';
+        }
     },
 
     switchTab(tabName) {
@@ -46,17 +100,22 @@ const WithdrawSystem = {
 
     selectCoin(symbol) {
         this.selectedCurrency = symbol;
+        this.renderButtons(); // Refactor biar gak render ulang semua
+        this.updatePreview();
+    },
+
+    // Helper render tombol koin biar smooth
+    renderButtons() {
         Object.keys(this.rates).forEach(k => {
             const btn = document.getElementById(`btn-coin-${k}`);
             if(btn) {
-                if (k === symbol) {
+                if (k === this.selectedCurrency) {
                     btn.className = "p-2 glass rounded-2xl flex flex-col items-center border border-emerald-500/50 bg-emerald-500/10 scale-95 transition-all";
                 } else {
                     btn.className = "p-2 glass rounded-2xl flex flex-col items-center border border-white/5 opacity-70 hover:bg-white/5 transition-all";
                 }
             }
         });
-        this.updatePreview();
     },
 
     render() {
@@ -69,7 +128,10 @@ const WithdrawSystem = {
             <div class="flex justify-between items-center mb-6">
                 <div>
                     <h2 class="text-xl font-black text-white italic uppercase tracking-wider">Financial Hub</h2>
-                    <p class="text-[8px] text-gray-400 font-bold uppercase tracking-widest">Secure Asset Management</p>
+                    <div class="flex items-center gap-2">
+                        <p class="text-[8px] text-gray-400 font-bold uppercase tracking-widest">Secure Asset Management</p>
+                        <p id="wd-rate-status" class="text-[8px] font-bold uppercase ml-2"></p>
+                    </div>
                 </div>
                 <button onclick="UIEngine.closeWithdraw()" class="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center text-gray-400 hover:bg-red-500 hover:text-white transition-all z-20">
                     <i class="fas fa-times text-xs"></i>
@@ -134,7 +196,7 @@ const WithdrawSystem = {
                 helperText = "Standard network fees apply.";
             }
 
-            // LIST COIN (TERMASUK TON)
+            // RENDER TOMBOL KOIN (DINAMIS DARI RATES)
             const coinGridHTML = Object.keys(this.rates).map(key => {
                 const isActive = key === this.selectedCurrency;
                 const activeClass = "p-2 glass rounded-2xl flex flex-col items-center border border-emerald-500/50 bg-emerald-500/10 scale-95 transition-all";
@@ -231,7 +293,7 @@ const WithdrawSystem = {
         this.setAmount(GameState.user.coins);
     },
 
-    // --- LOGIK PREVIEW DENGAN SPREAD (SAFETY MARGIN) ---
+    // --- PREVIEW + SAFETY MARGIN ---
     updatePreview() {
         const inputAmt = document.getElementById('wd-amount');
         const previewAmt = document.getElementById('wd-preview-amount');
@@ -243,13 +305,15 @@ const WithdrawSystem = {
         
         let fee = (this.selectedMethod === 'direct') ? Math.floor(amount * cfg.DirectFee) : 0;
         const netAmount = Math.max(0, amount - fee);
+        
+        // AMBIL RATE DARI VARIABEL LIVE
         const rate = this.rates[this.selectedCurrency] || 0;
         
-        // [FITUR SPREAD] Kalkulasi 95% dari nilai asli
+        // Kalkulasi Spread (Potongan 5%)
         const rawCrypto = netAmount * rate;
         const safeCrypto = rawCrypto * this.SAFETY_MARGIN;
 
-        // Tampilkan 8 angka di belakang koma
+        // Tampilkan 8 angka desimal
         previewAmt.innerText = safeCrypto.toFixed(8);
         previewSym.innerText = this.selectedCurrency;
     },
@@ -276,11 +340,9 @@ const WithdrawSystem = {
              return;
         }
 
+        // Estimasi untuk pesan konfirmasi
         let feePTS = (this.selectedMethod === 'direct') ? Math.floor(amountPTS * cfg.DirectFee) : 0;
         const netPTS = amountPTS - feePTS;
-        
-        // UNTUK DISPLAY DI POPUP, KITA JUGA PAKAI SPREAD
-        // Agar konsisten dengan apa yang dilihat user sebelumnya
         const rate = this.rates[this.selectedCurrency] || 0;
         const estimatedCrypto = (netPTS * rate * this.SAFETY_MARGIN).toFixed(8);
 
@@ -289,12 +351,13 @@ const WithdrawSystem = {
             UIEngine.showRewardPopup("PROCESSING", "Contacting Payment Gateway...", null, "...");
 
             try {
+                // KIRIM KE BACKEND (Nanti Backend hitung ulang pakai rate realtime dia sendiri untuk validasi)
                 const response = await fetch('/api/withdraw', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         address: address,
-                        amount: amountPTS, // [PENTING] Kirim PTS, biar Server yang hitung Crypto Asli
+                        amount: amountPTS, // Kirim PTS (Bukan Crypto)
                         currency: this.selectedCurrency
                     })
                 });
