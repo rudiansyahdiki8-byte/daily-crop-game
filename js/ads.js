@@ -1,7 +1,7 @@
 // js/ads.js
 // ==========================================
-// ADS MANAGER FINAL (Waterfall: Adsgram -> Adexium -> Monetag)
-// Fitur: Strict Mode (No Skip), Adexium Manual Trigger, Debug Fix
+// ADS MANAGER FINAL (Ultimate Waterfall)
+// Urutan: Adsgram -> Adexium -> Monetag Inter -> Monetag Pop (Last Resort)
 // ==========================================
 
 const AdsManager = {
@@ -9,7 +9,7 @@ const AdsManager = {
     ids: {
         adsgramReward: "21143",           
         adsgramInter: "int-21085",        
-        adexiumWidget: "33e68c72-2781-4120-a64d-3db4fb973c2d", // ID Widget Adexium Anda
+        adexiumWidget: "33e68c72-2781-4120-a64d-3db4fb973c2d", 
         monetagZone: "10457329"           
     },
 
@@ -26,30 +26,42 @@ const AdsManager = {
                 UIEngine.showRewardPopup("SPONSOR", "Watch full ad to claim reward...", null, `⏳ Ad ${i+1}/${jumlahAds}`);
             }
 
-            // Cek Cooldown Adexium (1 Jam sekali)
+            // Cek Cooldown Adexium
             let adexiumReady = this.checkAdexiumCooldown();
 
-            // STRATEGI WATERFALL
+            // STRATEGI WATERFALL (URUTAN DIPERBAIKI)
             let antrianIklan = [];
 
             if (kategori === 'vip') {
-                // Prioritas VIP: Adsgram -> Adexium (Jika Ready) -> Monetag
+                // Mode VIP
                 antrianIklan = [
+                    // 1. Adsgram (Bayaran Tertinggi)
                     { name: "Adsgram Reward", func: () => this.callAdsgram(this.ids.adsgramReward) },
                     { name: "Adsgram Inter",  func: () => this.callAdsgram(this.ids.adsgramInter) },
+                    
+                    // 2. Adexium (Jika Timer Ready)
                     ...(adexiumReady ? [{ name: "Adexium", func: () => this.callAdexium() }] : []),
-                    { name: "Monetag",        func: () => this.callMonetag('interstitial') }
+                    
+                    // 3. Monetag Interstitial (Iklan Layar Penuh)
+                    { name: "Monetag Inter",  func: () => this.callMonetag('interstitial') }
+    
                 ];
             } else {
-                // Regular: Interstitial Only
+                // Mode Regular
                 antrianIklan = [
-                    { name: "Adsgram Inter",  func: () => this.callAdsgram(this.ids.adsgramInter) },
+                   
+                    // 2. Adexium
                     ...(adexiumReady ? [{ name: "Adexium", func: () => this.callAdexium() }] : []),
-                    { name: "Monetag",        func: () => this.callMonetag('interstitial') }
+                    
+                    // 3. Monetag Inter
+                    { name: "Monetag Inter",  func: () => this.callMonetag('interstitial') },
+                    
+                    // 4. Monetag Pop (TERAKHIR)
+                    { name: "Monetag Pop",    func: () => this.callMonetag('pop') }
                 ];
             }
 
-            // Eksekusi
+            // Eksekusi Waterfall
             let berhasil = false;
             let successProvider = "";
 
@@ -63,13 +75,16 @@ const AdsManager = {
                     successProvider = source.name;
                     break; 
                 } catch (err) {
-                    console.warn(`⚠️ Failed/Skipped: ${source.name}. Reason:`, err);
+                    // Jangan spam console, cukup info singkat
+                    // console.warn(`Skipped: ${source.name}`); 
                 }
             }
 
             if (berhasil) {
                 sukses++;
+                // Reset timer hanya jika Adexium yang muncul
                 if (successProvider === "Adexium") this.setAdexiumLastShown();
+                
                 await new Promise(r => setTimeout(r, 1000));
             }
         }
@@ -85,88 +100,63 @@ const AdsManager = {
         }
     },
 
-    // --- 1. ADSGRAM (FIXED DEBUG MODE) ---
+    // --- 1. ADSGRAM (DEBUG FALSE) ---
     callAdsgram(blockId) {
         return new Promise((resolve, reject) => {
             if (!window.Adsgram) return reject("Adsgram script missing");
 
-            // [FIX PENTING DARI DOKUMEN]
-            // Debug mode harus diset FALSE untuk production agar iklan asli keluar
             const AdController = window.Adsgram.init({ 
                 blockId: blockId, 
-                debug: false, //  "debug mode left enabled... breaks everything"
+                debug: false, 
                 debugBannerType: "FullscreenMedia" 
             });
 
             AdController.show().then((result) => {
-                // Strict Mode: done = true [cite: 2]
                 if (result.done) {
                     resolve(); 
                 } else {
                     reject("User skipped Adsgram");
                 }
             }).catch((err) => {
-                // Error saat load/render [cite: 4]
                 reject(err);
             });
         });
     },
 
-    // --- 2. ADEXIUM (MANUAL INTEGRATION) ---
+    // --- 2. ADEXIUM (MANUAL REQUEST) ---
     callAdexium() {
         return new Promise((resolve, reject) => {
             if (typeof AdexiumWidget === 'undefined') return reject("Adexium SDK missing");
 
             try {
-                // Inisialisasi Widget [cite: 17]
                 const adexiumAds = new AdexiumWidget({
                     wid: this.ids.adexiumWidget,
                     adFormat: 'interstitial',
-                    isFullScreen: true, // Opsional: Paksa fullscreen [cite: 15]
-                    debug: false // False untuk production
+                    isFullScreen: true,
+                    debug: false
                 });
 
-                // Listener: Jika iklan diterima, tampilkan [cite: 19]
-                adexiumAds.on('adReceived', (ad) => {
-                    console.log("Adexium Received");
-                    adexiumAds.displayAd(ad); 
-                });
+                adexiumAds.on('adReceived', (ad) => { adexiumAds.displayAd(ad); });
+                adexiumAds.on('noAdFound', () => { reject("Adexium No Fill"); });
+                adexiumAds.on('adClosed', () => { resolve(); }); // Close = Sukses
+                adexiumAds.on('adPlaybackCompleted', () => { resolve(); });
 
-                // Listener: Jika tidak ada iklan [cite: 22]
-                adexiumAds.on('noAdFound', () => {
-                    reject("Adexium No Fill");
-                });
-
-                // Listener: Jika user tutup iklan (dianggap skip/selesai) [cite: 24]
-                adexiumAds.on('adClosed', () => {
-                    // Adexium tidak punya status 'done' sejelas Adsgram,
-                    // tapi biasanya close = selesai lihat banner.
-                    resolve(); 
-                });
-
-                // Listener: Jika video selesai diputar (Valid Success) 
-                adexiumAds.on('adPlaybackCompleted', () => {
-                    resolve();
-                });
-
-                // Request Iklan 
                 adexiumAds.requestAd('interstitial');
 
             } catch (e) {
-                reject("Adexium Error: " + e.message);
+                reject("Adexium Error");
             }
         });
     },
 
-    // --- 3. MONETAG (FALLBACK) ---
+    // --- 3. MONETAG (INTERSTITIAL & POP) ---
     callMonetag(type) {
         return new Promise((resolve, reject) => {
-            // Sesuai dokumen: show_ZONEID() [cite: 9]
             const f = window[`show_${this.ids.monetagZone}`];
-            
             if (typeof f !== 'function') return reject("Monetag SDK missing");
             
-            // Pop untuk reward [cite: 8], kosong untuk interstitial [cite: 9]
+            // Jika type == 'pop', panggil show('pop'). 
+            // Jika type == 'interstitial', panggil show().
             const param = (type === 'pop') ? 'pop' : undefined;
 
             f(param).then(() => {
@@ -177,7 +167,7 @@ const AdsManager = {
         });
     },
 
-    // --- UTILS (Cooldown Logic) ---
+    // --- UTILS ---
     checkAdexiumCooldown() {
         if (!window.GameState || !GameState.user) return false;
         const timers = GameState.user.ad_timers || {};
