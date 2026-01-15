@@ -1,206 +1,215 @@
 // js/ads.js
 // ==========================================
-// ADS MANAGER ULTIMATE (4 LAYERS WATERFALL)
-// Urutan: Adsgram -> Adexium -> Adsterra -> Monetag
+// ADS MANAGER: HYBRID STACK V1.0
+// Logic:
+// 1. Premium Timer (30 Menit): Mengontrol Adsgram & Adexium.
+// 2. Stack System: Request X iklan, sistem pilihkan urutannya otomatis.
+// 3. Fallback: Jika Premium cooldown, otomatis switch ke Adsterra/Monetag.
 // ==========================================
 
 const AdsManager = {
-    // 1. KONFIGURASI ID & LINK
+    // --- 1. CONFIG ID & LINK ---
     ids: {
         adsgramReward: "21143",           
         adsgramInter: "int-21085",        
         adexiumWidget: "33e68c72-2781-4120-a64d-3db4fb973c2d", 
         monetagZone: "10457329",
-        
-        // ADSTERRA DIRECT LINK (YANG BARU ANDA DAPAT)
         adsterraDirectLink: "https://www.effectivegatecpm.com/gh7bask9y9?key=5a6453e5db9f6bf7c1f28291dddf9826"
     },
 
-    ADEXIUM_COOLDOWN: 60, // Menit
+    // --- 2. CONFIG WAKTU ---
+    config: {
+        premiumCooldown: 30,   // Cooldown Iklan Mahal (Menit) - Global untuk semua tombol
+        clickSafety: 2         // Jeda 2 detik agar tidak double click tombol start
+    },
 
-    async startAdsSequence(jumlahAds, kategori, onReward) {
-        console.log(`🚀 [AdsSystem] Requesting Ads. Mode: ${kategori}`);
+    isRunning: false, // Flag agar tidak tumpah tindih
+
+    /**
+     * FUNGSI UTAMA: Panggil ini di tombol game Anda.
+     * @param {number} jumlahAds - Mau berapa iklan? (Contoh: Harvest=2, Task=3)
+     * @param {function} onReward - Callback function setelah SEMUA iklan selesai.
+     */
+    async showHybridStack(jumlahAds, onReward) {
+        if (this.isRunning) return; // Cegah spam tombol start
+        this.isRunning = true;
+
+        console.log(`🚀 [AdsSystem] Requesting Stack: ${jumlahAds} Ads`);
         
-        let sukses = 0;
+        // 1. Cek Status Premium (30 Menit Timer)
+        const premiumStatus = this.checkPremiumTimer();
+        const isPremiumReady = premiumStatus.ready;
+        console.log(`💎 Premium Status: ${isPremiumReady ? "READY" : "COOLDOWN (" + premiumStatus.timeLeft + "m)"}`);
 
-        for (let i = 0; i < jumlahAds; i++) {
-            // UI Loading
+        // 2. Tentukan Playlist Iklan Berdasarkan Status
+        let playlist = [];
+
+        if (isPremiumReady) {
+            // --- MODE SULTAN (Timer Ready) ---
+            // Urutan: Adsgram (Video) -> Adexium (Inter) -> Adsterra -> Monetag
+            playlist = [
+                { name: "Adsgram (Premium)", type: 'adsgram_reward' }, // Wajib Nonton
+                { name: "Adexium (Native)",  type: 'adexium' },        // Gambar Native
+                { name: "Adsterra (Link)",   type: 'adsterra' },       // Tab Baru
+                { name: "Monetag (Inter)",   type: 'monetag_inter' },
+                { name: "Monetag (Pop)",     type: 'monetag_pop' }
+            ];
+        } else {
+            // --- MODE RECEH (Timer Cooldown) ---
+            // Urutan: Adsterra -> Monetag Inter -> Monetag Pop -> Adsterra (Lagi)
+            playlist = [
+                { name: "Adsterra (Link)",   type: 'adsterra' },       // Tab Baru (Priority Spam)
+                { name: "Monetag (Inter)",   type: 'monetag_inter' },  // Gambar
+                { name: "Monetag (Pop)",     type: 'monetag_pop' },    // Pop under
+                { name: "Adsterra (Backup)", type: 'adsterra' },       // Ulangi Adsterra
+                { name: "Monetag (Backup)",  type: 'monetag_inter' }
+            ];
+        }
+
+        // 3. Potong Playlist sesuai jumlah permintaan (misal cuma minta 2)
+        // Jika minta 3, ambil index 0, 1, 2
+        let antrianFinal = playlist.slice(0, jumlahAds);
+        
+        // Safety: Jika user minta 5 tapi playlist cuma 4, looping aman.
+
+        // 4. EKSEKUSI LOOPING (STACK)
+        let suksesCount = 0;
+
+        for (let i = 0; i < antrianFinal.length; i++) {
+            const ad = antrianFinal[i];
+            const stepInfo = `Ads ${i+1}/${jumlahAds}`;
+
+            // Tampilkan Loading UI
             if(window.UIEngine) {
-                UIEngine.showRewardPopup("SPONSOR", "Watch ad to claim reward...", null, `⏳ Ad ${i+1}/${jumlahAds}`);
+                UIEngine.showRewardPopup("SPONSOR", `Loading Ad ${i+1} of ${jumlahAds}...`, null, "⏳ Please wait...");
             }
 
-            // Cek Cooldown Adexium
-            let adexiumReady = this.checkAdexiumCooldown();
-
-            // --- STRATEGI WATERFALL (URUTAN CUAN) ---
-            let antrianIklan = [];
-
-            if (kategori === 'vip') {
-                // Mode VIP (Urutan Prioritas)
-                antrianIklan = [
-                    // 1. Adsgram (Bayaran Paling Mahal)
-                    { name: "Adsgram Reward", func: () => this.callAdsgram(this.ids.adsgramReward) },
-                    { name: "Adsgram Inter",  func: () => this.callAdsgram(this.ids.adsgramInter) },
-                    
-                    // 2. Adexium (Iklan Native Telegram) - Cek Timer
-                    ...(adexiumReady ? [{ name: "Adexium", func: () => this.callAdexium() }] : []),
-                    
-                    // 3. Adsterra (Direct Link - Cuan Lumayan)
-                    { name: "Adsterra",       func: () => this.callAdsterra() },
-
-                    // 4. Monetag (Cadangan Terakhir)
-                    { name: "Monetag Inter",  func: () => this.callMonetag('interstitial') },
-                    { name: "Monetag Pop",    func: () => this.callMonetag('pop') }
-                ];
-            } else {
-                // Mode Regular
-                antrianIklan = [
-                    // 1. Adsgram Interstitial
-                    { name: "Adsgram Inter",  func: () => this.callAdsgram(this.ids.adsgramInter) },
-                    
-                    // 2. Adexium
-                    ...(adexiumReady ? [{ name: "Adexium", func: () => this.callAdexium() }] : []),
-
-                    // 3. Adsterra (Direct Link)
-                    { name: "Adsterra",       func: () => this.callAdsterra() },
-                    
-                    // 4. Monetag
-                    { name: "Monetag Inter",  func: () => this.callMonetag('interstitial') },
-                    { name: "Monetag Pop",    func: () => this.callMonetag('pop') }
-                ];
-            }
-
-            // Eksekusi Waterfall
-            let berhasil = false;
-            let successProvider = "";
-
-            for (let source of antrianIklan) {
-                try {
-                    console.log(`▶️ Trying: ${source.name}...`);
-                    await source.func();
-                    
-                    console.log(`✅ Success: ${source.name}`);
-                    berhasil = true;
-                    successProvider = source.name;
-                    break; 
-                } catch (err) {
-                    // Lanjut ke provider berikutnya
-                }
-            }
-
-            if (berhasil) {
-                sukses++;
-                // Reset timer jika Adexium yang muncul
-                if (successProvider === "Adexium") this.setAdexiumLastShown();
+            try {
+                console.log(`▶️ Playing [${stepInfo}]: ${ad.name}`);
                 
-                // Jeda sedikit biar tidak kaget
+                // Panggil Provider
+                await this.callProvider(ad.type);
+                
+                console.log(`✅ Success: ${ad.name}`);
+                suksesCount++;
+                
+                // Jeda Sedikit Antar Iklan (Biar napas)
                 await new Promise(r => setTimeout(r, 1500));
+
+            } catch (err) {
+                console.warn(`⚠️ Skipped: ${ad.name}. Reason: ${err}`);
+                // Jika error, lanjut ke iklan berikutnya (Jangan berhenti total)
             }
         }
 
-        // Cleanup UI
+        // 5. SELESAI
+        this.isRunning = false;
         const popup = document.getElementById('system-popup');
         if(popup) popup.remove();
 
-        if (sukses > 0) {
+        if (suksesCount > 0) {
+            // Update Timer Premium HANYA JIKA tadi pakai mode Premium
+            if (isPremiumReady) {
+                this.setPremiumTimer(); 
+            }
+            
+            // Beri Hadiah
             if (onReward) onReward();
         } else {
-            alert("Reward Failed. No ads available.");
+            alert("No ads available. Please try again later.");
         }
     },
 
-    // --- 1. ADSGRAM (STRICT MODE: NO SKIP) ---
+    // ==========================================
+    // PROVIDER ROUTER
+    // ==========================================
+    async callProvider(type) {
+        switch (type) {
+            case 'adsgram_reward':
+            case 'adsgram_inter':
+                return this.callAdsgram(this.ids.adsgramReward); // Pakai ID Reward biar aman
+            case 'adexium':
+                return this.callAdexium();
+            case 'adsterra':
+                return this.callAdsterra();
+            case 'monetag_inter':
+                return this.callMonetag('interstitial');
+            case 'monetag_pop':
+                return this.callMonetag('pop');
+            default:
+                return Promise.reject("Unknown Type");
+        }
+    },
+
+    // ==========================================
+    // SDK IMPLEMENTATION
+    // ==========================================
     callAdsgram(blockId) {
         return new Promise((resolve, reject) => {
-            if (!window.Adsgram) return reject("Adsgram script missing");
-
-            // Init (Debug: false untuk production)
-            const AdController = window.Adsgram.init({ 
-                blockId: blockId, 
-                debug: false, 
-                debugBannerType: "FullscreenMedia" 
-            });
-
-            AdController.show().then((result) => {
-                if (result.done) resolve(); 
-                else reject("User skipped Adsgram");
-            }).catch((err) => reject(err));
+            if (!window.Adsgram) return reject("Script missing");
+            // DEBUG: FALSE (Wajib)
+            const AdController = window.Adsgram.init({ blockId: blockId, debug: false, debugBannerType: "FullscreenMedia" });
+            AdController.show().then((r) => { r.done ? resolve() : reject("Skipped"); }).catch(reject);
         });
     },
 
-    // --- 2. ADEXIUM (MANUAL REQUEST) ---
-    callAdexium() {
-        return new Promise((resolve, reject) => {
-            if (typeof AdexiumWidget === 'undefined') return reject("Adexium SDK missing");
-            try {
-                const adexiumAds = new AdexiumWidget({
-                    wid: this.ids.adexiumWidget,
-                    adFormat: 'interstitial',
-                    isFullScreen: true,
-                    debug: false
-                });
-                adexiumAds.on('adReceived', (ad) => { adexiumAds.displayAd(ad); });
-                adexiumAds.on('noAdFound', () => { reject("Adexium No Fill"); });
-                adexiumAds.on('adClosed', () => { resolve(); }); 
-                adexiumAds.on('adPlaybackCompleted', () => { resolve(); });
-                adexiumAds.requestAd('interstitial');
-            } catch (e) {
-                reject("Adexium Error");
-            }
-        });
-    },
-
-    // --- 3. ADSTERRA (DIRECT LINK) ---
     callAdsterra() {
         return new Promise((resolve, reject) => {
-            const link = this.ids.adsterraDirectLink;
-            if (!link) return reject("Adsterra Link Missing");
-
-            // Kita pakai fitur Telegram untuk membuka link dengan aman
+            if (!this.ids.adsterraDirectLink) return reject("Link missing");
             const tg = window.Telegram.WebApp;
-            
             try {
-                // Tampilkan pesan konfirmasi (Opsional, biar sopan)
-                // Tapi kalau mau langsung buka, langsung baris bawah ini:
-                tg.openLink(link);
-                
-                // Karena ini buka tab baru, kita anggap sukses setelah 2 detik
-                // (Kita tidak bisa kontrol apa yang user lakukan di browser luar)
-                setTimeout(() => {
-                    resolve();
-                }, 2000);
-
-            } catch (e) {
-                reject("Adsterra Failed to Open");
-            }
+                tg.openLink(this.ids.adsterraDirectLink);
+                setTimeout(resolve, 3000); // Asumsi sukses 3 detik
+            } catch (e) { reject("Adsterra Failed"); }
         });
     },
 
-    // --- 4. MONETAG (INTERSTITIAL & POP) ---
+    callAdexium() {
+        return new Promise((resolve, reject) => {
+            if (typeof AdexiumWidget === 'undefined') return reject("Adexium Missing");
+            try {
+                const w = new AdexiumWidget({ wid: this.ids.adexiumWidget, adFormat: 'interstitial', isFullScreen: true, debug: false });
+                w.on('adReceived', (ad) => w.displayAd(ad));
+                w.on('noAdFound', () => reject("No Fill"));
+                w.on('adClosed', resolve); 
+                w.on('adPlaybackCompleted', resolve);
+                w.requestAd('interstitial');
+            } catch (e) { reject("Adexium Error"); }
+        });
+    },
+
     callMonetag(type) {
         return new Promise((resolve, reject) => {
             const f = window[`show_${this.ids.monetagZone}`];
-            if (typeof f !== 'function') return reject("Monetag SDK missing");
-            
-            const param = (type === 'pop') ? 'pop' : undefined;
-            f(param).then(() => resolve()).catch(e => reject("Monetag Error"));
+            if (typeof f !== 'function') return reject("SDK Missing");
+            f(type === 'pop' ? 'pop' : undefined).then(resolve).catch(reject);
         });
     },
 
-    // --- UTILS (TIMER) ---
-    checkAdexiumCooldown() {
-        if (!window.GameState || !GameState.user) return false;
+    // ==========================================
+    // GLOBAL TIMER LOGIC (Premium Protection)
+    // ==========================================
+    checkPremiumTimer() {
+        if (!window.GameState || !GameState.user) return { ready: false, timeLeft: 30 }; 
+        
         const timers = GameState.user.ad_timers || {};
-        const last = timers['adexium'];
-        if (!last) return true; 
-        const diff = (Date.now() - parseInt(last)) / 1000 / 60;
-        return diff >= this.ADEXIUM_COOLDOWN;
+        const last = timers['premium_stack']; // Satu Timer untuk SEMUA
+        
+        if (!last) return { ready: true }; 
+        
+        const diffMinutes = (Date.now() - parseInt(last)) / 1000 / 60;
+        if (diffMinutes >= this.config.premiumCooldown) return { ready: true };
+        
+        return { ready: false, timeLeft: Math.ceil(this.config.premiumCooldown - diffMinutes) };
     },
 
-    setAdexiumLastShown() {
+    setPremiumTimer() {
         if (!window.GameState || !GameState.user) return;
         if (!GameState.user.ad_timers) GameState.user.ad_timers = {};
-        GameState.user.ad_timers['adexium'] = Date.now();
+        
+        GameState.user.ad_timers['premium_stack'] = Date.now(); 
+        console.log("🔒 Premium Timer Locked for 30 mins");
+        
         if (GameState.save) GameState.save(); 
     }
 };
