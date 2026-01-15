@@ -92,19 +92,21 @@ export default async function handler(req, res) {
 
         const fpData = await fpResponse.json();
 
-        if (fpData.status === 200) {
-            // BERHASIL KIRIM -> POTONG SALDO DI SERVER
-            // Kita pakai FieldValue.increment(-amount) agar atomik & aman
+            if (fpData.status === 200) {
+            // BERHASIL KIRIM
             
             const updateData = {
-                coins: FieldValue.increment(-amountInt), // Kurangi Saldo
+                coins: FieldValue.increment(-amountInt), // Kurangi Saldo Dompet
+                totalWithdrawn: FieldValue.increment(amountInt), // [BARU] Catat Total Penarikan
                 has_withdrawn: true
             };
-            
+
             // Kunci email jika baru pertama
             if (!userData.faucetpay_email) {
                 updateData.faucetpay_email = targetAddress;
             }
+
+            await userRef.update(updateData);
 
             await userRef.update(updateData);
 
