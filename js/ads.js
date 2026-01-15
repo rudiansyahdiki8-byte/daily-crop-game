@@ -1,38 +1,33 @@
 // js/ads.js
 // ==========================================
-// ULTIMATE ADS MANAGER (NO POPUP VERSION)
-// Fitur: Fail-Safe Waterfall, Anti-Tuyul, Langsung Jalan (No Loading UI)
+// ULTIMATE ADS MANAGER (ENGLISH & FIREBASE SYNC)
 // ==========================================
 
 const AdsManager = {
     ids: {
-        adsgramReward: "21143",           // Menu 1 (Tier Dewa)
-        adexiumWidget: "33e68c72-2781-4120-a64d-3db4fb973c2d", // Menu 2
-        monetagZone: "10457329",          // Menu 3 & 5
-        adsgramInter: "int-21085"         // Menu 4
+        adsgramReward: "21143",           
+        adexiumWidget: "33e68c72-2781-4120-a64d-3db4fb973c2d", 
+        monetagZone: "10457329",          
+        adsgramInter: "int-21085"         
     },
 
-    // Cooldown Adexium (Menit)
     ADEXIUM_COOLDOWN: 60,
 
-    // ==========================================
-    // FUNGSI UTAMA
-    // ==========================================
     async startAdsSequence(jumlahAds, kategori, onReward) {
-        console.log(`🚀 [System] Memulai ${jumlahAds} Stack. Mode: ${kategori.toUpperCase()}`);
-
+        console.log(`🚀 [System] Start Stack. Mode: ${kategori.toUpperCase()}`);
         let sukses = 0;
 
-        // LOOPING SETIAP IKLAN
         for (let i = 0; i < jumlahAds; i++) {
             
-            // --- [BAGIAN POPUP DIHAPUS DISINI AGAR LANGSUNG JALAN] ---
-            
-            // --- TENTUKAN URUTAN PRIORITAS IKLAN ---
+            // Tampilkan Loading (Bahasa Inggris)
+            if(window.UIEngine) {
+                let judul = kategori === 'vip' ? "PRIORITY SPONSOR" : "SPONSOR";
+                UIEngine.showRewardPopup(judul, "Loading Advertisement...", null, `⏳ Ad ${i+1}/${jumlahAds}`);
+            }
+
             let antrianIklan = [];
 
             if (kategori === 'vip') {
-                // === MODE VIP (Wallet & Spin) ===
                 antrianIklan = [
                     { name: "Adsgram Reward", func: () => this.callAdsgram(this.ids.adsgramReward) },
                     { name: "Adexium",        func: () => this.callAdexium() },
@@ -40,84 +35,83 @@ const AdsManager = {
                     { name: "Monetag Inter",  func: () => this.callMonetag('interstitial') }
                 ];
             } else {
-                // === MODE REGULAR (Task, Harvest, Booster) ===
                 let adexiumReady = this.checkAdexiumCooldown();
 
                 if (adexiumReady && (i % 2 === 0)) { 
-                    // Iklan Ganjil & Ready
                     antrianIklan = [
                         { name: "Adexium",        func: () => this.callAdexium() },
                         { name: "Adsgram Inter",  func: () => this.callAdsgram(this.ids.adsgramInter) },
+                        { name: "Monetag Pop",    func: () => this.callMonetag('pop') }
+                    ];
+                } else {
+                    antrianIklan = [
+                        { name: "Monetag Pop",    func: () => this.callMonetag('pop') },
+                        { name: "Adsgram Inter",  func: () => this.callAdsgram(this.ids.adsgramInter) },
                         { name: "Monetag Inter",  func: () => this.callMonetag('interstitial') }
                     ];
-                    this.markAdexiumAsShown = true; 
-                } else {
-                    // Iklan Genap / Cooldown
-                    antrianIklan = [
-                        { name: "Monetag Inter",  func: () => this.callMonetag('interstitial') },
-                        { name: "Adsgram Inter",  func: () => this.callAdsgram(this.ids.adsgramInter) },
-                        { name: "Monetag Pop",    func: () => this.callMonetag('pop') }
-                        
-                    ];
-                    this.markAdexiumAsShown = false;
                 }
             }
 
-            // --- JALANKAN WATERFALL (JEBOL SISTEM) ---
             let berhasilDiStackIni = false;
-
             for (let source of antrianIklan) {
                 try {
-                    console.log(`▶️ Mencoba: ${source.name}...`);
-                    // Langsung eksekusi tanpa babibu
+                    console.log(`▶️ Trying: ${source.name}...`);
                     await source.func();
                     
-                    console.log(`✅ Sukses via ${source.name}`);
+                    console.log(`✅ Success via ${source.name}`);
                     berhasilDiStackIni = true;
                     
+                    // Simpan Waktu Adexium ke Firebase
                     if (source.name === "Adexium") this.setAdexiumLastShown();
-                    break; 
+                    break;
                 } catch (err) {
-                    console.warn(`⚠️ ${source.name} Skip. Lanjut backup...`);
+                    console.warn(`⚠️ ${source.name} Skip. Next backup...`);
                 }
             }
 
             if (berhasilDiStackIni) {
                 sukses++;
-                // Jeda sedikit biar user tidak kaget perpindahan antar iklan
-                await new Promise(r => setTimeout(r, 1000)); 
+                await new Promise(r => setTimeout(r, 1000));
             } else {
-                console.error(`❌ Gagal Total di Stack ke-${i+1}.`);
+                console.error(`❌ Failed at Stack ${i+1}.`);
             }
         }
 
-        // --- CEK HASIL AKHIR ---
         if (sukses > 0) {
             this.handleSuccess(onReward, kategori);
         } else {
-            // Popup error tetap kita munculkan kalau gagal total, biar user tau kenapa reward gak masuk
-            alert("Gagal memuat iklan. Reward tidak dapat diberikan.");
+            // Alert Bahasa Inggris
+            alert("Ads failed to load. Please check your connection or VPN.");
+             // Tutup popup loading jika gagal
+            const popup = document.getElementById('system-popup');
+            if(popup) popup.remove();
         }
     },
 
-    // ==========================================
-    // LOGIC WAKTU
-    // ==========================================
+    // --- PERBAIKAN LOGIC WAKTU (FIREBASE) ---
     checkAdexiumCooldown() {
-        const last = localStorage.getItem('last_adexium_time');
+        // Ambil dari GameState.user.ad_timers (bukan localStorage)
+        if (!window.GameState || !GameState.user) return false;
+        
+        const timers = GameState.user.ad_timers || {};
+        const last = timers['adexium'];
+        
         if (!last) return true;
         const diff = (Date.now() - parseInt(last)) / 1000 / 60;
         return diff >= this.ADEXIUM_COOLDOWN;
     },
 
     setAdexiumLastShown() {
-        localStorage.setItem('last_adexium_time', Date.now());
+        if (!window.GameState || !GameState.user) return;
+        
+        if (!GameState.user.ad_timers) GameState.user.ad_timers = {};
+        GameState.user.ad_timers['adexium'] = Date.now();
+        
+        // Save Async ke Firebase (Penting!)
+        GameState.save(); 
     },
 
-    // ==========================================
-    // HELPER (SDK)
-    // ==========================================
-    
+    // HELPER (Tetap sama, tidak perlu diubah, hanya memastikan message error inggris)
 callAdsgram(blockId) {
         return new Promise((resolve, reject) => {
             if (!window.Adsgram) return reject("Script not loaded");
@@ -183,11 +177,11 @@ callAdsgram(blockId) {
     },
 
     handleSuccess(cb, mode) {
-        console.log(`🎉 Sequence Selesai!`);
-        // Tidak perlu closePopup() karena tidak pernah dibuka
+        console.log(`🎉 Sequence Finished!`);
+        const popup = document.getElementById('system-popup');
+        if(popup) popup.remove();
         if (cb) cb();
     }
 };
-
 
 window.AdsManager = AdsManager;
