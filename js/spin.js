@@ -174,7 +174,7 @@ const SpinSystem = {
                 </div>`, 
                 () => {
                     // PANGGIL IKLAN DI SINI
-                    AdsManager.showHybridStack(3, () => {
+                    AdsManager.showHybridStack(2, () => {
                         this.grantReward(prize, finalPrizeKey);
                         UIEngine.showRewardPopup("CLAIMED", `${finalPrizeName} added to inventory!`, null, "NICE");
                     });
@@ -228,5 +228,6 @@ SpinSystem.close = function() { if(!this.isSpinning) { document.getElementById('
 
 
 window.SpinSystem = SpinSystem;
+
 
 
