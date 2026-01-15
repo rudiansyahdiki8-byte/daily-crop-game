@@ -166,7 +166,8 @@ renderTaskButtons() {
         plantBtn.onclick = () => { this.toggleTaskMenu(); this.plantAll(); };
         listContent.appendChild(plantBtn);
 
-        // [PERBAIKAN] Ambil dari Firebase GameState, bukan LocalStorage
+        // [PERBAIKAN UTAMA DISINI]
+        // Ambil data dari Firebase (GameState), BUKAN LocalStorage
         const cooldowns = GameState.user.task_cooldowns || {};
         const now = Date.now();
         let readyCount = 0;
@@ -175,12 +176,14 @@ renderTaskButtons() {
             const lastClaim = cooldowns[task.id] || 0;
             const isCooldown = (now - lastClaim) < 86400000;
             
-            // ... (Kode UI Render tombol tetap sama, tidak perlu diubah) ...
             if (!isCooldown) readyCount++;
 
             const btn = document.createElement('button');
-            // ... (Style tombol tetap sama) ...
-            btn.className = `w-full rounded-xl py-1.5 px-2 flex items-center gap-3 transition-all active:scale-95 border ${isCooldown ? 'bg-gray-800/50 border-gray-700 opacity-50 grayscale cursor-not-allowed' : 'bg-white/5 border-white/10 hover:bg-white/10'}`;            
+            const styleClass = isCooldown ? 
+                'bg-gray-800/50 border-gray-700 opacity-50 grayscale cursor-not-allowed' : 
+                'bg-white/5 border-white/10 hover:bg-white/10';
+
+            btn.className = `w-full rounded-xl py-1.5 px-2 flex items-center gap-3 transition-all active:scale-95 border ${styleClass}`;            
             
             let statusHTML = '';
             if (isCooldown) {
@@ -198,13 +201,13 @@ renderTaskButtons() {
                 <span class="text-[9px] font-bold uppercase text-gray-300 text-left flex-1">${task.name}</span>
                 ${statusHTML}
             `;
+            
             if(!isCooldown) {
                 btn.onclick = () => this.handleTaskClick(task, btn);
             }
             listContent.appendChild(btn);
         });
-        
-        // ... (Kode Notifikasi Dot tetap sama) ...
+
         const notifDot = document.getElementById('task-notification');
         if(notifDot) notifDot.style.display = readyCount > 0 ? 'block' : 'none';
     },
@@ -212,15 +215,19 @@ renderTaskButtons() {
     handleTaskClick(task, btnElement) {
         if (task.action === 'spin') { SpinSystem.show(); return; }
         
+        // Panggil Iklan
         AdsManager.startAdsSequence(3, 'regular', async () => {
+            // Hadiah Masuk
             GameState.user.coins += task.reward;
             
-            // [PERBAIKAN] Simpan ke Firebase GameState
+            // [PERBAIKAN UTAMA] Simpan Waktu ke Firebase
             if (!GameState.user.task_cooldowns) GameState.user.task_cooldowns = {};
             GameState.user.task_cooldowns[task.id] = Date.now();
             
             if(btnElement) this.playCoinAnimation(btnElement);
-            await GameState.save(); // Simpan permanen ke server
+            
+            // SIMPAN PERMANEN
+            await GameState.save(); 
             
             this.renderTaskButtons();
             UIEngine.showRewardPopup("SUCCESS", `Task Done! +${task.reward} PTS`, null, "OK");
@@ -485,4 +492,5 @@ renderTaskButtons() {
 
 
 window.FarmSystem = FarmSystem;
+
 
