@@ -1,16 +1,19 @@
 // js/ads.js
 // ==========================================
-// ADS MANAGER FINAL (Ultimate Waterfall)
-// Urutan: Adsgram -> Adexium -> Monetag Inter -> Monetag Pop (Last Resort)
+// ADS MANAGER ULTIMATE (4 LAYERS WATERFALL)
+// Urutan: Adsgram -> Adexium -> Adsterra -> Monetag
 // ==========================================
 
 const AdsManager = {
-    // 1. KONFIGURASI ID
+    // 1. KONFIGURASI ID & LINK
     ids: {
         adsgramReward: "21143",           
         adsgramInter: "int-21085",        
         adexiumWidget: "33e68c72-2781-4120-a64d-3db4fb973c2d", 
-        monetagZone: "10457329"           
+        monetagZone: "10457329",
+        
+        // ADSTERRA DIRECT LINK (YANG BARU ANDA DAPAT)
+        adsterraDirectLink: "https://www.effectivegatecpm.com/gh7bask9y9?key=5a6453e5db9f6bf7c1f28291dddf9826"
     },
 
     ADEXIUM_COOLDOWN: 60, // Menit
@@ -23,40 +26,46 @@ const AdsManager = {
         for (let i = 0; i < jumlahAds; i++) {
             // UI Loading
             if(window.UIEngine) {
-                UIEngine.showRewardPopup("SPONSOR", "Watch full ad to claim reward...", null, `⏳ Ad ${i+1}/${jumlahAds}`);
+                UIEngine.showRewardPopup("SPONSOR", "Watch ad to claim reward...", null, `⏳ Ad ${i+1}/${jumlahAds}`);
             }
 
             // Cek Cooldown Adexium
             let adexiumReady = this.checkAdexiumCooldown();
 
-            // STRATEGI WATERFALL (URUTAN DIPERBAIKI)
+            // --- STRATEGI WATERFALL (URUTAN CUAN) ---
             let antrianIklan = [];
 
             if (kategori === 'vip') {
-                // Mode VIP
+                // Mode VIP (Urutan Prioritas)
                 antrianIklan = [
-                    // 1. Adsgram (Bayaran Tertinggi)
+                    // 1. Adsgram (Bayaran Paling Mahal)
                     { name: "Adsgram Reward", func: () => this.callAdsgram(this.ids.adsgramReward) },
                     { name: "Adsgram Inter",  func: () => this.callAdsgram(this.ids.adsgramInter) },
                     
-                    // 2. Adexium (Jika Timer Ready)
+                    // 2. Adexium (Iklan Native Telegram) - Cek Timer
                     ...(adexiumReady ? [{ name: "Adexium", func: () => this.callAdexium() }] : []),
                     
-                    // 3. Monetag Interstitial (Iklan Layar Penuh)
-                    { name: "Monetag Inter",  func: () => this.callMonetag('interstitial') }
-    
+                    // 3. Adsterra (Direct Link - Cuan Lumayan)
+                    { name: "Adsterra",       func: () => this.callAdsterra() },
+
+                    // 4. Monetag (Cadangan Terakhir)
+                    { name: "Monetag Inter",  func: () => this.callMonetag('interstitial') },
+                    { name: "Monetag Pop",    func: () => this.callMonetag('pop') }
                 ];
             } else {
                 // Mode Regular
                 antrianIklan = [
-                   
+                    // 1. Adsgram Interstitial
+                    { name: "Adsgram Inter",  func: () => this.callAdsgram(this.ids.adsgramInter) },
+                    
                     // 2. Adexium
                     ...(adexiumReady ? [{ name: "Adexium", func: () => this.callAdexium() }] : []),
+
+                    // 3. Adsterra (Direct Link)
+                    { name: "Adsterra",       func: () => this.callAdsterra() },
                     
-                    // 3. Monetag Inter
+                    // 4. Monetag
                     { name: "Monetag Inter",  func: () => this.callMonetag('interstitial') },
-                    
-                    // 4. Monetag Pop (TERAKHIR)
                     { name: "Monetag Pop",    func: () => this.callMonetag('pop') }
                 ];
             }
@@ -75,17 +84,17 @@ const AdsManager = {
                     successProvider = source.name;
                     break; 
                 } catch (err) {
-                    // Jangan spam console, cukup info singkat
-                    // console.warn(`Skipped: ${source.name}`); 
+                    // Lanjut ke provider berikutnya
                 }
             }
 
             if (berhasil) {
                 sukses++;
-                // Reset timer hanya jika Adexium yang muncul
+                // Reset timer jika Adexium yang muncul
                 if (successProvider === "Adexium") this.setAdexiumLastShown();
                 
-                await new Promise(r => setTimeout(r, 1000));
+                // Jeda sedikit biar tidak kaget
+                await new Promise(r => setTimeout(r, 1500));
             }
         }
 
@@ -96,35 +105,26 @@ const AdsManager = {
         if (sukses > 0) {
             if (onReward) onReward();
         } else {
-            alert("Reward Failed. Ad was skipped or not available.");
+            alert("Reward Failed. No ads available.");
         }
     },
 
-    // --- 1. ADSGRAM (DEBUG FALSE) ---
-callAdsgram(blockId) {
+    // --- 1. ADSGRAM (STRICT MODE: NO SKIP) ---
+    callAdsgram(blockId) {
         return new Promise((resolve, reject) => {
-            // Cek apakah script sad.min.js sudah termuat
-            if (!window.Adsgram) return reject("Adsgram script (sad.min.js) missing");
+            if (!window.Adsgram) return reject("Adsgram script missing");
 
-            // Inisialisasi sesuai panduan 
+            // Init (Debug: false untuk production)
             const AdController = window.Adsgram.init({ 
                 blockId: blockId, 
-                debug: false, // Wajib false untuk production 
+                debug: false, 
                 debugBannerType: "FullscreenMedia" 
             });
 
-            // Panggil Show & Tangkap Promise 
             AdController.show().then((result) => {
-                // done: true artinya nonton sampai habis 
-                if (result.done) {
-                    resolve(); 
-                } else {
-                    reject("User skipped Adsgram"); // Masuk sini jika result.done == false
-                }
-            }).catch((err) => {
-                // Masuk sini jika error saat playing atau skip 
-                reject(err);
-            });
+                if (result.done) resolve(); 
+                else reject("User skipped Adsgram");
+            }).catch((err) => reject(err));
         });
     },
 
@@ -132,7 +132,6 @@ callAdsgram(blockId) {
     callAdexium() {
         return new Promise((resolve, reject) => {
             if (typeof AdexiumWidget === 'undefined') return reject("Adexium SDK missing");
-
             try {
                 const adexiumAds = new AdexiumWidget({
                     wid: this.ids.adexiumWidget,
@@ -140,39 +139,55 @@ callAdsgram(blockId) {
                     isFullScreen: true,
                     debug: false
                 });
-
                 adexiumAds.on('adReceived', (ad) => { adexiumAds.displayAd(ad); });
                 adexiumAds.on('noAdFound', () => { reject("Adexium No Fill"); });
-                adexiumAds.on('adClosed', () => { resolve(); }); // Close = Sukses
+                adexiumAds.on('adClosed', () => { resolve(); }); 
                 adexiumAds.on('adPlaybackCompleted', () => { resolve(); });
-
                 adexiumAds.requestAd('interstitial');
-
             } catch (e) {
                 reject("Adexium Error");
             }
         });
     },
 
-    // --- 3. MONETAG (INTERSTITIAL & POP) ---
+    // --- 3. ADSTERRA (DIRECT LINK) ---
+    callAdsterra() {
+        return new Promise((resolve, reject) => {
+            const link = this.ids.adsterraDirectLink;
+            if (!link) return reject("Adsterra Link Missing");
+
+            // Kita pakai fitur Telegram untuk membuka link dengan aman
+            const tg = window.Telegram.WebApp;
+            
+            try {
+                // Tampilkan pesan konfirmasi (Opsional, biar sopan)
+                // Tapi kalau mau langsung buka, langsung baris bawah ini:
+                tg.openLink(link);
+                
+                // Karena ini buka tab baru, kita anggap sukses setelah 2 detik
+                // (Kita tidak bisa kontrol apa yang user lakukan di browser luar)
+                setTimeout(() => {
+                    resolve();
+                }, 2000);
+
+            } catch (e) {
+                reject("Adsterra Failed to Open");
+            }
+        });
+    },
+
+    // --- 4. MONETAG (INTERSTITIAL & POP) ---
     callMonetag(type) {
         return new Promise((resolve, reject) => {
             const f = window[`show_${this.ids.monetagZone}`];
             if (typeof f !== 'function') return reject("Monetag SDK missing");
             
-            // Jika type == 'pop', panggil show('pop'). 
-            // Jika type == 'interstitial', panggil show().
             const param = (type === 'pop') ? 'pop' : undefined;
-
-            f(param).then(() => {
-                resolve();
-            }).catch(e => {
-                reject("Monetag Error");
-            });
+            f(param).then(() => resolve()).catch(e => reject("Monetag Error"));
         });
     },
 
-    // --- UTILS ---
+    // --- UTILS (TIMER) ---
     checkAdexiumCooldown() {
         if (!window.GameState || !GameState.user) return false;
         const timers = GameState.user.ad_timers || {};
@@ -191,4 +206,3 @@ callAdsgram(blockId) {
 };
 
 window.AdsManager = AdsManager;
-
