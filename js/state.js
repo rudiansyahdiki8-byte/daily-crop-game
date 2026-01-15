@@ -53,10 +53,10 @@ const DropEngine = {
 
 // 4. DATA DEFAULT USER
 const defaultUser = {
-    username: "Juragan Baru",
+    username: "New Tycoon", // Ganti "Juragan Baru" biar Inggris
     userId: null, 
     plan: "FREE", 
-    coins: 0, // [FIX POIN 1] Default Coin jadi 0
+    coins: 0, 
     lastActive: Date.now(),
     isFirstPlantDone: false, 
     totalHarvest: 0,
@@ -65,8 +65,15 @@ const defaultUser = {
     faucetpay_email: null,
     landPurchasedCount: 0,   
     extraStorage: 0,         
+    
+    // --- PERBAIKAN DATA COOLDOWN (DISIMPAN DI SERVER) ---
     adBoosterCooldown: 0,    
     spin_free_cooldown: 0, 
+    
+    // Kita tambah 2 variabel baru ini agar Task & Ads Adexium aman
+    task_cooldowns: {},      // Untuk simpan waktu Task Harian
+    ad_timers: {},           // Untuk simpan waktu Cooldown Iklan (Adexium)
+    
     activeBuffs: {},
     upline: null,
     referral_status: 'Pending',
@@ -209,3 +216,4 @@ window.PlanConfig = PlanConfig;
 window.CropRarity = CropRarity;
 window.DropEngine = DropEngine;
 window.PriceRanges = PriceRanges;
+
