@@ -361,8 +361,27 @@ body {
     justify-content: center;
 }
 
+/* Tambahkan di public/style.css paling bawah */
+
+/* Sembunyikan semua halaman utama secara default */
+#home-area, 
+#farm-area, 
+#market-area, 
+#task-area, 
+#spin-popup, 
+#withdraw-area,
+#Affiliate {
+    display: none !important; /* Paksa sembunyi */
+}
+
+/* Kelas khusus untuk menampilkan halaman (akan di-toggle oleh JS) */
+.active-section {
+    display: flex !important; /* Atau block, sesuaikan layout Anda */
+}
+
 .text-content h3 { color: #34d399; margin-bottom: 0.5rem; font-weight: 800; text-transform: uppercase; font-size: 0.8rem; }
 .text-content p { color: #d1d5db; font-size: 0.7rem; line-height: 1.4; margin-bottom: 0.8rem; text-align: justify; }
 .text-content ul { list-style: disc; padding-left: 1rem; margin-bottom: 0.8rem; }
 .text-content li { color: #9ca3af; font-size: 0.7rem; margin-bottom: 0.2rem; }
 .market-row:active { transform: scale(0.98); background: rgba(255, 255, 255, 0.08); }
+
