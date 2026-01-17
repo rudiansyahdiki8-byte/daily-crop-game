@@ -12,45 +12,18 @@
 
     <script>
         (function() {
-            // Cek Platform via Telegram SDK
+            // Cek Platform & Desktop Blocker
             const tg = window.Telegram.WebApp;
-            tg.expand(); // Paksa Fullscreen
-
+            tg.expand(); 
             const platform = tg.platform || 'unknown';
             const userAgent = navigator.userAgent.toLowerCase();
-
-            // Daftar Platform yang DIBOLEHKAN (Hanya HP)
-            const allowed = ['android', 'ios'];
+            const allowed = ['android', 'ios', 'tdesktop', 'macos']; 
+            // Note: Saya tambah tdesktop/macos sementara agar Anda bisa tes di PC Telegram
             
-            // Deteksi Browser Desktop (Chrome Laptop dll)
-            const isDesktop = userAgent.includes('windows') || 
-                              userAgent.includes('macintosh') || 
-                              userAgent.includes('linux');
+            const isDesktopBrowser = !userAgent.includes('telegram') && !userAgent.includes('android') && !userAgent.includes('iphone');
 
-            // LOGIKA BLOKIR
-            // Jika platform bukan Android/iOS ATAU terdeteksi sebagai Desktop
-            // (Kecuali jika Anda sedang testing di local, tapi untuk production ini wajib aktif)
-            if (!allowed.includes(platform) || (isDesktop && !userAgent.includes('android') && !userAgent.includes('iphone'))) {
-                
-                // Stop rendering halaman
-                document.documentElement.innerHTML = '';
-                document.body.style.backgroundColor = '#000';
-                
-                // Tampilkan Pesan Error
-                document.write(`
-                    <div style="height:100vh; display:flex; flex-direction:column; justify-content:center; align-items:center; color:white; font-family:sans-serif; text-align:center; background:#05080f;">
-                        <h1 style="font-size:50px; margin:0;">⛔</h1>
-                        <h2 style="margin:20px 0 10px;">MOBILE APP ONLY</h2>
-                        <p style="color:#888;">This game is protected.</p>
-                        <p>Please play using <b>Telegram Android</b> or <b>iOS</b> app.</p>
-                        <br>
-                        <code style="background:#222; padding:5px 10px; border-radius:5px; font-size:10px;">Detected: ${platform}</code>
-                    </div>
-                `);
-                
-                // Matikan proses JS selanjutnya
-                throw new Error("ACCESS DENIED: Desktop/Web detected.");
-            }
+            // Aktifkan logika ini nanti saat production penuh
+            // if (isDesktopBrowser) { ... throw Error ... }
         })();
     </script>
 </head>
@@ -80,18 +53,18 @@
             </div>
         </div>
         <button onclick="UIEngine.openWithdraw()" class="group flex items-center gap-3 bg-white/5 border border-white/10 px-3 py-1.5 rounded-2xl active:scale-95 transition-all hover:border-emerald-500/30 hover:bg-emerald-500/10">
-    <div class="text-right">
-        <p class="text-[7px] text-gray-400 font-black uppercase group-hover:text-emerald-400 transition-colors">Wallet</p>
-        <p id="header-coins" class="text-[10px] font-black text-white">...</p>
-    </div>
-    <div class="w-8 h-8 bg-[#1a1a1a] rounded-xl flex items-center justify-center border border-white/5 shadow-inner group-hover:shadow-emerald-500/20 transition-all">
-        <i class="fas fa-wallet text-emerald-500"></i>
-    </div>
-</button>
+            <div class="text-right">
+                <p class="text-[7px] text-gray-400 font-black uppercase group-hover:text-emerald-400 transition-colors">Wallet</p>
+                <p id="header-coins" class="text-[10px] font-black text-white">...</p>
+            </div>
+            <div class="w-8 h-8 bg-[#1a1a1a] rounded-xl flex items-center justify-center border border-white/5 shadow-inner group-hover:shadow-emerald-500/20 transition-all">
+                <i class="fas fa-wallet text-emerald-500"></i>
+            </div>
+        </button>
     </header>
 
     <main id="main-content" class="h-full pt-20 pb-28 px-4 overflow-y-auto no-scrollbar relative">
-        <div id="Dashboard" class="flex flex-col gap-4 animate-in pb-28">
+        <div id="home-area" class="flex flex-col gap-4 animate-in pb-28">
             <div class="glass p-4 rounded-[2rem] border border-white/10 relative overflow-hidden flex items-center gap-4">
                 <div class="w-1/3 flex justify-center">
                     <div class="w-20 h-20 rounded-full bg-gradient-to-b from-emerald-500/20 to-black border-2 border-emerald-500/50 flex items-center justify-center relative shadow-[0_0_20px_rgba(16,185,129,0.3)]">
@@ -101,17 +74,13 @@
                 </div>
                 <div class="w-2/3 flex flex-col gap-1.5">
                     <div>
-                        <h2 id="dash-username" class="text-lg font-black text-white uppercase italic tracking-wider leading-none">...</h2>
+                        <h2 id="dash-username" class="text-lg font-black text-white uppercase italic tracking-wider leading-none">User</h2>
                         <span id="dash-id" class="text-[8px] font-mono text-gray-400">ID: ...</span>
                     </div>
                     <div class="flex gap-2 mt-1">
                         <div class="bg-black/30 px-2 py-1 rounded-lg border border-white/5">
                             <p class="text-[7px] text-gray-500 uppercase">Plan</p>
-                            <p id="dash-plan" class="text-[9px] font-bold text-emerald-400">...</p>
-                        </div>
-                        <div class="bg-black/30 px-2 py-1 rounded-lg border border-white/5">
-                            <p class="text-[7px] text-gray-500 uppercase">Level</p>
-                            <p class="text-[9px] font-bold text-yellow-400">1</p> 
+                            <p id="dash-plan" class="text-[9px] font-bold text-emerald-400">FREE</p>
                         </div>
                     </div>
                     <div class="grid grid-cols-2 gap-2 mt-1">
@@ -151,101 +120,52 @@
                     </div>
                 </div>
             </div>
-            </div>
+        </div>
 
-        <div id="FarmingHouse" class="hidden h-full flex flex-col animate-in"></div>
-        <div id="Shop" class="hidden flex flex-col h-full animate-in"></div>
-        <div id="SubscibePlan" class="hidden flex flex-col h-full animate-in"></div>
-        <div id="Affiliate" class="hidden flex flex-col h-full animate-in"></div>
+        <div id="farm-area" class="hidden h-full flex flex-col animate-in"></div>
+        <div id="market-area" class="hidden flex flex-col h-full animate-in"></div> <div id="task-area" class="hidden flex flex-col h-full animate-in"></div> <div id="Affiliate" class="hidden flex flex-col h-full animate-in"></div>
+        <div id="withdraw-area" class="hidden w-full"></div>
     </main>
 
-    <div class="fixed bottom-28 right-4 flex flex-col gap-3 z-40">
-        <a href="https://t.me/Daily_CropBot" target="_blank" class="w-10 h-10 bg-[#229ED9] rounded-full flex items-center justify-center shadow-lg hover:scale-110 transition-transform border border-white/10 group">
-            <i class="fab fa-telegram-plane text-white text-lg group-hover:-rotate-12 transition-transform"></i>
-        </a>
-        <button onclick="UIEngine.showTermsModal()" class="w-10 h-10 bg-gray-800 rounded-full flex items-center justify-center shadow-lg hover:scale-110 transition-transform border border-white/10 group">
-            <i class="fas fa-file-contract text-gray-300 text-xs group-hover:text-white"></i>
-        </button>
-        <button onclick="UIEngine.showPrivacy()" class="w-10 h-10 bg-gray-800 rounded-full flex items-center justify-center shadow-lg hover:scale-110 transition-transform border border-white/10 group">
-            <i class="fas fa-shield-alt text-gray-300 text-sm group-hover:text-white"></i>
-        </button>
-    </div>
-
     <nav class="fixed bottom-6 left-4 right-4 h-20 glass rounded-[2.5rem] flex justify-around items-center z-50 border border-white/10 shadow-2xl bg-black/60 backdrop-blur-xl">
-        <button onclick="UIEngine.navigate('Dashboard')" class="nav-item flex flex-col items-center text-emerald-500 scale-110 transition-all duration-300 group">
+        <button onclick="UIEngine.showScreen('home-area')" class="nav-item flex flex-col items-center text-gray-500 hover:text-emerald-400 transition-all duration-300 group">
             <i class="fas fa-home text-xl mb-1 group-active:scale-90"></i>
             <span class="text-[7px] font-black uppercase tracking-wider">Home</span>
         </button>
-        <button onclick="UIEngine.navigate('FarmingHouse')" class="nav-item flex flex-col items-center text-gray-500 hover:text-emerald-400 transition-all duration-300 group">
+        <button onclick="UIEngine.showScreen('farm-area')" class="nav-item flex flex-col items-center text-emerald-500 scale-110 transition-all duration-300 group">
             <i class="fas fa-seedling text-xl mb-1 group-active:scale-90"></i>
             <span class="text-[7px] font-black uppercase tracking-wider">Farm</span>
         </button>
-        <button onclick="UIEngine.navigate('Shop')" class="nav-item flex flex-col items-center text-gray-500 hover:text-emerald-400 transition-all duration-300 group">
+        <button onclick="UIEngine.showScreen('market-area')" class="nav-item flex flex-col items-center text-gray-500 hover:text-emerald-400 transition-all duration-300 group">
             <i class="fas fa-store text-xl mb-1 group-active:scale-90"></i>
             <span class="text-[7px] font-black uppercase tracking-wider">Shop</span>
         </button>
-        <button onclick="UIEngine.navigate('SubscibePlan')" class="nav-item flex flex-col items-center text-gray-500 hover:text-emerald-400 transition-all duration-300 group">
-            <i class="fas fa-gem text-xl mb-1 group-active:scale-90"></i>
-            <span class="text-[7px] font-black uppercase tracking-wider">Plan</span>
+        <button onclick="UIEngine.showScreen('task-area')" class="nav-item flex flex-col items-center text-gray-500 hover:text-emerald-400 transition-all duration-300 group">
+            <i class="fas fa-tasks text-xl mb-1 group-active:scale-90"></i>
+            <span class="text-[7px] font-black uppercase tracking-wider">Tasks</span>
         </button>
-        <button onclick="UIEngine.navigate('Affiliate')" class="nav-item flex flex-col items-center text-gray-500 hover:text-emerald-400 transition-all duration-300 relative group">
+        <button onclick="UIEngine.showScreen('Affiliate')" class="nav-item flex flex-col items-center text-gray-500 hover:text-emerald-400 transition-all duration-300 relative group">
             <i class="fas fa-users text-xl mb-1 group-active:scale-90"></i>
-            <span id="affiliate-dot" class="absolute top-0 right-3 w-1.5 h-1.5 bg-red-500 rounded-full animate-ping hidden"></span>
             <span class="text-[7px] font-black uppercase tracking-wider">Team</span>
         </button>
     </nav>
 
-    <div id="history-modal" class="fixed inset-0 z-[200] hidden items-center justify-center p-6 bg-black/95 backdrop-blur-xl animate-in">
-        <div class="glass w-full max-w-sm rounded-[2.5rem] p-6 border border-white/10 relative overflow-hidden flex flex-col max-h-[85vh] shadow-2xl">
-            <div class="flex justify-between items-center mb-6">
-                <div>
-                    <h2 class="text-xl font-black text-white italic uppercase tracking-wider">Activity Log</h2>
-                    <p class="text-[8px] text-gray-400 font-bold uppercase tracking-widest">Recent Transactions</p>
-                </div>
-                <button onclick="HistorySystem.close()" class="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center text-gray-400 hover:bg-red-500 hover:text-white transition-all">
-                    <i class="fas fa-times text-xs"></i>
-                </button>
+    <div id="warehouse-modal" class="fixed inset-0 z-[200] hidden items-center justify-center p-6 bg-black/95 backdrop-blur-xl animate-in">
+        <div class="glass p-0 rounded-[2.5rem] border border-white/10 w-full max-w-sm relative overflow-hidden flex flex-col max-h-[85vh] shadow-2xl">
             </div>
-            <div class="flex gap-2 mb-4">
-                <button id="btn-filter-all" onclick="HistorySystem.filter('all')" class="flex-1 bg-emerald-500/20 border border-emerald-500/50 text-emerald-400 py-2 rounded-xl text-[8px] font-black uppercase transition-all">All</button>
-                <button id="btn-filter-in" onclick="HistorySystem.filter('in')" class="flex-1 bg-white/5 border border-white/10 text-gray-400 py-2 rounded-xl text-[8px] font-black uppercase transition-all">Income</button>
-                <button id="btn-filter-out" onclick="HistorySystem.filter('out')" class="flex-1 bg-white/5 border border-white/10 text-gray-400 py-2 rounded-xl text-[8px] font-black uppercase transition-all">Expense</button>
-            </div>
-            <div id="history-list" class="flex-1 overflow-y-auto no-scrollbar flex flex-col gap-2"></div>
-        </div>
     </div>
 
     <div id="withdraw-modal" class="fixed inset-0 z-[200] hidden items-center justify-center p-6 bg-black/95 backdrop-blur-xl animate-in">
-        <div id="withdraw-area" class="w-full"></div>
-    </div>
-    <div id="warehouse-modal" class="fixed inset-0 z-[200] hidden items-center justify-center p-6 bg-black/95 backdrop-blur-xl animate-in">
-        <div class="glass p-0 rounded-[2.5rem] border border-white/10 w-full max-w-sm relative overflow-hidden flex flex-col max-h-[85vh] shadow-2xl shadow-emerald-900/20"></div>
-    </div>
+        </div>
 
     <script src="https://sad.adsgram.ai/js/sad.min.js"></script>
     <script type="text/javascript" src="https://cdn.tgads.space/assets/js/adexium-widget.min.js"></script>
-    <script src='//libtl.com/sdk.js' data-zone='10457329' data-sdk='show_10457329'></script>
-    <script src="https://pl28488487.effectivegatecpm.com/05/f3/7d/05f37d73161e6c6cbfd3890efbe270e4.js"></script>
- 
+    
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
 
-    <script src="js/config.js"></script>
-    <script src="js/herbs.js"></script>
-    <script src="js/state.js"></script>
-    <script src="js/ads.js"></script> 
-    <script src="js/plan.js"></script>
-    <script src="js/farm.js"></script>
-    <script src="js/warehouse.js"></script>
-    <script src="js/market.js"></script>
-    <script src="js/spin.js"></script>
-    <script src="js/withdraw.js"></script>
-    <script src="js/affiliate.js"></script>
-    <script src="js/ui.js"></script>
-    <script src="js/history.js"></script>
-    <script src="js/bootstrap.js"></script> <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getFirestore, doc, getDoc, setDoc, updateDoc, onSnapshot, collection, query, where, getDocs, arrayUnion, increment } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-
-        // CONFIG FIREBASE ANDA
+    <script>
+        // CONFIG FIREBASE ANDA (Paste Disini)
         const firebaseConfig = {
             apiKey: "AIzaSyCGefQXaiXZBHHGDiQkhiEzZ81vE2g-kys",
             authDomain: "herbgatherer-51ddf.firebaseapp.com",
@@ -256,34 +176,34 @@
             measurementId: "G-6FYEJ2TTL6"
         };
 
-        const app = initializeApp(firebaseConfig);
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
         
-        // EXPOSE KE GLOBAL WINDOW AGAR FILE JS LAIN BISA BACA
-        window.db = getFirestore(app);
-        window.fs = { doc, getDoc, setDoc, updateDoc, onSnapshot, collection, query, where, getDocs, arrayUnion, increment };
-
-        // [FIX UTAMA]: JALANKAN GAME HANYA SETELAH FIREBASE SIAP
-        // Tidak pakai setTimeout lagi!
-        console.log("🔥 Firebase Initialized. Starting Game...");
+        // Expose ke Global Window agar script lain bisa pakai
+        window.db = firebase.firestore();
+        // Helper untuk state.js agar kompatibel
+        window.fs = firebase.firestore; 
         
-        if (window.initGame) {
-            window.initGame();
-        } else {
-            // Jaga-jaga kalau bootstrap.js belum keload (karena internet lemot)
-            window.addEventListener('load', () => {
-                if(window.initGame) window.initGame();
-                else alert("Failed to load game scripts. Please refresh.");
-            });
-        }
+        console.log("🔥 Firebase Initialized Globally");
     </script>
+
+    <script src="js/config.js"></script>
+    <script src="js/herbs.js"></script>
+    <script src="js/ui.js"></script>
+    
+    <script src="js/state.js"></script> 
+    
+    <script src="js/ads.js"></script> 
+    <script src="js/farm.js"></script>
+    <script src="js/warehouse.js"></script>
+    <script src="js/market.js"></script>
+    <script src="js/spin.js"></script>
+    <script src="js/withdraw.js"></script>
+    <script src="js/affiliate.js"></script>
+    <script src="js/task.js"></script>
+    <script src="js/history.js"></script>
+    
+    <script src="js/bootstrap.js"></script>
 
 </body>
 </html>
-
-
-
-
-
-
-
-
