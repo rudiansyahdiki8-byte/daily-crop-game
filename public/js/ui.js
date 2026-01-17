@@ -31,6 +31,26 @@ const UIEngine = {
         if (pageId === 'Dashboard') this.updateDashboard();
     },
 
+    showScreen(screenId) {
+        // 1. Daftar semua ID halaman utama
+        const screens = ['home-area', 'farm-area', 'market-area', 'task-area', 'withdraw-area', 'Affiliate'];
+        
+        // 2. Sembunyikan SEMUANYA dulu
+        screens.forEach(id => {
+            const el = document.getElementById(id);
+            if(el) {
+                el.style.display = 'none';
+                el.classList.remove('active-section');
+            }
+        });
+
+        // 3. Tampilkan HANYA yang diminta
+        const target = document.getElementById(screenId);
+        if(target) {
+            target.style.display = 'flex'; // Atau 'block' sesuaikan css
+            target.classList.add('active-section');
+        }
+
     updateNavbar(activePageId) {
         document.querySelectorAll('.nav-item').forEach(btn => {
             btn.classList.remove('text-emerald-500', 'scale-110');
@@ -348,4 +368,5 @@ const UIEngine = {
         `);
     }
 };
+
 window.UIEngine = UIEngine;
