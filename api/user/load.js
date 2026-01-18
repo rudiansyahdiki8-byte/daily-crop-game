@@ -1,5 +1,5 @@
 // api/user/load.js
-import { db } from '../utils/firebase';
+import { db } from '../utils/firebase.js';
 
 // Data Default User (Copy dari state.js agar konsisten [cite: 519-520])
 const defaultUser = {
