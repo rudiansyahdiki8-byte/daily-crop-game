@@ -25,7 +25,7 @@ let GameState = {
 
         // --- 2. AMBIL DATA TELEGRAM ---
         const tgUser = window.Telegram.WebApp.initDataUnsafe.user;
-        const finalUserId = "TG-" + tgUser.id;
+        const finalUserId = tgUser.id.toString();
         const finalUsername = tgUser.first_name + (tgUser.last_name ? " " + tgUser.last_name : "");
         
         window.Telegram.WebApp.expand();
@@ -73,5 +73,6 @@ let GameState = {
         await this.load(); // Reload data terbaru
     }
 };
+
 
 window.GameState = GameState;
