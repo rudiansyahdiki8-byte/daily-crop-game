@@ -1,6 +1,6 @@
 // Buka api/market/sell.js dan GANTI isinya dengan yang ini:
 
-import { db } from '../utils/firebase';
+import { db } from '../utils/firebase.js';
 
 const CropConfig = {
     ginger: { minPrice: 20, maxPrice: 50 },
