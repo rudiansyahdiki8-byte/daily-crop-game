@@ -133,4 +133,7 @@ const GameState = {
 // Autosave setiap 5 menit untuk data ringan
 setInterval(() => {
     if (GameState.isLoaded) GameState.save();
+
 }, 300000);
+
+window.GameState = GameState;
