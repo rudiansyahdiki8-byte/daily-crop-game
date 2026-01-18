@@ -1,4 +1,4 @@
-import { db } from '../utils/firebase';
+import { db } from '../utils/firebase.js';
 
 [cite_start]// Salin Config Harga dari config.js [cite: 459-460]
 const ShopPrices = {
