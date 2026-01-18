@@ -1,4 +1,4 @@
-import { db } from '../utils/firebase';
+import { db } from '../utils/firebase.js';
 
 // Kita butuh data waktu tumbuh tanaman agar server bisa menanam ulang (Auto-Replant)
 [cite_start]// Data disalin dari config.js [cite: 453-458]
