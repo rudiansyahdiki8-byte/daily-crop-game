@@ -21,7 +21,7 @@ window.addEventListener('DOMContentLoaded', async () => {
     if(window.UIEngine) UIEngine.showLoading("MENYIAPKAN LADANG...");
     
     // 1. Inisialisasi User
-    await GameState.init();
+   await GameState.load();
     
     // 2. Cek Referral
     if(window.AffiliateSystem) await AffiliateSystem.checkReferralParam();
@@ -34,4 +34,5 @@ window.addEventListener('DOMContentLoaded', async () => {
     
     // 4. Jalankan Ladang
     if(window.FarmSystem) FarmSystem.init();
+
 });
