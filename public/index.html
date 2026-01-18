@@ -249,24 +249,7 @@
     <script src="js/history.js"></script>
     <script src="js/bootstrap.js"></script>
 
-    <script>
-    // Kita bikin Telegram bohongan biar gak error di browser laptop
-    window.Telegram = {
-        WebApp: {
-            initDataUnsafe: {
-                user: {
-                    id: 123456,
-                    first_name: "Juragan",
-                    username: "TesterLokal",
-                    language_code: "en"
-                }
-            },
-            expand: function() { console.log("Layar diperluas!"); },
-            ready: function() { console.log("Telegram Ready!"); },
-            enableClosingConfirmation: function() {},
-            themeParams: {}
-        }
-    };
 </script>
 </body>
 </html>
+
