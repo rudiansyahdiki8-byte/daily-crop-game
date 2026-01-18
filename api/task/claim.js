@@ -1,4 +1,4 @@
-import { db } from '../utils/firebase';
+import { db } from '../utils/firebase.js';
 
 // Config Reward [cite: 463]
 const TaskRewards = {
