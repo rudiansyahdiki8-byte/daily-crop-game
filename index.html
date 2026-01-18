@@ -228,8 +228,9 @@
     <script src='//libtl.com/sdk.js' data-zone='10457329' data-sdk='show_10457329'></script>
 
     <script src="js/config.js"></script>
+    <script src="js/herbs.js"></script>
     <script src="js/state.js"></script>
-    <script src="js/ads.js"></script> <script src="js/herbs.js"></script>
+    <script src="js/ads.js"></script> 
     <script src="js/plan.js"></script>
     <script src="js/farm.js"></script>
     <script src="js/warehouse.js"></script>
@@ -275,25 +276,6 @@
         }
     </script>
 
-    <script>
-    // Kita bikin Telegram bohongan biar gak error di browser laptop
-    window.Telegram = {
-        WebApp: {
-            initDataUnsafe: {
-                user: {
-                    id: 123456,
-                    first_name: "Juragan",
-                    username: "TesterLokal",
-                    language_code: "en"
-                }
-            },
-            expand: function() { console.log("Layar diperluas!"); },
-            ready: function() { console.log("Telegram Ready!"); },
-            enableClosingConfirmation: function() {},
-            themeParams: {}
-        }
-    };
-</script>
 
 </body>
 </html>
