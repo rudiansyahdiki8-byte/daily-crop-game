@@ -1,4 +1,4 @@
-import { db } from '../utils/firebase';
+import { db } from '../utils/firebase.js';
 
 // CONFIG SPIN DARI config.js
 const SpinConfig = {
