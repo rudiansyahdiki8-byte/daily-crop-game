@@ -15,22 +15,51 @@ let GameState = {
 
 // Di dalam js/state.js
 
-    async load() {
-        // --- 1. STRICT TELEGRAM CHECK (Tetap Sama) ---
-        if (!window.Telegram || !window.Telegram.WebApp || !window.Telegram.WebApp.initDataUnsafe || !window.Telegram.WebApp.initDataUnsafe.user) {
-             // ... (Kode Blokir Tampilan Tetap Sama [cite: 522-529]) ...
-             document.body.innerHTML = `<div style="color:red; text-align:center; margin-top:50px;">Please open in Telegram</div>`;
-             return; 
+   async load() {
+        console.log("Memulai Load User...");
+        
+        // 1. CEK DATA TELEGRAM (STRICT MODE)
+        let tgUser = null;
+        
+        if (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.initDataUnsafe && window.Telegram.WebApp.initDataUnsafe.user) {
+            tgUser = window.Telegram.WebApp.initDataUnsafe.user;
         }
 
-        // --- 2. AMBIL DATA TELEGRAM ---
-        const tgUser = window.Telegram.WebApp.initDataUnsafe.user;
+        // 2. JIKA DATA KOSONG -> STOP & BERI PERINGATAN
+        if (!tgUser) {
+            // Cek apakah ini di PC (untuk debugging saya izinkan dummy)
+            // Tapi kalau di HP, harus ERROR.
+            const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+            
+            if (isMobile) {
+                // TAMPILAN ERROR DI HP JIKA SALAH BUKA LINK
+                document.body.innerHTML = `
+                    <div style="background:black; color:red; height:100vh; display:flex; flex-col; justify-content:center; align-items:center; text-align:center; padding:20px;">
+                        <h1 style="font-size:40px;">⚠️ AKSES DITOLAK</h1>
+                        <p style="font-size:16px; margin-top:20px;">
+                            Game tidak mendeteksi akun Telegram Anda.<br><br>
+                            <b>JANGAN BUKA LINK VERCEL LANGSUNG!</b><br><br>
+                            Silakan buat Bot di @BotFather, pasang link game di Menu Button, lalu buka lewat Bot.
+                        </p>
+                        <p style="color:gray; margin-top:50px;">Debug: initDataUnsafe is missing</p>
+                    </div>
+                `;
+                return; // STOP DISINI. JANGAN LANJUT LOAD.
+            } else {
+                // Debug di Laptop boleh pakai dummy
+                console.warn("Mode Debug Laptop Detected");
+                tgUser = { id: "78797987", first_name: "Juragan", last_name: "Debug" };
+            }
+        }
+
+        // 3. JIKA LOLOS, GUNAKAN DATA ASLI
         const finalUserId = tgUser.id.toString();
         const finalUsername = tgUser.first_name + (tgUser.last_name ? " " + tgUser.last_name : "");
-        
-        window.Telegram.WebApp.expand();
-        console.log("Login:", finalUserId);
-        this.user.userId = finalUserId; // Set ID lokal dulu
+
+        // Tampilkan Alert ID di HP (Hanya untuk memastikan, nanti dihapus)
+        // alert("LOGIN BERHASIL: " + finalUserId); 
+
+        this.user.userId = finalUserId;
 
         // --- 3. LOAD DATA DARI SERVER (API) ---
         // INI BAGIAN YANG BARU (Menggantikan window.fs.getDoc)
@@ -76,3 +105,4 @@ let GameState = {
 
 
 window.GameState = GameState;
+
