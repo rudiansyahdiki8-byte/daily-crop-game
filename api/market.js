@@ -1,46 +1,51 @@
+// api/market.js
 import db from './db.js';
 import { GameConfig } from './gameConfig.js';
 
-// --- DATABASE ITEM (Mapping Logic) ---
-// Server perlu tahu efek dari setiap item, karena GameConfig hanya menyimpan harga.
+// MAPPING EFEK ITEM (Sesuai ShopItems di js/config.js)
 const ITEM_EFFECTS = {
-    // Lahan & Storage (Logic Khusus)
-    'land_2':       { type: 'land', id: 2 },
-    'land_3':       { type: 'land', id: 3 },
-    'storage_plus': { type: 'storage', amount: 20 },
-
-    // Buffs (Consumables) - Durasi 24 Jam (86400000 ms)
-    'speed_soil':   { type: 'buff', key: 'speed_soil', duration: 86400000 },
-    'growth_fert':  { type: 'buff', key: 'growth_speed', duration: 86400000 },
-    'trade_permit': { type: 'buff', key: 'sell_bonus', duration: 86400000 },
-    'yield_boost':  { type: 'buff', key: 'yield_bonus', duration: 86400000 },
-    'rare_boost':   { type: 'buff', key: 'rare_luck', duration: 86400000 }
+    // Land (Upgrade Lahan)
+    'LandPrice_2':  { type: 'land', id: 2 },
+    'LandPrice_3':  { type: 'land', id: 3 },
+    
+    // Storage (Upgrade Gudang)
+    'StoragePlus':  { type: 'storage', amount: 50 }, // Tambah 50 slot
+    
+    // Buffs (Penguat) - Durasi 24 Jam (86400000 ms)
+    'BuffSpeed':    { type: 'buff', key: 'speed_soil', duration: 86400000 },
+    'BuffGrowth':   { type: 'buff', key: 'growth_speed', duration: 86400000 },
+    'BuffTrade':    { type: 'buff', key: 'sell_bonus', duration: 86400000 },
+    'BuffYield':    { type: 'buff', key: 'yield_bonus', duration: 86400000 },
+    'BuffRare':     { type: 'buff', key: 'rare_luck', duration: 86400000 }
 };
 
-// --- RUMUS HARGA DINAMIS (SAMA PERSIS DENGAN STATE.JS) ---
+// Helper: Hitung Harga Jual Dinamis (Server Side)
 function getPriceServer(cropKey) {
     const crop = GameConfig.Crops[cropKey];
-    if (!crop) return 10;
+    if (!crop) return 10; // Harga default aman
 
+    // Gunakan UTC Time agar sinkron
     const now = new Date();
-    // Gunakan UTC agar sinkron global
     const timeSeed = now.getUTCFullYear() * 10000 + (now.getUTCMonth() + 1) * 100 + now.getUTCDate() + now.getUTCHours();
     
+    // Rumus Fluktuasi Harga (Sinus)
     const uniqueFactor = cropKey.length + (crop.time || 0);
     const randomFactor = Math.abs(Math.sin(timeSeed + uniqueFactor)); 
-
     const range = crop.maxPrice - crop.minPrice;
+    
     return Math.floor(crop.minPrice + (range * randomFactor));
 }
 
 export default async function handler(req, res) {
+    // 1. Setup Header
     res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'POST');
+    res.setHeader('Access-Control-Allow-Methods', 'POST,OPTIONS');
 
-    if (req.method !== 'POST') return res.status(405).json({ error: 'Method Error' });
+    if (req.method === 'OPTIONS') return res.status(200).end();
+    if (req.method !== 'POST') return res.status(405).json({ error: 'Method Not Allowed' });
 
     const { userId, action, itemKey, amount } = req.body;
-    if (!userId) return res.status(400).json({ error: "No User ID" });
+    if (!userId) return res.status(400).json({ error: "Missing User ID" });
 
     try {
         const userRef = db.collection('users').doc(userId);
@@ -51,104 +56,100 @@ export default async function handler(req, res) {
         const user = userData.user || { coins: 0 };
         const warehouse = userData.warehouse || {};
 
-        // ==========================================
-        // 1. ACTION: SELL (JUAL HASIL PANEN)
-        // ==========================================
+        // === ACTION: SELL (JUAL HASIL PANEN) ===
         if (action === 'sell') {
             const currentStock = warehouse[itemKey] || 0;
             const sellAmount = parseInt(amount);
 
-            if (currentStock < sellAmount) return res.status(400).json({ error: "Stok kurang!" });
+            // Validasi Stok
+            if (currentStock < sellAmount) {
+                return res.status(400).json({ error: "Insufficient stock!" });
+            }
 
             // A. Hitung Harga Dasar
             let price = getPriceServer(itemKey);
-            
-            // B. Cek Buff Aktif (Trade Permit)
-            // Jika ada buff 'sell_bonus' yang masih aktif, harga +20%
+
+            // B. Cek Buff 'Trade Permit' (BuffTrade)
             const activeBuffs = user.activeBuffs || {};
             if (activeBuffs['sell_bonus'] && activeBuffs['sell_bonus'] > Date.now()) {
-                price = Math.floor(price * 1.20); 
+                price = Math.floor(price * 1.20); // Bonus 20%
             }
 
-            // C. Bonus Plan Membership
-            let bonus = 1;
-            if (user.plan === 'MORTGAGE') bonus = 1.05;
-            if (user.plan === 'TENANT') bonus = 1.15;
-            if (user.plan === 'OWNER') bonus = 1.30;
+            // C. Cek Bonus Plan Membership
+            let planBonus = 1;
+            if (user.plan === 'MORTGAGE') planBonus = 1.05; // +5%
+            if (user.plan === 'TENANT') planBonus = 1.15;   // +15%
+            if (user.plan === 'OWNER') planBonus = 1.30;    // +30%
 
-            const totalEarn = Math.floor(sellAmount * price * bonus);
+            // Total Pendapatan
+            const totalEarn = Math.floor(sellAmount * price * planBonus);
 
-            // D. Update Database
+            // Update Database
             await userRef.set({
-                warehouse: { [itemKey]: db.FieldValue.increment(-sellAmount) },
+                warehouse: { [itemKey]: (currentStock - sellAmount) }, // Kurangi Stok
                 user: { 
-                    coins: db.FieldValue.increment(totalEarn),
-                    totalSold: db.FieldValue.increment(totalEarn)
+                    coins: (user.coins || 0) + totalEarn,
+                    totalSold: (user.totalSold || 0) + totalEarn
                 }
             }, { merge: true });
 
             return res.status(200).json({ 
                 success: true, 
-                message: `Sold ${sellAmount} ${itemKey}`,
+                message: `Sold ${sellAmount}x ${itemKey}`,
                 earned: totalEarn,
                 newCoins: (user.coins || 0) + totalEarn,
                 newStock: currentStock - sellAmount
             });
         }
 
-        // ==========================================
-        // 2. ACTION: BUY (BELI ITEM SHOP)
-        // ==========================================
+        // === ACTION: BUY (BELI ITEM SHOP) ===
         if (action === 'buy') {
+            // Ambil harga dari Config
             const shopItems = GameConfig.ShopItems || {};
             const cost = shopItems[itemKey];
 
-            if (!cost) return res.status(400).json({ error: "Item tidak dijual" });
-            if (user.coins < cost) return res.status(400).json({ error: "Koin tidak cukup" });
+            if (!cost) return res.status(400).json({ error: "Item not found" });
+            if (user.coins < cost) return res.status(400).json({ error: "Insufficient coins!" });
 
-            // Logic Item berdasarkan ITEM_EFFECTS
             const effect = ITEM_EFFECTS[itemKey];
-            if (!effect) return res.status(400).json({ error: "Item logic not found" });
+            if (!effect) return res.status(400).json({ error: "Item logic missing" });
 
+            // Siapkan Data Update
             let updateData = {
-                user: { 
-                    coins: db.FieldValue.increment(-cost),
-                    totalSpent: db.FieldValue.increment(cost) // Catat pengeluaran
-                }
+                'user.coins': (user.coins || 0) - cost,
+                'user.totalSpent': (user.totalSpent || 0) + cost
             };
 
-            // A. Logic Beli Lahan
+            // 1. Logika Beli Lahan
             if (effect.type === 'land') {
                 let plots = userData.farmPlots || [];
-                const plotIndex = plots.findIndex(p => p.id === effect.id);
+                // Cari lahan dengan ID yang sesuai (2 atau 3)
+                const targetIdx = plots.findIndex(p => p.id === effect.id);
                 
-                if (plotIndex === -1) return res.status(400).json({ error: "Lahan tidak valid" });
-                if (plots[plotIndex].status !== 'locked') return res.status(400).json({ error: "Lahan sudah terbuka" });
+                if (targetIdx === -1) return res.status(400).json({ error: "Land ID not found" });
+                if (plots[targetIdx].status !== 'locked') return res.status(400).json({ error: "Already owned!" });
 
-                plots[plotIndex] = { ...plots[plotIndex], status: 'empty' };
+                // Unlock Lahan
+                plots[targetIdx].status = 'empty';
                 updateData.farmPlots = plots;
-                updateData.user.landPurchasedCount = db.FieldValue.increment(1);
+                updateData['user.landPurchasedCount'] = (user.landPurchasedCount || 0) + 1;
             }
             
-            // B. Logic Beli Storage
+            // 2. Logika Beli Storage
             else if (effect.type === 'storage') {
-                updateData.user.extraStorage = db.FieldValue.increment(effect.amount);
+                updateData['user.extraStorage'] = (user.extraStorage || 0) + effect.amount;
             }
 
-            // C. Logic Beli Buff (Consumable)
+            // 3. Logika Beli Buff
             else if (effect.type === 'buff') {
-                // Set waktu kadaluarsa: Sekarang + Durasi
-                const expiryTime = Date.now() + effect.duration;
-                
-                // Update map activeBuffs
-                // Perlu dot notation untuk update field nested di Firestore
-                updateData[`user.activeBuffs.${effect.key}`] = expiryTime;
+                const expiry = Date.now() + effect.duration;
+                updateData[`user.activeBuffs.${effect.key}`] = expiry;
             }
 
             // Eksekusi Update
             await userRef.update(updateData);
             
-            // Ambil data terbaru untuk update UI Client
+            // Ambil Data Terbaru untuk Frontend
             const finalDoc = await userRef.get();
             const finalData = finalDoc.data();
 
@@ -158,7 +159,6 @@ export default async function handler(req, res) {
                 newCoins: finalData.user.coins,
                 farmPlots: finalData.farmPlots,
                 extraStorage: finalData.user.extraStorage,
-                // Kirim balik activeBuffs agar UI tahu buff sudah aktif
                 activeBuffs: finalData.user.activeBuffs 
             });
         }
@@ -167,6 +167,6 @@ export default async function handler(req, res) {
 
     } catch (e) {
         console.error("Market Error:", e);
-        return res.status(500).json({ error: e.message });
+        return res.status(500).json({ error: "Server Error" });
     }
 }
