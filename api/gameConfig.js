@@ -61,10 +61,13 @@ export const GameConfig = {
         CostPaid: 150,
         CooldownFree: 3600000,
         Rewards: [ // Struktur baru agar mudah dibaca API
-            { id: 'coin_low', type: 'coin', val: 50, chance: 40 },
-            { id: 'coin_mid', type: 'coin', val: 100, chance: 30 },
-            { id: 'coin_high', type: 'coin', val: 200, chance: 20 },
-            { id: 'jackpot', type: 'coin', val: 1000, chance: 10 }
+           // Total Chance harus 100
+            { id: 'coin_low',  type: 'coin', val: 50,   chance: 35 }, // Turun dikit
+            { id: 'herb_common', type: 'herb', rarity: 'Common', chance: 25 }, // BARU!
+            { id: 'coin_mid',  type: 'coin', val: 200,  chance: 20 },
+            { id: 'herb_rare',   type: 'herb', rarity: 'Rare',   chance: 10 }, // BARU!
+            { id: 'coin_high', type: 'coin', val: 1000, chance: 9 },
+            { id: 'jackpot',   type: 'coin', val: 10000, chance: 1 }
         ]
     },
 
