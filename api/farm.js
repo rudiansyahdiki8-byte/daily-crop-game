@@ -45,6 +45,8 @@ export default async function handler(req, res) {
         // === ACTION: PLANT ===
         if (action === 'plant') {
             const plot = farmPlots[plotIndex];
+            
+            // Allow planting only on empty plots
             if (!plot || plot.status !== 'empty') return res.status(400).json({ error: "Lahan tidak valid" });
 
             const seed = getRandomPlant(); 
@@ -65,10 +67,19 @@ export default async function handler(req, res) {
         // === ACTION: HARVEST ===
         if (action === 'harvest') {
             const plot = farmPlots[plotIndex];
-            if (!plot || plot.status !== 'growing') return res.status(400).json({ error: "Belum siap panen" });
             
-            // Toleransi Waktu 5 Detik
-            if (now < plot.harvestAt - 5000) return res.status(400).json({ error: "Tunggu sebentar lagi!" });
+            // [PERBAIKAN UTAMA DI SINI]
+            // Kita izinkan status 'growing' ATAU 'ready'.
+            // Ini mengatasi masalah jika Frontend terlanjur menyimpan status 'ready' ke DB.
+            if (!plot || (plot.status !== 'growing' && plot.status !== 'ready')) {
+                return res.status(400).json({ error: "Belum siap panen (Status Salah)" });
+            }
+            
+            // Validasi Waktu (Toleransi 5 Detik)
+            // Walaupun status sudah 'ready' di DB, kita tetap cek waktu server biar aman dari cheat.
+            if (now < plot.harvestAt - 5000) {
+                return res.status(400).json({ error: "Tunggu sebentar lagi!" });
+            }
 
             // 1. Hitung Hasil
             const cropName = plot.plant || 'ginger';
@@ -80,13 +91,12 @@ export default async function handler(req, res) {
 
             farmPlots[plotIndex] = {
                 ...plot,
-                status: 'growing',
+                status: 'growing', // Kembalikan ke growing
                 plant: newSeed,
                 harvestAt: now + (newConfig.time * 1000)
             };
 
-            // 3. UPDATE DATABASE (MANUAL MATH - LEBIH AMAN)
-            // Kita hindari db.FieldValue.increment karena sering error di beberapa setup
+            // 3. UPDATE DATABASE (Manual Math)
             const currentStock = (userData.warehouse && userData.warehouse[cropName]) ? userData.warehouse[cropName] : 0;
             const currentTotalHarvest = (userData.user && userData.user.totalHarvest) ? userData.user.totalHarvest : 0;
 
@@ -102,8 +112,6 @@ export default async function handler(req, res) {
 
             await userRef.set(updatePayload, { merge: true });
 
-            // 4. Return Data Terbaru
-            // Kita construct manual return-nya agar cepat (tidak perlu fetch ulang)
             const newWarehouse = { ...userData.warehouse, [cropName]: currentStock + yieldAmount };
             
             return res.status(200).json({ 
