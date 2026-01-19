@@ -1,10 +1,20 @@
 // js/warehouse.js
 const WarehouseSystem = {
+    // Kapasitas sesuai Plan
     limits: { 'FREE': 50, 'MORTGAGE': 240, 'TENANT': 500, 'OWNER': 999999 },
 
     init() {
-        const container = document.getElementById('WarehouseModal');
-        if (container) this.render(container);
+        // Cek apakah modal sudah ada? Jika belum, buatkan!
+        if (!document.getElementById('WarehouseModal')) {
+            this.createModal();
+        }
+    },
+
+    createModal() {
+        const div = document.createElement('div');
+        div.id = 'WarehouseModal';
+        div.className = "fixed inset-0 z-[60] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 hidden";
+        document.body.appendChild(div);
     },
 
     isFull(incomingAmount = 1) {
@@ -20,11 +30,12 @@ const WarehouseSystem = {
     },
 
     show() {
+        // Pastikan init sudah jalan
+        if (!document.getElementById('WarehouseModal')) this.init();
+        
         const modal = document.getElementById('WarehouseModal');
-        if (modal) {
-            modal.classList.remove('hidden');
-            this.render(modal);
-        }
+        modal.classList.remove('hidden');
+        this.render(modal);
     },
 
     close() {
@@ -42,10 +53,10 @@ const WarehouseSystem = {
         let barColor = percent > 80 ? 'bg-red-500' : 'bg-emerald-500';
 
         container.innerHTML = '';
-        container.className = "fixed inset-0 z-[60] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 hidden";
         
+        // Panel UI
         const panel = document.createElement('div');
-        panel.className = "w-full max-w-md bg-slate-900 border border-slate-700 rounded-2xl overflow-hidden shadow-2xl flex flex-col max-h-[80vh]";
+        panel.className = "w-full max-w-md bg-slate-900 border border-slate-700 rounded-2xl overflow-hidden shadow-2xl flex flex-col max-h-[80vh] animate-in zoom-in-95 duration-200";
         
         panel.innerHTML = `
             <div class="p-4 bg-slate-800 border-b border-slate-700 flex justify-between items-center">
@@ -58,8 +69,10 @@ const WarehouseSystem = {
             <div class="h-1 w-full bg-slate-700"><div class="h-full ${barColor} transition-all duration-500" style="width: ${percent}%"></div></div>
         `;
 
+        // List Barang
         const listContainer = document.createElement('div');
         listContainer.className = "flex-1 overflow-y-auto p-4 space-y-3 no-scrollbar";
+        
         const items = Object.keys(warehouse).filter(k => warehouse[k] > 0);
 
         if (items.length === 0) {
@@ -67,7 +80,8 @@ const WarehouseSystem = {
         } else {
             items.forEach(itemKey => {
                 const qty = warehouse[itemKey];
-                const cropConf = (window.GameConfig.Crops && window.GameConfig.Crops[itemKey]) ? window.GameConfig.Crops[itemKey] : { sellPrice: 10 };
+                // Ambil harga dari Config atau default 10
+                const cropConf = (window.GameConfig?.Crops && window.GameConfig.Crops[itemKey]) ? window.GameConfig.Crops[itemKey] : { sellPrice: 10 };
                 const price = cropConf.sellPrice || 10;
                 
                 const itemRow = document.createElement('div');
@@ -87,9 +101,12 @@ const WarehouseSystem = {
         container.appendChild(panel);
     },
 
+    // CALL SERVER MARKET
     async sellItem(itemName, amount) {
         if (!confirm(`Sell all ${amount} ${itemName}?`)) return;
+        
         UIEngine.showRewardPopup("SELLING", "Contacting Buyer...", null, "...");
+        
         try {
             const response = await fetch('/api/market', {
                 method: 'POST',
@@ -97,16 +114,24 @@ const WarehouseSystem = {
                 body: JSON.stringify({ userId: GameState.user.userId, action: 'sell', itemName, amount })
             });
             const result = await response.json();
+            
             if (result.success) {
-                GameState.user.coins += result.earned;
+                // Update Lokal agar responsif
+                GameState.user.coins = result.newCoins || (GameState.user.coins + result.earned); // Pastikan sinkron
                 GameState.warehouse[itemName] = result.newStock;
+                
+                // Refresh UI
                 this.render(document.getElementById('WarehouseModal'));
-                UIEngine.updateHeader();
+                
+                // PENTING: Update Header Koin di Layar Utama
+                if(window.UIEngine && UIEngine.updateHeader) UIEngine.updateHeader();
+                
                 UIEngine.showRewardPopup("SOLD!", `Earned ${result.earned} Coins`, null, "GREAT");
             } else {
                 UIEngine.showRewardPopup("FAILED", result.error, null, "CLOSE");
             }
         } catch (e) {
+            console.error(e);
             UIEngine.showRewardPopup("ERROR", "Connection Error", null, "CLOSE");
         }
     }
