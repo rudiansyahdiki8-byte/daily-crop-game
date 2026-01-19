@@ -86,27 +86,33 @@ const WarehouseSystem = {
                     <p class="text-[10px] uppercase font-bold tracking-widest">Storage Empty</p>
                 </div>`;
         } else {
-            items.forEach(itemKey => {
+items.forEach(itemKey => {
                 const qty = warehouse[itemKey];
 
-                // === PERBAIKAN DI SINI ===
-                // Ambil data langsung dari GameConfig.Crops
+                // Ambil Config Tanaman
                 const configData = (window.GameConfig && window.GameConfig.Crops && window.GameConfig.Crops[itemKey]) 
                                    ? window.GameConfig.Crops[itemKey] 
                                    : null;
 
-                // Gunakan default jika config tidak ditemukan/loading belum selesai
                 const name = configData ? configData.name : itemKey;
-                const price = configData ? configData.sellPrice : 10;
-                const rarity = configData ? configData.rarity : 'Common';
                 const img = configData ? configData.img : `assets_iso/plant_${itemKey.toLowerCase()}.png`;
+                const rarity = configData ? configData.rarity : 'Common';
 
-                // Tentukan warna border berdasarkan rarity
+                // === HARGA DINAMIS ===
+                // Panggil fungsi getPrice dari State yang baru kita buat
+                const price = GameState.getPrice ? GameState.getPrice(itemKey) : 10;
+                
+                // Style Rarity
                 let rarityClass = 'border-white/10';
                 if (rarity === 'Legendary') rarityClass = 'border-purple-500/50 shadow-[0_0_15px_rgba(168,85,247,0.2)]';
                 else if (rarity === 'Epic') rarityClass = 'border-amber-500/50 shadow-[0_0_15px_rgba(245,158,11,0.2)]';
                 else if (rarity === 'Rare') rarityClass = 'border-blue-500/50 shadow-[0_0_15px_rgba(59,130,246,0.2)]';
                 else if (rarity === 'Uncommon') rarityClass = 'border-green-500/50';
+
+                // Indikator Trend (Naik/Turun dari Rata-rata)
+                const avgPrice = configData ? (configData.minPrice + configData.maxPrice)/2 : 10;
+                const isHigh = price >= avgPrice;
+                const trendIcon = isHigh ? '<i class="fas fa-arrow-trend-up text-emerald-400"></i>' : '<i class="fas fa-arrow-trend-down text-red-400"></i>';
 
                 const itemRow = document.createElement('div');
                 itemRow.className = `flex items-center gap-3 bg-slate-800/80 p-3 rounded-2xl border ${rarityClass} relative group overflow-hidden`;
@@ -121,8 +127,8 @@ const WarehouseSystem = {
                             <h4 class="text-white font-black text-sm uppercase truncate">${name}</h4>
                             <span class="text-[6px] font-bold px-1.5 py-0.5 rounded bg-white/10 text-gray-300 uppercase">${rarity}</span>
                         </div>
-                        <div class="text-[9px] text-gray-400">
-                            Market Price: <span class="text-yellow-400 font-bold">${price}</span>
+                        <div class="text-[9px] text-gray-400 flex items-center gap-2">
+                            Price: <span class="text-yellow-400 font-bold text-xs">${price}</span> ${trendIcon}
                         </div>
                     </div>
                     <button onclick="WarehouseSystem.sellItem('${itemKey}', ${qty})" class="bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 text-white pl-3 pr-4 py-2.5 rounded-xl text-[9px] font-black uppercase shadow-lg shadow-emerald-900/40 active:scale-95 transition-all flex items-center gap-1">
@@ -176,3 +182,4 @@ window.addEventListener('load', () => {
         if (window.WarehouseSystem) WarehouseSystem.show();
     };
 });
+
