@@ -139,7 +139,7 @@ const FarmSystem = {
         }
 
         // Tampilkan Iklan Dulu (Sesuai Logic Lama)
-        AdsManager.showHybridStack(2, async () => {
+        AdsManager.showAd('reward', async () => {
             UIEngine.showRewardPopup("HARVESTING", "Processing...", null, "...");
             
             try {
@@ -324,13 +324,12 @@ const FarmSystem = {
         if(notifDot) notifDot.style.display = readyCount > 0 ? 'block' : 'none';
     },
 
-// --- UPDATE: PANGGIL API TASKS ---
-    handleTaskClick(task, btnElement) {
+handleTaskClick(task, btnElement) {
         // Pengecualian untuk Spin (karena punya sistem sendiri)
         if (task.action === 'spin') { SpinSystem.show(); return; }
         
         // 1. Tampilkan Iklan Dulu (Wajib Nonton)
-        AdsManager.showHybridStack(3, async () => {
+        AdsManager.showAd('reward', async () => {
             
             // 2. Tampilkan Loading Popup
             UIEngine.showRewardPopup("CLAIMING", "Verifying task...", null, "...");
@@ -374,7 +373,6 @@ const FarmSystem = {
             }
         });
     },
-
     renderFarmGrid() {
         const grid = document.getElementById('farm-grid');
         if (!grid) return;
@@ -492,6 +490,3 @@ const FarmSystem = {
 };
 
 window.FarmSystem = FarmSystem;
-
-
-
