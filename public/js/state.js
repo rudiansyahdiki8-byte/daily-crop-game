@@ -1,62 +1,13 @@
 // js/state.js
-// State Management & Configuration
-// Updated: Telegram ID Integration for Permanent Save
+// VERSI API-ONLY: Tidak ada logika Firebase Client di sini.
+// Semua komunikasi data lewat API Vercel.
 
-// 1. KONFIGURASI PLAN
-const PlanConfig = {
-    FREE: { name: "Free Farmer", basePlots: 1, maxPlots: 1, warehouseLimit: 50, ads: "High" },
-    MORTGAGE: { name: "Mortgage Farmer", basePlots: 1, maxPlots: 1, warehouseLimit: 50, ads: "Medium" },
-    TENANT: { name: "Tenant Farmer", basePlots: 1, maxPlots: 1, warehouseLimit: 50, ads: "None" },
-    OWNER: { name: "Owner Farmer", basePlots: 1, maxPlots: 1, warehouseLimit: 9999, ads: "None" }
-};
-
-// 2. DATA HARGA & RARITY
-const PriceRanges = {};
-const CropRarity = {};
-if (window.HerbData) {
-    for (const key in HerbData) {
-        PriceRanges[key] = { min: HerbData[key].minPrice, max: HerbData[key].maxPrice };
-        CropRarity[key] = { chance: HerbData[key].chance, rarity: HerbData[key].rarity };
-    }
-}
-
-// 3. ENGINE GACHA
-const DropEngine = {
-    roll() {
-        const rand = Math.random() * 100;
-        
-        // Cek Buff Rare Luck dari User (jika ada)
-        let rareBonus = 0;
-        if (window.GameState && GameState.user && GameState.user.activeBuffs) {
-            const buffs = GameState.user.activeBuffs;
-            if (buffs['rare_luck'] && buffs['rare_luck'] > Date.now()) {
-                rareBonus = 20.0; // Tambahan 20% Chance
-            }
-        }
-
-        let cumulative = 0;
-        for (const key in CropRarity) {
-            let chance = CropRarity[key].chance;
-            
-            // Logika Bonus Rare:
-            // Jika tanaman Rare/Epic/Legendary, tambah peluangnya
-            if (CropRarity[key].rarity !== 'Common' && CropRarity[key].rarity !== 'Uncommon') {
-                chance += (chance * (rareBonus / 100)); 
-            }
-            
-            cumulative += chance;
-            if (rand <= cumulative) return key;
-        }
-        return 'ginger'; // Fallback
-    }
-};
-
-// 4. DATA DEFAULT USER
+// 1. DATA DEFAULT (Template User Baru)
 const defaultUser = {
     username: "Juragan Baru",
     userId: null, 
     plan: "FREE", 
-    coins: 0, // [FIX POIN 1] Default Coin jadi 0
+    coins: 100, // Modal awal
     lastActive: Date.now(),
     isFirstPlantDone: false, 
     totalHarvest: 0,
@@ -73,139 +24,133 @@ const defaultUser = {
     affiliate: { total_friends: 0, total_earnings: 0, friends_list: [] }
 };
 
-// 5. GAME STATE UTAMA
 let GameState = {
     user: { ...defaultUser },
     warehouse: {},
     farmPlots: [],
     market: { prices: {}, lastRefresh: 0 },
     isLoaded: false,
+    isSaving: false, // Mencegah save double
 
-async load() {
-        if (!window.db) return;
+    // --- FUNGSI LOAD (VIA API) ---
+    async load() {
+        // 1. Tentukan ID User
+        let finalUserId, finalUsername;
 
-        // --- 1. STRICT TELEGRAM CHECK ---
-        // Cek apakah data user dari Telegram tersedia
-        if (!window.Telegram || !window.Telegram.WebApp || !window.Telegram.WebApp.initDataUnsafe || !window.Telegram.WebApp.initDataUnsafe.user) {
-            // JIKA BUKAN TELEGRAM: Blokir Total
-            document.body.innerHTML = `
-                <div style="
-                    display:flex; 
-                    flex-direction:column; 
-                    align-items:center; 
-                    justify-content:center; 
-                    height:100vh; 
-                    background: radial-gradient(circle at center, #1f2937, #000); 
-                    color:white; 
-                    text-align:center; 
-                    font-family: sans-serif;
-                    padding: 20px;
-                ">
-                    <div style="font-size: 50px; margin-bottom: 20px;">⛔</div>
-                    <h1 style="color:#ef4444; font-size:24px; margin-bottom:10px; font-weight: 900; letter-spacing: 2px;">ACCESS DENIED</h1>
-                    <p style="color:#9ca3af; margin-bottom:30px; font-size: 14px;">
-                        This game is designed exclusively for Telegram.<br>
-                        Please open the bot to play.
-                    </p>
-                    <a href="https://t.me/Daily_Cropbot" 
-                       style="
-                           background: linear-gradient(to right, #10b981, #059669); 
-                           color:white; 
-                           padding: 15px 30px; 
-                           border-radius: 15px; 
-                           text-decoration:none; 
-                           font-weight:bold; 
-                           font-size: 14px;
-                           box-shadow: 0 10px 20px rgba(16,185,129,0.3);
-                           transition: transform 0.2s;
-                           border: 1px solid rgba(255,255,255,0.2);
-                       ">
-                        👉 OPEN TELEGRAM BOT
-                    </a>
-                </div>
-            `;
-            return; // Stop proses loading
+        if (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.initDataUnsafe && window.Telegram.WebApp.initDataUnsafe.user) {
+            const tgUser = window.Telegram.WebApp.initDataUnsafe.user;
+            finalUserId = "TG-" + tgUser.id;
+            finalUsername = tgUser.first_name;
+            window.Telegram.WebApp.expand();
+        } else {
+            console.warn("⚠️ Mode Browser: Menggunakan ID Tester");
+            finalUserId = "TG-TESTER-123";
+            finalUsername = "Juragan Lokal";
         }
-
-        // --- 2. JIKA LULUS, AMBIL DATA ---
-        const tgUser = window.Telegram.WebApp.initDataUnsafe.user;
-        const finalUserId = "TG-" + tgUser.id;
-        const finalUsername = tgUser.first_name + (tgUser.last_name ? " " + tgUser.last_name : "");
-        
-        window.Telegram.WebApp.expand(); // Fullscreen
-        console.log("Logged in as Telegram User:", finalUserId);
 
         this.user.userId = finalUserId;
+        console.log("🔄 [STATE] Connecting to Backend for:", finalUserId);
 
-        // --- 3. LOAD DATA FIREBASE ---
-        const userRef = window.fs.doc(window.db, "users", this.user.userId);
         try {
-            const docSnap = await window.fs.getDoc(userRef);
-            if (docSnap.exists()) {
-                const data = docSnap.data();
-                this.user = { ...defaultUser, ...data.user };
-                this.user.username = finalUsername; // Selalu update nama asli
-                this.warehouse = data.warehouse || {};
-                this.market = data.market || { prices: {}, lastRefresh: 0 };
-                this.farmPlots = data.farmPlots || [];
-            } else {
-                // User Baru
-                this.user.username = finalUsername;
-                await this.save();
-            }
-            this.isLoaded = true;
-        } catch (e) {
-            console.error("Load Failed:", e);
-            this.isLoaded = true; 
-        }
-    },
-    async save() {
-        if (!window.db || !this.isLoaded || !this.user.userId) return;
-        this.user.lastActive = Date.now();
-        
-        const userRef = window.fs.doc(window.db, "users", this.user.userId);
-        try {
-            await window.fs.setDoc(userRef, {
-                user: this.user,
-                warehouse: this.warehouse,
-                market: this.market,
-                farmPlots: this.farmPlots
-            }, { merge: true });
+            // PANGGIL API VERCEL (api/load.js)
+            const response = await fetch(`/api/load?userId=${finalUserId}`);
             
+            if (!response.ok) throw new Error(`Server Error: ${response.status}`);
+            
+            const result = await response.json();
+
+            if (result.exists && result.data) {
+                // User Lama: Pakai data dari server
+                console.log("✅ [STATE] Data loaded from Server");
+                const data = result.data;
+                this.user = { ...defaultUser, ...data.user }; // Merge agar field baru tidak hilang
+                this.user.username = finalUsername; // Update nama jaga-jaga ganti nama di TG
+                this.warehouse = data.warehouse || {};
+                this.farmPlots = data.farmPlots || [];
+                this.market = data.market || { prices: {}, lastRefresh: 0 };
+            } else {
+                // User Baru: Gunakan default dan langsung simpan ke server
+                console.log("🆕 [STATE] New User detected, creating data...");
+                this.user.username = finalUsername;
+                this.farmPlots = Array(4).fill(null).map((_, i) => ({ id: i+1, status: i===0?'empty':'locked', plant: null }));
+                await this.save(true); // Force save pertama
+            }
+
+            this.isLoaded = true;
+            
+            // Render Ulang UI setelah data masuk
             if(window.UIEngine) UIEngine.updateHeader();
+            if(window.FarmSystem) FarmSystem.init();
+
         } catch (e) {
-            console.error("Save Failed:", e);
+            console.error("❌ [STATE] Load Failed:", e);
+            alert("Gagal terhubung ke Server. Cek koneksi internet anda.");
         }
     },
 
+    // --- FUNGSI SAVE (VIA API) ---
+    async save(force = false) {
+        if (!this.isLoaded && !force) return;
+        if (this.isSaving) return; // Jangan spam save
+
+        this.isSaving = true;
+        this.user.lastActive = Date.now();
+
+        // Siapkan paket data yg mau dikirim
+        const payload = {
+            user: this.user,
+            warehouse: this.warehouse,
+            farmPlots: this.farmPlots,
+            market: this.market
+        };
+
+        try {
+            // PANGGIL API VERCEL (api/save.js)
+            const response = await fetch('/api/save', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    userId: this.user.userId,
+                    payload: payload
+                })
+            });
+
+            if (!response.ok) throw new Error("Save rejected by server");
+            // console.log("💾 [STATE] Saved successfully");
+
+        } catch (e) {
+            console.error("⚠️ [STATE] Save Failed (Background):", e);
+        } finally {
+            this.isSaving = false;
+        }
+    },
+
+    // --- UTILITIES LAINNYA ---
     refreshMarketPrices() {
         const now = Date.now();
+        // Cek config harga dari window (config.js)
+        const ranges = window.PriceRanges || {};
+        
         if (now - this.market.lastRefresh > 3600000 || Object.keys(this.market.prices).length === 0) {
             let newPrices = {};
-            for (const key in PriceRanges) {
-                const range = PriceRanges[key];
+            for (const key in ranges) {
+                const range = ranges[key];
                 newPrices[key] = Math.floor(Math.random() * (range.max - range.min + 1)) + range.min;
             }
             this.market.prices = newPrices;
             this.market.lastRefresh = now;
             this.save();
-            return true;
         }
-        return false;
     },
 
     getPrice(key) {
-        return (this.market.prices && this.market.prices[key]) ? this.market.prices[key] : (PriceRanges[key]?.min || 10);
+        return (this.market.prices && this.market.prices[key]) ? this.market.prices[key] : 10;
     }
 };
 
-// Autosave
+// Autosave setiap 10 detik
 setInterval(() => {
     if(GameState.isLoaded) GameState.save();
 }, 10000);
 
 window.GameState = GameState;
-window.PlanConfig = PlanConfig;
-window.CropRarity = CropRarity;
-window.DropEngine = DropEngine;
-window.PriceRanges = PriceRanges;
