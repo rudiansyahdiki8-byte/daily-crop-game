@@ -1,36 +1,54 @@
 // api/farm.js
 import db from './db.js';
-import { GameConfig } from './gameConfig.js';
+import { GameConfig } from './gameConfig.js'; // Pastikan path import benar
 
-// Helper: Ambil tanaman random
+// --- LOGIKA BARU: WEIGHTED RANDOM DARI CONFIG ---
 function getRandomPlant() {
     if (!GameConfig || !GameConfig.Crops) return 'ginger'; 
-    const keys = Object.keys(GameConfig.Crops);
-    if (keys.length === 0) return 'ginger';
-    return keys[Math.floor(Math.random() * keys.length)];
+    
+    const crops = GameConfig.Crops;
+    const keys = Object.keys(crops);
+    
+    // 1. Hitung Total Peluang (Total Chance)
+    // Code menjumlahkan semua 'chance' (10 + 6 + 2 + ... + 0.1)
+    let totalChance = 0;
+    keys.forEach(key => {
+        totalChance += (crops[key].chance || 10);
+    });
+
+    // 2. Kocok Angka (0 sampai TotalChance)
+    let randomPoint = Math.random() * totalChance;
+
+    // 3. Cari Pemenang
+    for (const key of keys) {
+        const chance = crops[key].chance || 10;
+        if (randomPoint < chance) {
+            return key;
+        }
+        randomPoint -= chance;
+    }
+
+    return 'ginger'; // Fallback
 }
 
 export default async function handler(req, res) {
-    res.setHeader('Access-Control-Allow-Credentials', true);
     res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'POST,OPTIONS');
+    res.setHeader('Access-Control-Allow-Methods', 'POST');
 
-    if (req.method === 'OPTIONS') return res.status(200).end();
-    if (req.method !== 'POST') return res.status(405).json({ error: 'Method Not Allowed' });
+    if (req.method !== 'POST') return res.status(405).json({ error: 'Method Error' });
 
     const { userId, action, plotIndex } = req.body;
-    if (!userId) return res.status(400).json({ error: "Missing User ID" });
+    if (!userId) return res.status(400).json({ error: "No User ID" });
 
     try {
         const userRef = db.collection('users').doc(userId);
         const doc = await userRef.get();
-
         if (!doc.exists) return res.status(404).json({ error: "User not found" });
 
         const userData = doc.data();
         let farmPlots = userData.farmPlots || [];
         
-        // Init Plots jika kosong
+        // Init Plots
         if (farmPlots.length === 0) {
              farmPlots = [
                 { id: 1, status: 'empty', plant: null, harvestAt: 0 },
@@ -39,18 +57,16 @@ export default async function handler(req, res) {
                 { id: 4, status: 'locked', plant: null, harvestAt: 0 }
             ];
         }
-
         const now = Date.now();
 
         // === ACTION: PLANT ===
         if (action === 'plant') {
             const plot = farmPlots[plotIndex];
-            
-            // Allow planting only on empty plots
-            if (!plot || plot.status !== 'empty') return res.status(400).json({ error: "Lahan tidak valid" });
+            if (!plot || plot.status !== 'empty') return res.status(400).json({ error: "Lahan penuh" });
 
+            // ACARA TANAM: Pilih bibit berdasarkan CHANCE di Config
             const seed = getRandomPlant(); 
-            const cropConfig = (GameConfig.Crops && GameConfig.Crops[seed]) ? GameConfig.Crops[seed] : { time: 60 };
+            const cropConfig = GameConfig.Crops[seed] || { time: 60 };
 
             farmPlots[plotIndex] = {
                 ...plot,
@@ -60,73 +76,56 @@ export default async function handler(req, res) {
             };
 
             await userRef.set({ farmPlots }, { merge: true });
-
             return res.status(200).json({ success: true, message: `Planted ${seed}`, farmPlots });
         }
 
         // === ACTION: HARVEST ===
         if (action === 'harvest') {
             const plot = farmPlots[plotIndex];
+            if (!plot || (plot.status !== 'growing' && plot.status !== 'ready')) return res.status(400).json({ error: "Belum siap" });
             
-            // [PERBAIKAN UTAMA DI SINI]
-            // Kita izinkan status 'growing' ATAU 'ready'.
-            // Ini mengatasi masalah jika Frontend terlanjur menyimpan status 'ready' ke DB.
-            if (!plot || (plot.status !== 'growing' && plot.status !== 'ready')) {
-                return res.status(400).json({ error: "Belum siap panen (Status Salah)" });
-            }
-            
-            // Validasi Waktu (Toleransi 5 Detik)
-            // Walaupun status sudah 'ready' di DB, kita tetap cek waktu server biar aman dari cheat.
-            if (now < plot.harvestAt - 5000) {
-                return res.status(400).json({ error: "Tunggu sebentar lagi!" });
-            }
+            if (now < plot.harvestAt - 5000) return res.status(400).json({ error: "Tunggu sebentar!" });
 
-            // 1. Hitung Hasil
             const cropName = plot.plant || 'ginger';
-            const yieldAmount = 1; 
+            
+            // ACARA PANEN: Hitung jumlah panen (Yield) berdasarkan Config
+            const cropData = GameConfig.Crops[cropName] || { minYield: 1, maxYield: 1 };
+            const min = cropData.minYield || 1;
+            const max = cropData.maxYield || 1;
+            // Random antara min dan max
+            const yieldAmount = Math.floor(Math.random() * (max - min + 1)) + min;
 
-            // 2. Auto Replant
+            // AUTO REPLANT: Tanam ulang dengan bibit baru (Random lagi)
             const newSeed = getRandomPlant();
-            const newConfig = (GameConfig.Crops && GameConfig.Crops[newSeed]) ? GameConfig.Crops[newSeed] : { time: 60 };
+            const newConfig = GameConfig.Crops[newSeed] || { time: 60 };
 
             farmPlots[plotIndex] = {
                 ...plot,
-                status: 'growing', // Kembalikan ke growing
+                status: 'growing',
                 plant: newSeed,
                 harvestAt: now + (newConfig.time * 1000)
             };
 
-            // 3. UPDATE DATABASE (Manual Math)
             const currentStock = (userData.warehouse && userData.warehouse[cropName]) ? userData.warehouse[cropName] : 0;
-            const currentTotalHarvest = (userData.user && userData.user.totalHarvest) ? userData.user.totalHarvest : 0;
+            const currentHarvest = (userData.user && userData.user.totalHarvest) ? userData.user.totalHarvest : 0;
 
-            const updatePayload = {
+            await userRef.set({
                 farmPlots: farmPlots,
-                user: {
-                    totalHarvest: currentTotalHarvest + yieldAmount
-                },
-                warehouse: {
-                    [cropName]: currentStock + yieldAmount
-                }
-            };
+                user: { totalHarvest: currentHarvest + yieldAmount },
+                warehouse: { [cropName]: currentStock + yieldAmount }
+            }, { merge: true });
 
-            await userRef.set(updatePayload, { merge: true });
-
-            const newWarehouse = { ...userData.warehouse, [cropName]: currentStock + yieldAmount };
-            
             return res.status(200).json({ 
                 success: true, 
-                message: `Harvested ${cropName}`, 
-                farmPlots: farmPlots,
-                warehouse: newWarehouse,
-                user: { ...userData.user, totalHarvest: currentTotalHarvest + yieldAmount }
+                message: `Harvested ${yieldAmount}x ${cropName}`, 
+                farmPlots: farmPlots, 
+                warehouse: { ...userData.warehouse, [cropName]: currentStock + yieldAmount },
+                user: { ...userData.user, totalHarvest: currentHarvest + yieldAmount }
             });
         }
-
         return res.status(400).json({ error: "Unknown Action" });
 
     } catch (error) {
-        console.error("Farm API Error:", error);
-        return res.status(500).json({ error: "Server Error: " + error.message });
+        return res.status(500).json({ error: error.message });
     }
 }
