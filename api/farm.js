@@ -2,19 +2,15 @@
 import db from './db.js';
 import { GameConfig } from './gameConfig.js';
 
-// Helper: Ambil tanaman random dengan aman
+// Helper: Ambil tanaman random
 function getRandomPlant() {
-    // Pengaman jika GameConfig belum siap
     if (!GameConfig || !GameConfig.Crops) return 'ginger'; 
-    
     const keys = Object.keys(GameConfig.Crops);
     if (keys.length === 0) return 'ginger';
-
     return keys[Math.floor(Math.random() * keys.length)];
 }
 
 export default async function handler(req, res) {
-    // 1. Setup Header
     res.setHeader('Access-Control-Allow-Credentials', true);
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'POST,OPTIONS');
@@ -34,7 +30,7 @@ export default async function handler(req, res) {
         const userData = doc.data();
         let farmPlots = userData.farmPlots || [];
         
-        // Init Plots jika kosong (Fail-safe)
+        // Init Plots jika kosong
         if (farmPlots.length === 0) {
              farmPlots = [
                 { id: 1, status: 'empty', plant: null, harvestAt: 0 },
@@ -46,17 +42,14 @@ export default async function handler(req, res) {
 
         const now = Date.now();
 
-        // === ACTION: PLANT (MENANAM) ===
+        // === ACTION: PLANT ===
         if (action === 'plant') {
             const plot = farmPlots[plotIndex];
-
-            if (!plot) return res.status(400).json({ error: "Plot invalid" });
-            if (plot.status !== 'empty') return res.status(400).json({ error: "Lahan tidak kosong" });
+            if (!plot || plot.status !== 'empty') return res.status(400).json({ error: "Lahan tidak valid" });
 
             const seed = getRandomPlant(); 
             const cropConfig = (GameConfig.Crops && GameConfig.Crops[seed]) ? GameConfig.Crops[seed] : { time: 60 };
 
-            // Update State Plot
             farmPlots[plotIndex] = {
                 ...plot,
                 status: 'growing',
@@ -64,32 +57,24 @@ export default async function handler(req, res) {
                 harvestAt: now + (cropConfig.time * 1000) 
             };
 
-            // Simpan Database
             await userRef.set({ farmPlots }, { merge: true });
 
-            return res.status(200).json({ 
-                success: true, 
-                message: `Planted ${seed}`,
-                farmPlots 
-            });
+            return res.status(200).json({ success: true, message: `Planted ${seed}`, farmPlots });
         }
 
-        // === ACTION: HARVEST (PANEN & REPLANT) ===
+        // === ACTION: HARVEST ===
         if (action === 'harvest') {
             const plot = farmPlots[plotIndex];
-
             if (!plot || plot.status !== 'growing') return res.status(400).json({ error: "Belum siap panen" });
             
-            // Validasi Waktu (Toleransi 5 Detik biar sinkron dengan Frontend)
-            if (now < plot.harvestAt - 5000) {
-                return res.status(400).json({ error: "Tunggu sebentar lagi!" });
-            }
+            // Toleransi Waktu 5 Detik
+            if (now < plot.harvestAt - 5000) return res.status(400).json({ error: "Tunggu sebentar lagi!" });
 
             // 1. Hitung Hasil
             const cropName = plot.plant || 'ginger';
             const yieldAmount = 1; 
 
-            // 2. Auto Replant (Tanam Ulang)
+            // 2. Auto Replant
             const newSeed = getRandomPlant();
             const newConfig = (GameConfig.Crops && GameConfig.Crops[newSeed]) ? GameConfig.Crops[newSeed] : { time: 60 };
 
@@ -100,32 +85,33 @@ export default async function handler(req, res) {
                 harvestAt: now + (newConfig.time * 1000)
             };
 
-            // 3. UPDATE DATABASE (PAKAI SET MERGE)
-            // Ini kuncinya! Kita update warehouse menggunakan dot notation di dalam merge object.
-            // Firestore otomatis membuat map 'warehouse' jika belum ada.
+            // 3. UPDATE DATABASE (MANUAL MATH - LEBIH AMAN)
+            // Kita hindari db.FieldValue.increment karena sering error di beberapa setup
+            const currentStock = (userData.warehouse && userData.warehouse[cropName]) ? userData.warehouse[cropName] : 0;
+            const currentTotalHarvest = (userData.user && userData.user.totalHarvest) ? userData.user.totalHarvest : 0;
+
             const updatePayload = {
                 farmPlots: farmPlots,
                 user: {
-                    totalHarvest: db.FieldValue.increment(yieldAmount)
+                    totalHarvest: currentTotalHarvest + yieldAmount
                 },
                 warehouse: {
-                    [cropName]: db.FieldValue.increment(yieldAmount)
+                    [cropName]: currentStock + yieldAmount
                 }
             };
 
             await userRef.set(updatePayload, { merge: true });
 
-            // 4. Ambil Data Terbaru untuk Update UI
-            // Kita ambil snapshot baru agar data gudang di frontend sinkron
-            const updatedDoc = await userRef.get();
-            const finalData = updatedDoc.data();
-
+            // 4. Return Data Terbaru
+            // Kita construct manual return-nya agar cepat (tidak perlu fetch ulang)
+            const newWarehouse = { ...userData.warehouse, [cropName]: currentStock + yieldAmount };
+            
             return res.status(200).json({ 
                 success: true, 
                 message: `Harvested ${cropName}`, 
-                farmPlots: finalData.farmPlots,
-                warehouse: finalData.warehouse || {},
-                user: finalData.user
+                farmPlots: farmPlots,
+                warehouse: newWarehouse,
+                user: { ...userData.user, totalHarvest: currentTotalHarvest + yieldAmount }
             });
         }
 
