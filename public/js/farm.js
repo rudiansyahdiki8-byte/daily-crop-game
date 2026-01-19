@@ -1,5 +1,6 @@
 // js/farm.js
-// FRONTEND FARM SYSTEM (ANTI-MACET VERSION)
+// FRONTEND FARM SYSTEM (Client Side)
+// File ini untuk TAMPILAN di Browser/HP.
 
 const FarmSystem = {
     // Helper: Ambil data tanaman dari Config
@@ -11,6 +12,7 @@ const FarmSystem = {
     isTaskMenuOpen: false,
     interval: null,
 
+    // Helper: Ambil Task dari Config
     get dailyTasks() {
         const tasks = window.GameConfig?.Tasks || {};
         return [
@@ -41,10 +43,13 @@ const FarmSystem = {
         GameState.farmPlots.forEach((plot, index) => {
             if (plot.status === 'growing' || plot.status === 'ready') return;
             
+            // Slot 1 (Index 0) selalu terbuka
             if (index === 0) {
                 if (plot.status === 'locked' || plot.status === 'disabled') plot.status = 'empty';
             } 
+            // Slot 2 butuh beli Land #2
             else if (index === 1) plot.status = (purchased >= 1) ? 'empty' : 'locked';
+            // Slot 3 butuh beli Land #3
             else if (index === 2) plot.status = (purchased >= 2) ? 'empty' : 'locked';
             else plot.status = 'disabled'; 
         });
@@ -57,33 +62,32 @@ const FarmSystem = {
         container.innerHTML = '';
         container.className = "h-full w-full relative overflow-hidden bg-transparent";
 
-        const isSpinReady = (Date.now() - (GameState.user.spin_free_cooldown || 0)) > (window.GameConfig?.Spin?.CooldownFree || 3600000);
+        const spinConfig = window.GameConfig?.Spin || { CooldownFree: 3600000 };
+        const isSpinReady = (Date.now() - (GameState.user.spin_free_cooldown || 0)) > spinConfig.CooldownFree;
 
-        // HEADER
         const header = document.createElement('div');
         header.className = "absolute top-0 left-0 right-0 p-4 flex justify-between items-start z-50 pointer-events-none";
         header.innerHTML = `
             <div class="pointer-events-auto glass px-3 py-1.5 rounded-full border border-white/10 flex items-center gap-2 bg-black/40 backdrop-blur-md shadow-lg">
                 <i class="fas fa-user-astronaut text-emerald-400 text-xs"></i>
-                <span class="text-[10px] font-black text-white uppercase tracking-wider">${GameState.user.username}</span>
+                <span class="text-[10px] font-black text-white uppercase tracking-wider">${GameState.user.username || 'Juragan'}</span>
             </div>
-            <div onclick="SpinSystem.show()" class="pointer-events-auto spin-orb ${isSpinReady ? "spin-ready" : "bg-gray-800 border-gray-600 grayscale opacity-80"} active:scale-90 cursor-pointer shadow-2xl">
+            <div onclick="if(window.SpinSystem) SpinSystem.show()" class="pointer-events-auto spin-orb ${isSpinReady ? "spin-ready" : "bg-gray-800 border-gray-600 grayscale opacity-80"} active:scale-90 cursor-pointer shadow-2xl">
                 <i class="fas fa-dharmachakra text-white text-2xl animate-[spin-slow_5s_linear_infinite]"></i>
             </div>
         `;
         container.appendChild(header);
 
-        // LEFT MENU
         const leftMenu = document.createElement('div');
         leftMenu.className = "hud-left pointer-events-auto";
         leftMenu.innerHTML = `
-            <div onclick="WarehouseSystem.show()" class="btn-diamond group">
+            <div onclick="if(window.WarehouseSystem) WarehouseSystem.show()" class="btn-diamond group">
                 <div class="btn-content-rotate">
                     <i class="fas fa-warehouse text-amber-400 text-xl group-active:text-white drop-shadow-md"></i>
                     <span class="text-[7px] font-bold text-gray-300 uppercase mt-1">Storage</span>
                 </div>
             </div>
-            <div onclick="UIEngine.navigate('Shop')" class="btn-diamond group border-blue-500">
+            <div onclick="if(window.UIEngine) UIEngine.navigate('Shop')" class="btn-diamond group border-blue-500">
                 <div class="btn-content-rotate">
                     <i class="fas fa-store text-blue-400 text-xl group-active:text-white drop-shadow-md"></i>
                     <span class="text-[7px] font-bold text-gray-300 uppercase mt-1">Market</span>
@@ -92,7 +96,6 @@ const FarmSystem = {
         `;
         container.appendChild(leftMenu);
 
-        // FARM AREA
         const farmContainer = document.createElement('div');
         farmContainer.className = "w-full h-full overflow-y-auto no-scrollbar relative z-10";
         farmContainer.innerHTML = `
@@ -103,7 +106,6 @@ const FarmSystem = {
         `;
         container.appendChild(farmContainer);
 
-        // TASK MENU
         const fabContainer = document.createElement('div');
         fabContainer.className = "fab-menu";
         fabContainer.innerHTML = `
@@ -142,28 +144,24 @@ const FarmSystem = {
         let successCount = 0;
         for (const idx of emptyIndices) {
             try {
+                // PANGGIL API FARM
                 const response = await fetch('/api/farm', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ userId: GameState.user.userId, action: 'plant', plotIndex: idx })
                 });
                 
-                // Cek jika server error (500/404)
                 if(!response.ok) throw new Error("Server Error " + response.status);
-
                 const result = await response.json();
                 
                 if (result.success) {
                     GameState.farmPlots = result.farmPlots;
                     successCount++;
-                } else {
-                    console.error("Plant Fail:", result.error);
                 }
             } catch (e) {
                 console.error("Plant Error:", e);
-                // Jika gagal, tampilkan popup error agar user tahu
-                UIEngine.showRewardPopup("ERROR", "Connection Failed: " + e.message, null, "RETRY");
-                return; // Stop loop
+                UIEngine.showRewardPopup("ERROR", "Plant Failed: " + e.message, null, "CLOSE");
+                return; 
             }
         }
 
@@ -174,7 +172,7 @@ const FarmSystem = {
         }
     },
 
-    // --- LOGIC PANEN (DIPERBAIKI: ANTI MACET) ---
+    // --- LOGIC PANEN (ANTI MACET) ---
     async harvestAll(specificIndex = null) {
         let readyIndices = [];
         if (specificIndex !== null) {
@@ -185,79 +183,71 @@ const FarmSystem = {
 
         if (readyIndices.length === 0) return;
 
-        // Cek Gudang
         if (window.WarehouseSystem && WarehouseSystem.isFull(readyIndices.length)) {
-            UIEngine.showRewardPopup("FULL", "Storage Full! Sell items first.", () => WarehouseSystem.show(), "OPEN");
+            UIEngine.showRewardPopup("FULL", "Storage Full!", () => WarehouseSystem.show(), "OPEN");
             return; 
         }
 
-        // --- BYPASS IKLAN JIKA ERROR (Agar tidak macet) ---
-        // Jika AdsManager ada, coba panggil. Jika tidak/error, langsung panen.
+        // Coba Iklan, kalau error bypass saja
         if (window.AdsManager && typeof AdsManager.showHybridStack === 'function') {
             try {
                 AdsManager.showHybridStack(2, async () => {
                     await this.executeHarvestAPI(readyIndices);
                 });
             } catch (e) {
-                console.warn("Ads Error, skipping:", e);
+                console.warn("Ads Skipped:", e);
                 await this.executeHarvestAPI(readyIndices);
             }
         } else {
-            console.warn("AdsManager missing, skipping ad.");
+            console.warn("Ads Missing");
             await this.executeHarvestAPI(readyIndices);
         }
     },
 
     async executeHarvestAPI(indices) {
-        UIEngine.showRewardPopup("HARVESTING", "Collecting crops...", null, "WAIT");
+        UIEngine.showRewardPopup("HARVESTING", "Contacting Server...", null, "WAIT");
 
         let success = false;
-        let errorMsg = "";
-
+        
         for (const idx of indices) {
             try {
-                // Animasi visual
                 const plot = GameState.farmPlots[idx];
                 const plantName = plot.plant || 'ginger';
                 this.playFlyAnimation(`assets_iso/plant_${plantName.toLowerCase()}.png`, idx);
 
-                // Panggil API
+                // PANGGIL API FARM
                 const response = await fetch('/api/farm', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ userId: GameState.user.userId, action: 'harvest', plotIndex: idx })
                 });
                 
-                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                if (!response.ok) throw new Error(`HTTP Error ${response.status}`);
                 
                 const result = await response.json();
-                
                 if (result.success) {
                     GameState.farmPlots = result.farmPlots; 
                     GameState.warehouse = result.warehouse;
                     GameState.user = result.user; 
                     success = true;
                 } else {
-                    throw new Error(result.error || "Unknown API Error");
+                    throw new Error(result.error || "Unknown Error");
                 }
             } catch (e) {
                 console.error("Harvest Failed:", e);
-                errorMsg = e.message;
-                break; // Stop loop jika error
+                UIEngine.showRewardPopup("ERROR", `Failed: ${e.message}`, null, "CLOSE");
+                return;
             }
         }
 
         if(success) {
             this.renderFarmGrid();
             if(window.UIEngine) UIEngine.updateHeader(); 
-            UIEngine.showRewardPopup("HARVEST COMPLETE", `Collected & Auto-Replanted!`, null, "AWESOME");
-        } else {
-            // JIKA MASIH ERROR, TAMPILKAN POPUP INI
-            UIEngine.showRewardPopup("ERROR", `Failed: ${errorMsg}. Did you copy gameConfig.js to api folder?`, null, "CHECK");
+            UIEngine.showRewardPopup("HARVEST COMPLETE", `Crops collected!`, null, "OK");
         }
     },
 
-    // --- ENGINE & TIMER ---
+    // --- ENGINE & RENDER GRID ---
     startEngine() {
         if(this.interval) clearInterval(this.interval);
         this.interval = setInterval(() => {
@@ -280,7 +270,6 @@ const FarmSystem = {
 
     startTaskTimer() { setInterval(() => { this.renderTaskButtons(); }, 60000); },
 
-    // --- RENDER GRID ---
     renderFarmGrid() {
         const grid = document.getElementById('farm-grid');
         if (!grid) return;
@@ -301,8 +290,9 @@ const FarmSystem = {
 
             // 1. LOCKED
             if (plot.status === 'locked') {
-                const price2 = window.GameConfig?.ShopItems?.land_2 || 5000;
-                let priceLabel = i === 1 ? (price2/1000)+"K" : "10K";
+                const shopItems = window.GameConfig?.ShopItems || {};
+                const price2 = shopItems.land_2 || 10000;
+                let priceLabel = i === 1 ? (price2/1000)+"K" : "MAX";
                 contentOverlay = `<div class="iso-ui"><div class="bg-black/80 text-yellow-400 px-2 py-1 rounded-lg text-[10px] font-black border border-yellow-500/50"><i class="fas fa-lock text-[8px] mr-1"></i>${priceLabel}</div></div>`;
                 clickAction = () => { if(window.UIEngine) UIEngine.navigate('Shop'); if(window.MarketSystem) MarketSystem.switchTab('buy'); };
             } 
@@ -419,7 +409,7 @@ const FarmSystem = {
     },
 
     handleTaskClick(task, btnElement) {
-        if (task.action === 'spin') { SpinSystem.show(); return; }
+        if (task.action === 'spin') { if(window.SpinSystem) SpinSystem.show(); return; }
         
         if(window.AdsManager) {
             AdsManager.showHybridStack(3, async () => {
