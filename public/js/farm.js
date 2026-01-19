@@ -461,24 +461,31 @@ const FarmSystem = {
         setTimeout(() => coin.remove(), 1000);
     },
 
-    startEngine() {
+startEngine() {
         if(this.interval) clearInterval(this.interval);
         this.interval = setInterval(() => {
             let change = false;
             const now = Date.now();
+            
             GameState.farmPlots.forEach(plot => {
                 if (plot.status === 'growing') {
-                    if (now >= plot.harvestAt) {
+                    // [PERBAIKAN PENTING]
+                    // Kita tambahkan buffer 5000ms (5 detik)
+                    // Jadi Visual baru berubah jadi 'READY' kalau server sudah lewat 5 detik matangnya.
+                    // Ini MENGHILANGKAN error "Bukan Waktunya Panen".
+                    if (now >= (plot.harvestAt + 5000)) { 
                         plot.status = 'ready';
-                        plot.harvestAt = 0;
+                        plot.harvestAt = 0; // Stop timer visual
                         change = true;
-                    } else {
-                        change = true;
-                    }
+                    } 
+                    // Jika belum lewat buffer, biarkan status tetap 'growing'
                 }
             });
+            
+            // Render ulang hanya jika ada perubahan status
             if (change) this.renderFarmGrid();
-        }, 1000);
+            
+        }, 1000); // Cek setiap 1 detik
     },
 
     startTaskTimer() { setInterval(() => { this.renderTaskButtons(); }, 60000); },
@@ -490,3 +497,4 @@ const FarmSystem = {
 };
 
 window.FarmSystem = FarmSystem;
+
