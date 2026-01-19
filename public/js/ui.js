@@ -5,27 +5,25 @@ const UIEngine = {
     navigate(pageId) {
         if (!window.GameState || !GameState.isLoaded) return;
         
-        // 1. Sembunyikan Semua Halaman
+        // Hide All
         this.pages.forEach(id => {
             const el = document.getElementById(id);
             if (el) el.classList.add('hidden');
         });
 
-        // 2. Tampilkan Halaman Target
+        // Show Target
         const target = document.getElementById(pageId);
         if (target) {
             target.classList.remove('hidden');
-            // Efek animasi restart
             target.classList.remove('animate-in'); 
             void target.offsetWidth; 
             target.classList.add('animate-in');
         }
 
-        // 3. Update Navigasi & Header
         this.updateNavbar(pageId);
         this.updateHeader();
 
-        // 4. Inisialisasi Sistem Khusus per Halaman
+        // Trigger Sub-Systems (Pastikan script sudah dimuat)
         if (pageId === 'Shop' && window.MarketSystem) MarketSystem.init();
         if (pageId === 'FarmingHouse' && window.FarmSystem) FarmSystem.init();
         if (pageId === 'SubscibePlan' && window.PlanSystem) PlanSystem.init();
@@ -57,20 +55,23 @@ const UIEngine = {
         const planEl = document.getElementById('display-plan');
         const planName = window.PlanConfig && window.PlanConfig[user.plan] ? window.PlanConfig[user.plan].name : "Free Farmer";
 
-        // Tambahkan fungsi klik pada Koin untuk buka Wallet
+        // [FIX TOMBOL WALLET] Klik Koin -> Buka Wallet
         if (coinEl) {
             coinEl.innerText = `${Math.floor(user.coins).toLocaleString()} PTS`;
-            coinEl.onclick = () => this.openWithdraw(); // Klik koin -> Buka Wallet
-            coinEl.style.cursor = "pointer";
+            coinEl.style.cursor = "pointer"; 
+            coinEl.onclick = () => this.openWithdraw(); 
         }
+
         if (nameEl) nameEl.innerText = user.username;
         if (planEl) planEl.innerText = planName;
     },
 
+    // --- UPDATE DASHBOARD (ENCYLOPEDIA TETAP ADA) ---
     updateDashboard() {
         if (!GameState.user) return;
         const user = GameState.user;
 
+        // 1. Update Text Data Standar
         const dName = document.getElementById('dash-username');
         const dId = document.getElementById('dash-id');
         const dPlan = document.getElementById('dash-plan');
@@ -79,73 +80,112 @@ const UIEngine = {
 
         if (dName) dName.innerText = user.username;
         if (dId) dId.innerText = `ID: ${user.userId ? user.userId.replace('TG-', '') : '...'}`;
-        if (dPlan) dPlan.innerText = window.PlanConfig[user.plan]?.name || user.plan;
+        if (dPlan) dPlan.innerText = window.PlanConfig && window.PlanConfig[user.plan] ? window.PlanConfig[user.plan].name : user.plan;
         if (dHarvest) dHarvest.innerText = (user.totalHarvest || 0).toLocaleString();
         if (dSold) dSold.innerText = (user.totalSold || 0).toLocaleString();
+
+        // 2. INJECT ENCYCLOPEDIA BUTTON (Agar user bisa cek harga)
+        const dashboard = document.getElementById('Dashboard');
+        let encyBtn = document.getElementById('encyclopedia-trigger');
+        
+        if (!encyBtn && dashboard) {
+            const userInfoCard = dashboard.querySelector('.glass'); 
+            if (userInfoCard) {
+                const btnContainer = document.createElement('div');
+                btnContainer.className = "w-full mt-2 mb-4";
+                btnContainer.innerHTML = `
+                    <button id="encyclopedia-trigger" onclick="UIEngine.showEncyclopedia()" class="w-full glass p-3 rounded-2xl border border-white/10 flex items-center justify-between active:scale-95 transition-all group">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 bg-indigo-500/20 rounded-xl flex items-center justify-center border border-indigo-500/30">
+                                <i class="fas fa-book-open text-indigo-400 group-hover:scale-110 transition-transform"></i>
+                            </div>
+                            <div class="text-left">
+                                <h4 class="text-[9px] font-black text-white uppercase tracking-wide">Herb Encyclopedia</h4>
+                                <p class="text-[7px] text-gray-400">View Rarity & Prices</p>
+                            </div>
+                        </div>
+                        <i class="fas fa-chevron-right text-gray-500 text-xs"></i>
+                    </button>
+                `;
+                userInfoCard.after(btnContainer);
+            }
+        }
 
         this.renderMiniWarehouse();
         this.renderSalesHistory();
     },
 
-    // --- PENGHUBUNG TOMBOL (CRITICAL FIX) ---
-    
-    // 1. Gudang (Warehouse)
-    showWarehouse() {
-        if(window.WarehouseSystem && WarehouseSystem.show) {
-            WarehouseSystem.show();
-        } else {
-            console.error("WarehouseSystem belum siap!");
-            // Fallback jika system belum load
-            this.showRewardPopup("LOADING", "System is loading...", null, "WAIT");
-        }
-    },
-
-    // 2. Dompet (Wallet/Withdraw)
-    openWithdraw() {
-        // PERBAIKAN: Langsung panggil WithdrawSystem, jangan cari ID manual
-        if (window.WithdrawSystem && WithdrawSystem.show) {
-            WithdrawSystem.show();
-        } else {
-            console.error("WithdrawSystem belum siap!");
-        }
-    },
-    
-    // Fungsi lama untuk menutup (opsional, karena system handle sendiri)
-    closeWithdraw() {
-        if (window.WithdrawSystem && WithdrawSystem.close) {
-            WithdrawSystem.close();
-        }
-    },
-
-    // --- MODAL & POPUP UTILITY ---
-
-    showRewardPopup(title, message, onConfirm = null, buttonText = "CLAIM") {
-        const old = document.getElementById('system-popup');
-        if (old) old.remove();
-
+    // --- ENCYCLOPEDIA LOGIC (JANGAN DIBUANG) ---
+    showEncyclopedia() {
         const overlay = document.createElement('div');
-        overlay.id = "system-popup";
-        overlay.className = "fixed inset-0 bg-black/90 backdrop-blur-sm z-[2000] flex items-center justify-center p-6 animate-in";
-        overlay.innerHTML = `
-            <div class="glass w-full max-w-xs rounded-[2rem] p-6 border border-white/10 text-center shadow-2xl relative overflow-hidden">
-                <div class="w-16 h-16 bg-emerald-500/20 rounded-full flex items-center justify-center mx-auto mb-4 border border-emerald-500/30">
-                    <i class="fas fa-gift text-emerald-400 text-3xl animate-bounce"></i>
+        overlay.id = "ency-modal";
+        overlay.className = "fixed inset-0 bg-black/95 backdrop-blur-xl z-[200] flex flex-col p-4 animate-in";
+        
+        // Header
+        let html = `
+            <div class="flex justify-between items-center mb-4 shrink-0">
+                <div>
+                    <h2 class="text-2xl font-black text-white italic uppercase tracking-wider">Encyclopedia</h2>
+                    <p class="text-[9px] text-gray-400 font-bold uppercase tracking-widest">Market Index & Rarity</p>
                 </div>
-                <h3 class="text-xl font-black text-white mb-2 uppercase italic tracking-wider">${title}</h3>
-                <p class="text-[10px] text-gray-400 mb-6 leading-relaxed font-bold uppercase px-2">${message}</p>
-                <button id="popup-confirm-btn" class="w-full py-4 bg-gradient-to-r from-emerald-500 to-emerald-600 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest active:scale-95 transition-all shadow-lg">
-                    ${buttonText}
+                <button onclick="document.getElementById('ency-modal').remove()" class="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center text-gray-400 hover:bg-red-500 hover:text-white transition-all">
+                    <i class="fas fa-times text-xs"></i>
                 </button>
             </div>
+            <div class="pt-20 pb-28 px-4 overflow-y-auto no-scrollbar relative">
         `;
+
+        // Render List Tanaman
+        if (window.HerbData) {
+            Object.keys(window.HerbData).forEach(key => {
+                const herb = window.HerbData[key];
+                // Ambil harga dari GameState (Logic harga dinamis)
+                const currentPrice = (GameState.getPrice) ? GameState.getPrice(key) : ((herb.minPrice + herb.maxPrice)/2);
+                
+                const avg = (herb.minPrice + herb.maxPrice) / 2;
+                const change = ((currentPrice - avg) / avg) * 100;
+                const isUp = change >= 0;
+                
+                const rarityClass = `rarity-${herb.rarity ? herb.rarity.toLowerCase() : 'common'}`; 
+                const badgeClass = `bg-rarity-${herb.rarity ? herb.rarity.toLowerCase() : 'common'}`;
+                
+                html += `
+                    <div class="glass p-3 rounded-2xl border flex items-center gap-4 relative overflow-hidden ${rarityClass} mb-3">
+                        <div class="absolute -right-4 -top-4 opacity-10 text-6xl rotate-12"><i class="fas fa-leaf"></i></div>
+                        
+                        <div class="w-14 h-14 bg-black/30 rounded-xl flex items-center justify-center shrink-0 border border-white/5">
+                            <img src="${herb.img}" class="w-10 h-10 object-contain drop-shadow-md">
+                        </div>
+                        
+                        <div class="flex-1 z-10">
+                            <div class="flex justify-between items-start mb-1">
+                                <h3 class="text-[10px] font-black text-white uppercase tracking-wide">${herb.name}</h3>
+                                <span class="text-[6px] font-bold px-1.5 py-0.5 rounded uppercase ${badgeClass}">${herb.rarity}</span>
+                            </div>
+                            
+                            <div class="flex justify-between items-end">
+                                <div>
+                                    <p class="text-[7px] text-gray-400">Growth: ${(herb.time/60)} Mins</p>
+                                    <p class="text-[7px] text-gray-400">Range: ${herb.minPrice}-${herb.maxPrice}</p>
+                                </div>
+                                <div class="text-right">
+                                    <p class="text-[10px] font-black text-white">${currentPrice} PTS</p>
+                                    <p class="text-[7px] font-bold ${isUp ? 'trend-up' : 'trend-down'}">
+                                        <i class="fas fa-caret-${isUp ? 'up' : 'down'}"></i> ${Math.abs(change).toFixed(2)}%
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+        }
+
+        html += `</div>`;
+        overlay.innerHTML = html;
         document.body.appendChild(overlay);
-        document.getElementById('popup-confirm-btn').onclick = () => {
-            overlay.remove();
-            if (onConfirm) onConfirm();
-        };
     },
 
-    // --- MINI WIDGETS (DASHBOARD) ---
     renderMiniWarehouse() {
         const container = document.getElementById('mini-warehouse-grid');
         if (!container || !GameState.warehouse) return;
@@ -174,33 +214,141 @@ const UIEngine = {
         if (!container) return;
         container.innerHTML = '';
         
-        // Ambil data dari User History (jika ada)
-        const transactions = GameState.user.history || [];
-        
+        let transactions = [];
+        // Support sistem history lama & baru
+        if (window.HistorySystem) {
+            transactions = HistorySystem.getAllTransactions();
+        } else if (GameState.user && GameState.user.history) {
+            transactions = GameState.user.history;
+        }
+
         if (transactions.length === 0) {
             container.innerHTML = `<div class="text-center py-4"><p class="text-[9px] text-gray-600 font-bold uppercase">No activity yet</p></div>`;
             return;
         }
-
+        
         transactions.slice(0, 5).forEach(tx => {
             const isPlus = tx.type !== 'withdraw'; 
             const color = isPlus ? 'text-emerald-400' : 'text-red-400';
-            
+            const title = tx.method || tx.title || 'Transaction';
+            const date = tx.date || 'Recent';
+            const amount = tx.amount || 0;
+
             container.innerHTML += `
                 <div class="bg-white/5 p-2 rounded-xl flex justify-between items-center border border-white/5 mb-1.5">
                     <div class="flex items-center gap-2">
-                        <i class="fas ${tx.method === 'FaucetPay Auto' ? 'fa-wallet' : 'fa-sack-dollar'} ${color} text-xs w-4 text-center"></i>
+                        <i class="fas ${title.includes('FaucetPay') ? 'fa-wallet' : 'fa-sack-dollar'} ${color} text-xs w-4 text-center"></i>
                         <div>
-                            <p class="text-[9px] font-black text-white uppercase truncate max-w-[120px]">${tx.method || 'Sale'}</p>
-                            <p class="text-[7px] text-gray-400">${tx.date}</p>
+                            <p class="text-[9px] font-black text-white uppercase truncate max-w-[120px]">${title}</p>
+                            <p class="text-[7px] text-gray-400">${date}</p>
                         </div>
                     </div>
                     <div class="text-right">
-                        <p class="text-[9px] font-black ${color}">${isPlus ? '+' : '-'}${tx.amount}</p>
+                        <p class="text-[9px] font-black ${color}">${isPlus ? '+' : '-'}${amount}</p>
                     </div>
                 </div>
             `;
         });
+    },
+
+    // --- PENGHUBUNG TOMBOL (BAGIAN INI YANG KITA PERBAIKI) ---
+
+    // 1. Gudang (Warehouse)
+    showWarehouse() {
+        if(window.WarehouseSystem && WarehouseSystem.show) {
+            // Panggil sistem baru
+            WarehouseSystem.show();
+        } else {
+            // Fallback pesan loading jika script belum siap
+            console.warn("WarehouseSystem loading...");
+            this.showRewardPopup("LOADING", "System is initializing...", null, "WAIT");
+        }
+    },
+
+    // 2. Dompet (Wallet/Withdraw)
+    openWithdraw() {
+        // Cek apakah sistem baru siap
+        if (window.WithdrawSystem) {
+            if (typeof WithdrawSystem.show === 'function') {
+                WithdrawSystem.show(); // Cara Baru
+            } else if (typeof WithdrawSystem.init === 'function') {
+                WithdrawSystem.init(); // Cara Lama (Fallback)
+                const modal = document.getElementById('withdraw-modal') || document.getElementById('WalletModal');
+                if (modal) modal.classList.remove('hidden');
+            }
+        } else {
+            console.error("WithdrawSystem missing!");
+        }
+    },
+    
+    closeWithdraw() {
+        if (window.WithdrawSystem && WithdrawSystem.close) {
+            WithdrawSystem.close();
+        } else {
+             document.getElementById('withdraw-modal')?.classList.add('hidden');
+             document.getElementById('WalletModal')?.classList.add('hidden');
+        }
+    },
+
+    // --- MODAL & UTILS ---
+
+    showRewardPopup(title, message, onConfirm = null, buttonText = "CLAIM") {
+        const old = document.getElementById('system-popup');
+        if (old) old.remove();
+
+        const overlay = document.createElement('div');
+        overlay.id = "system-popup";
+        overlay.className = "fixed inset-0 bg-black/90 backdrop-blur-sm z-[2000] flex items-center justify-center p-6 animate-in";
+        overlay.innerHTML = `
+            <div class="glass w-full max-w-xs rounded-[2rem] p-6 border border-white/10 text-center shadow-2xl relative overflow-hidden">
+                <div class="w-16 h-16 bg-emerald-500/20 rounded-full flex items-center justify-center mx-auto mb-4 border border-emerald-500/30">
+                    <i class="fas fa-gift text-emerald-400 text-3xl animate-bounce"></i>
+                </div>
+                <h3 class="text-xl font-black text-white mb-2 uppercase italic tracking-wider">${title}</h3>
+                <p class="text-[10px] text-gray-400 mb-6 leading-relaxed font-bold uppercase px-2">${message}</p>
+                <button id="popup-confirm-btn" class="w-full py-4 bg-gradient-to-r from-emerald-500 to-emerald-600 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest active:scale-95 transition-all shadow-lg">
+                    ${buttonText}
+                </button>
+            </div>
+        `;
+        document.body.appendChild(overlay);
+        document.getElementById('popup-confirm-btn').onclick = () => {
+            overlay.remove();
+            if (onConfirm) onConfirm();
+        };
+    },
+
+    showTextModal(title, contentHTML) {
+        const overlay = document.createElement('div');
+        overlay.className = "fixed inset-0 bg-black/95 backdrop-blur-xl z-[300] flex flex-col p-6 animate-in";
+        overlay.innerHTML = `
+            <div class="flex justify-between items-center mb-6 shrink-0">
+                <h2 class="text-xl font-black text-white italic uppercase tracking-wider border-l-4 border-emerald-500 pl-3">${title}</h2>
+                <button onclick="this.closest('.fixed').remove()" class="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center text-gray-400 hover:bg-red-500 hover:text-white transition-all"><i class="fas fa-times text-xs"></i></button>
+            </div>
+            <div class="flex-1 overflow-y-auto no-scrollbar text-content bg-white/5 p-4 rounded-2xl border border-white/5 shadow-inner">
+                ${contentHTML}
+            </div>
+            <div class="mt-4 text-center">
+                <p class="text-[7px] text-gray-500 font-mono">Daily Crop v1.0.0 (Beta)</p>
+            </div>
+        `;
+        document.body.appendChild(overlay);
+    },
+
+    // OTHER MODALS
+    showPrivacy() {
+        this.showTextModal("Privacy Policy", `<p>Your data is secure. We only store User ID & Progress.</p>`);
+    },
+    showTermsModal() { 
+        this.showTextModal("Terms of Use", `<p>Play fair. No cheating.</p>`);
+    },
+    showTutorial() {
+        this.showTextModal("How to Play", `
+            <h3>Step 1: Farming</h3><p>Plant & Harvest.</p>
+            <h3>Step 2: Selling</h3><p>Sell at Market for profit.</p>
+            <h3>Step 3: Withdraw</h3><p>Get your rewards.</p>
+        `);
     }
 };
 
