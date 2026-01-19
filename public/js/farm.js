@@ -1,5 +1,5 @@
 // js/farm.js
-// FRONTEND FARM SYSTEM (CONNECTED TO VERCEL API)
+// FRONTEND FARM SYSTEM (ANTI-MACET VERSION)
 
 const FarmSystem = {
     // Helper: Ambil data tanaman dari Config
@@ -11,7 +11,6 @@ const FarmSystem = {
     isTaskMenuOpen: false,
     interval: null,
 
-    // Tugas Harian
     get dailyTasks() {
         const tasks = window.GameConfig?.Tasks || {};
         return [
@@ -51,7 +50,7 @@ const FarmSystem = {
         });
     },
 
-    // --- RENDER LAYOUT UTAMA ---
+    // --- RENDER LAYOUT ---
     renderLayout() {
         const container = document.getElementById('FarmingHouse');
         if (!container) return;
@@ -148,18 +147,23 @@ const FarmSystem = {
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ userId: GameState.user.userId, action: 'plant', plotIndex: idx })
                 });
+                
+                // Cek jika server error (500/404)
+                if(!response.ok) throw new Error("Server Error " + response.status);
+
                 const result = await response.json();
                 
                 if (result.success) {
                     GameState.farmPlots = result.farmPlots;
                     successCount++;
                 } else {
-                    // Jika ada error spesifik dari server
                     console.error("Plant Fail:", result.error);
                 }
             } catch (e) {
                 console.error("Plant Error:", e);
-                // Jangan popup dulu biar loop lanjut, nanti cek successCount
+                // Jika gagal, tampilkan popup error agar user tahu
+                UIEngine.showRewardPopup("ERROR", "Connection Failed: " + e.message, null, "RETRY");
+                return; // Stop loop
             }
         }
 
@@ -167,13 +171,10 @@ const FarmSystem = {
             await GameState.save();
             this.renderFarmGrid();
             UIEngine.showRewardPopup("PLANTED", `Planted ${successCount} seeds!`, null, "GROW!");
-        } else {
-            // Jika gagal total, beri tahu user
-            UIEngine.showRewardPopup("ERROR", "Failed to plant. Check internet or config!", null, "RETRY");
         }
     },
 
-    // --- LOGIC PANEN (DIPERBAIKI) ---
+    // --- LOGIC PANEN (DIPERBAIKI: ANTI MACET) ---
     async harvestAll(specificIndex = null) {
         let readyIndices = [];
         if (specificIndex !== null) {
@@ -190,13 +191,18 @@ const FarmSystem = {
             return; 
         }
 
-        // Cek AdsManager (Anti Macet)
+        // --- BYPASS IKLAN JIKA ERROR (Agar tidak macet) ---
+        // Jika AdsManager ada, coba panggil. Jika tidak/error, langsung panen.
         if (window.AdsManager && typeof AdsManager.showHybridStack === 'function') {
-            AdsManager.showHybridStack(2, async () => {
+            try {
+                AdsManager.showHybridStack(2, async () => {
+                    await this.executeHarvestAPI(readyIndices);
+                });
+            } catch (e) {
+                console.warn("Ads Error, skipping:", e);
                 await this.executeHarvestAPI(readyIndices);
-            });
+            }
         } else {
-            // Fallback aman jika AdsManager belum siap (Langsung Panen)
             console.warn("AdsManager missing, skipping ad.");
             await this.executeHarvestAPI(readyIndices);
         }
@@ -222,10 +228,7 @@ const FarmSystem = {
                     body: JSON.stringify({ userId: GameState.user.userId, action: 'harvest', plotIndex: idx })
                 });
                 
-                // Cek status HTTP (misal 500 Server Error)
-                if (!response.ok) {
-                    throw new Error(`Server Error (${response.status})`);
-                }
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
                 
                 const result = await response.json();
                 
@@ -240,8 +243,7 @@ const FarmSystem = {
             } catch (e) {
                 console.error("Harvest Failed:", e);
                 errorMsg = e.message;
-                // Stop loop jika error, agar user tahu ada masalah
-                break; 
+                break; // Stop loop jika error
             }
         }
 
@@ -250,8 +252,8 @@ const FarmSystem = {
             if(window.UIEngine) UIEngine.updateHeader(); 
             UIEngine.showRewardPopup("HARVEST COMPLETE", `Collected & Auto-Replanted!`, null, "AWESOME");
         } else {
-            // TAMPILKAN ERROR JIKA GAGAL (PENTING!)
-            UIEngine.showRewardPopup("ERROR", `Harvest Failed: ${errorMsg}. Check api/gameConfig.js!`, null, "FIX");
+            // JIKA MASIH ERROR, TAMPILKAN POPUP INI
+            UIEngine.showRewardPopup("ERROR", `Failed: ${errorMsg}. Did you copy gameConfig.js to api folder?`, null, "CHECK");
         }
     },
 
@@ -288,7 +290,7 @@ const FarmSystem = {
         const plots = GameState.farmPlots || [];
         for (let i = 0; i < this.maxVisibleSlots; i++) {
             const plot = plots[i];
-            if(!plot) continue; // Safety check
+            if(!plot) continue;
 
             const div = document.createElement('div');
             div.className = 'plot-container';
@@ -342,7 +344,6 @@ const FarmSystem = {
         if (!grid || !grid.children[index]) return;
         
         const rect = grid.children[index].getBoundingClientRect();
-        // Target ke icon storage
         const targetEl = document.querySelector('.fa-warehouse'); 
         const targetRect = targetEl ? targetEl.getBoundingClientRect() : { left: window.innerWidth/2, top: 0 };
         
@@ -368,14 +369,12 @@ const FarmSystem = {
         if(!listContent) return;
         listContent.innerHTML = '';
 
-        // Tombol Plant
         const plantBtn = document.createElement('button');
         plantBtn.className = "w-full bg-emerald-500/20 hover:bg-emerald-500/40 border border-emerald-500/50 rounded-xl py-1 px-2 flex items-center gap-3 transition-all active:scale-95";
         plantBtn.innerHTML = `<div class="w-8 h-8 rounded-full bg-emerald-500 flex items-center justify-center text-white"><i class="fas fa-seedling text-xs"></i></div><span class="text-[9px] font-black uppercase text-white">Plant Random</span>`;
         plantBtn.onclick = () => { this.plantAll(); };
         listContent.appendChild(plantBtn);
 
-        // List Task
         const cooldowns = GameState.user.task_cooldowns || {};
         const now = Date.now();
         let readyCount = 0;
@@ -422,7 +421,6 @@ const FarmSystem = {
     handleTaskClick(task, btnElement) {
         if (task.action === 'spin') { SpinSystem.show(); return; }
         
-        // Client side task reward (Simulasi)
         if(window.AdsManager) {
             AdsManager.showHybridStack(3, async () => {
                 GameState.user.coins += task.reward;
