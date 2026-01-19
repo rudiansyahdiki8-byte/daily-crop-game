@@ -11,7 +11,6 @@ export default async function handler(req, res) {
     if (req.method !== 'POST') return res.status(405).json({ error: 'Method Not Allowed' });
 
     const { userId, action, itemName, amount } = req.body;
-
     if (!userId) return res.status(400).json({ error: "Missing User ID" });
 
     try {
@@ -23,37 +22,36 @@ export default async function handler(req, res) {
         const userData = doc.data();
         const warehouse = userData.warehouse || {};
         
-        // === ACTION: SELL (JUAL ITEM) ===
         if (action === 'sell') {
             const currentQty = warehouse[itemName] || 0;
             const sellAmount = parseInt(amount);
 
-            if (currentQty < sellAmount) {
-                return res.status(400).json({ error: "Stok tidak cukup!" });
-            }
+            if (currentQty < sellAmount) return res.status(400).json({ error: "Stok tidak cukup!" });
 
-            // 1. Hitung Harga
-            // Ambil harga dasar dari Config (Default 10 jika error)
+            // Hitung Harga
             const cropConfig = (GameConfig.Crops && GameConfig.Crops[itemName]) ? GameConfig.Crops[itemName] : { sellPrice: 10 };
             let pricePerItem = cropConfig.sellPrice || 10;
 
-            // 2. Cek Bonus Plan (Membership)
+            // Cek Bonus Plan
             const plan = (userData.user && userData.user.plan) ? userData.user.plan : 'FREE';
             let bonusMultiplier = 1;
-            if (plan === 'MORTGAGE') bonusMultiplier = 1.05; // +5%
-            if (plan === 'TENANT') bonusMultiplier = 1.15;   // +15%
-            if (plan === 'OWNER') bonusMultiplier = 1.30;    // +30%
+            if (plan === 'MORTGAGE') bonusMultiplier = 1.05;
+            if (plan === 'TENANT') bonusMultiplier = 1.15;
+            if (plan === 'OWNER') bonusMultiplier = 1.30;
 
             const totalPrice = Math.floor(sellAmount * pricePerItem * bonusMultiplier);
 
-            // 3. Update Database (Atomic)
-            // Kurangi stok, Tambah koin
+            // Manual Math untuk Koin & Stok
+            const currentCoins = userData.user.coins || 0;
+            const newStock = currentQty - sellAmount;
+            const newCoins = currentCoins + totalPrice;
+
             await userRef.set({
                 warehouse: {
-                    [itemName]: db.FieldValue.increment(-sellAmount)
+                    [itemName]: newStock
                 },
                 user: {
-                    coins: db.FieldValue.increment(totalPrice)
+                    coins: newCoins
                 }
             }, { merge: true });
 
@@ -61,14 +59,11 @@ export default async function handler(req, res) {
                 success: true, 
                 message: `Sold ${sellAmount} ${itemName}`,
                 earned: totalPrice,
-                newStock: currentQty - sellAmount
+                newStock: newStock
             });
         }
-
         return res.status(400).json({ error: "Unknown Action" });
-
     } catch (error) {
-        console.error("Market API Error:", error);
         return res.status(500).json({ error: "Server Error" });
     }
 }
