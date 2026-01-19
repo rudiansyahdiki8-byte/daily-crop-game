@@ -1,12 +1,9 @@
 // js/spin.js
-// Flow: (Free) Watch Ad -> Call Server -> Spin Animation -> Show Result
-// Flow: (Paid) Call Server -> Spin Animation -> Show Result
-
 const SpinSystem = {
     cooldownTime: window.GameConfig.Spin?.CooldownFree || 3600000, 
     isSpinning: false,
 
-    // VISUAL SEGMEN (Harus urut sesuai logika API server 0-7)
+    // VISUAL SEGMEN (Pastikan ID urut 0-7)
     segments: [
         { id: 0, label: 'LOW', color: '#60a5fa', icon: 'fa-coins' },       
         { id: 1, label: 'HERB', color: '#4ade80', icon: 'fa-leaf' }, 
@@ -25,6 +22,7 @@ const SpinSystem = {
         overlay.id = "spin-popup";
         overlay.className = "fixed inset-0 bg-black/95 backdrop-blur-xl z-[999] flex items-center justify-center p-4 animate-in";
         
+        // CSS Roda
         const style = document.createElement('style');
         style.innerHTML = `
             .wheel-container { position: relative; width: 280px; height: 280px; border-radius: 50%; border: 4px solid rgba(255,255,255,0.1); overflow: hidden; box-shadow: 0 0 50px rgba(16,185,129,0.2); transition: transform 4s cubic-bezier(0.15, 0, 0.15, 1); }
@@ -46,17 +44,16 @@ const SpinSystem = {
                     </div>
                 </div>`;
         });
+        
         const gradientColors = this.segments.map((s, i) => `${s.color} ${i * 12.5}% ${(i + 1) * 12.5}%`).join(', ');
-        const spinCost = window.GameConfig.Spin?.CostPaid || 1000;
+        const spinCost = window.GameConfig.Spin?.CostPaid || 150; // Tampilkan Harga
 
         overlay.innerHTML = `
             <div class="glass w-full max-w-sm rounded-[2.5rem] p-6 border border-white/10 text-center relative overflow-hidden shadow-2xl flex flex-col items-center">
                 <button onclick="SpinSystem.close()" class="absolute top-6 right-6 w-8 h-8 rounded-full bg-white/5 flex items-center justify-center text-gray-400 hover:bg-red-500 hover:text-white transition-all z-20"><i class="fas fa-times text-xs"></i></button>
                 
                 <h2 class="text-2xl font-black text-white mb-1 uppercase italic tracking-widest text-indigo-400 drop-shadow-lg">Lucky Spin</h2>
-                <p class="text-[9px] text-gray-400 font-bold mb-6 uppercase tracking-widest">Test Your Luck!</p>
-
-                <div class="relative mb-8">
+                <div class="relative mb-8 mt-4">
                     <div class="pointer-arrow"></div>
                     <div id="real-wheel" class="wheel-container" style="background: conic-gradient(${gradientColors});">
                         ${wheelHTML}
@@ -84,9 +81,8 @@ const SpinSystem = {
     async start(type) {
         if (this.isSpinning) return;
         
-        // 1. Logic Free: Nonton Iklan Dulu
+        // 1. FREE: Nonton Iklan Dulu
         if (type === 'free') {
-            // Cek Timer Client Side (Pre-check)
             const lastSpin = GameState.user.spin_free_cooldown || 0;
             const remaining = this.cooldownTime - (Date.now() - parseInt(lastSpin));
             if (remaining > 0) {
@@ -94,20 +90,19 @@ const SpinSystem = {
                 return;
             }
 
-            // Panggil Iklan
             if(window.AdsManager) {
                 AdsManager.showHybridStack(2, () => {
-                    this.callServer(type); // Iklan Sukses -> Call Server
+                    this.callServer(type); // Iklan Beres -> Panggil Server
                 });
             } else {
-                this.callServer(type); // Fallback jika ads blocked
+                this.callServer(type); 
             }
         } 
-        // 2. Logic Paid: Langsung Server
+        // 2. PAID: Langsung Server
         else {
-            const cost = window.GameConfig.Spin?.CostPaid || 1000;
+            const cost = window.GameConfig.Spin?.CostPaid || 150;
             if (GameState.user.coins < cost) {
-                UIEngine.showRewardPopup("NO COINS", `Need ${cost} PTS to spin.`, null, "CLOSE");
+                UIEngine.showRewardPopup("NO COINS", `Saldo kurang. Butuh ${cost} PTS`, null, "CLOSE");
                 return;
             }
             this.callServer(type);
@@ -116,15 +111,11 @@ const SpinSystem = {
 
     async callServer(type) {
         this.isSpinning = true;
-        
-        // Disable Tombol
-        const btnFree = document.getElementById('btn-spin-free');
-        const btnPaid = document.getElementById('btn-spin-paid');
-        if(btnFree) btnFree.disabled = true;
-        if(btnPaid) btnPaid.disabled = true;
+        // Matikan Tombol
+        if(document.getElementById('btn-spin-free')) document.getElementById('btn-spin-free').disabled = true;
+        if(document.getElementById('btn-spin-paid')) document.getElementById('btn-spin-paid').disabled = true;
 
         try {
-            // REQUEST KE API
             const response = await fetch('/api/spin', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -133,25 +124,22 @@ const SpinSystem = {
             const result = await response.json();
 
             if (result.success) {
-                // Update State (Koin berkurang/bertambah sudah diurus server)
-                // Kita update lokal agar UI sinkron
+                // UPDATE KOIN DI FRONTEND (Agar sinkron dengan server)
                 GameState.user.coins = result.userCoins;
-                if(result.userCooldown) GameState.user.spin_free_cooldown = result.userCooldown;
                 if(result.warehouse) GameState.warehouse = result.warehouse;
+                if(result.userCooldown) GameState.user.spin_free_cooldown = result.userCooldown;
 
-                // PUTAR RODA VISUAL SESUAI HASIL SERVER
+                // PUTAR ANIMASI SESUAI HASIL SERVER
                 this.animateWheel(result.targetIndex, result.reward);
             } else {
-                UIEngine.showRewardPopup("ERROR", result.error || "Spin Failed", null, "CLOSE");
+                UIEngine.showRewardPopup("ERROR", result.error || "Spin Gagal", null, "CLOSE");
                 this.isSpinning = false;
                 this.updateTimer();
             }
-
         } catch (e) {
             console.error(e);
-            UIEngine.showRewardPopup("ERROR", "Connection Error", null, "RETRY");
+            UIEngine.showRewardPopup("ERROR", "Koneksi Server Gagal", null, "RETRY");
             this.isSpinning = false;
-            this.updateTimer();
         }
     },
 
@@ -159,32 +147,27 @@ const SpinSystem = {
         const wheel = document.getElementById('real-wheel');
         if(!wheel) return;
 
-        // Hitung Rotasi
-        // 0 derajat ada di atas (12 jam). Target index 0 ada di 0 derajat.
-        // Kita perlu memutar papan agar index target mendarat di arah jarum (atas).
+        // Logic Rotasi
         const segmentAngle = 360 / 8;
-        // Agar target ada di atas, rotasi harus negatif (berlawanan) atau 360 - target
-        // Random offset agar tidak selalu tepat di tengah garis
         const randomOffset = Math.floor(Math.random() * 20) - 10; 
-        const spinRounds = 5 * 360; // 5 putaran penuh
+        const spinRounds = 5 * 360; 
         const targetRotation = spinRounds + (360 - (targetIndex * segmentAngle)) + randomOffset;
 
         wheel.style.transition = "transform 4s cubic-bezier(0.15, 0, 0.15, 1)";
         wheel.style.transform = `rotate(${targetRotation}deg)`;
 
-        // Setelah Animasi Selesai
         setTimeout(() => {
             this.isSpinning = false;
-            UIEngine.updateHeader(); // Update koin di header
+            if(window.UIEngine) UIEngine.updateHeader(); // Update tampilan koin header
+            
             UIEngine.showRewardPopup(
                 "CONGRATULATIONS", 
                 `<div class="flex flex-col items-center gap-2">
                     <span class="text-3xl animate-bounce">🎁</span>
                     <span class="text-lg font-black text-white uppercase">${reward.name}</span>
-                    <span class="text-[9px] text-gray-400">Has been added to your account!</span>
                 </div>`, 
                 null, 
-                "AWESOME"
+                "CLAIM"
             );
             this.updateTimer();
         }, 4000);
@@ -192,34 +175,31 @@ const SpinSystem = {
 
     updateTimer: function() {
         const freeBtn = document.getElementById('btn-spin-free');
-        const lastSpin = GameState.user.spin_free_cooldown || 0;
         if (!freeBtn) return;
         if (this.timerInterval) clearInterval(this.timerInterval);
         
+        const lastSpin = GameState.user.spin_free_cooldown || 0;
         const cdTime = this.cooldownTime; 
 
         this.timerInterval = setInterval(() => {
             const remaining = cdTime - (Date.now() - parseInt(lastSpin));
             if (remaining > 0) {
                 freeBtn.disabled = true; 
-                freeBtn.classList.add('opacity-50', 'cursor-not-allowed', 'grayscale');
+                freeBtn.classList.add('opacity-50', 'grayscale');
                 const mins = Math.floor((remaining / 60000) % 60); 
                 const secs = Math.floor((remaining / 1000) % 60);
-                freeBtn.innerHTML = `<span class="flex items-center justify-center gap-2"><i class="fas fa-clock"></i> Wait ${mins}:${secs < 10 ? '0' : ''}${secs}</span>`;
+                freeBtn.innerHTML = `<span class="flex items-center justify-center gap-2"><i class="fas fa-clock"></i> ${mins}:${secs < 10 ? '0' : ''}${secs}</span>`;
             } else {
                 freeBtn.disabled = false; 
-                freeBtn.classList.remove('opacity-50', 'cursor-not-allowed', 'grayscale');
-                freeBtn.innerHTML = `<span class="flex items-center justify-center gap-2"><i class="fas fa-play-circle group-hover:rotate-12 transition-transform"></i> Spin Free</span>`;
+                freeBtn.classList.remove('opacity-50', 'grayscale');
+                freeBtn.innerHTML = `<span class="flex items-center justify-center gap-2"><i class="fas fa-play-circle"></i> Spin Free</span>`;
                 clearInterval(this.timerInterval);
             }
         }, 1000);
     },
 
     close: function() { 
-        if(!this.isSpinning) { 
-            document.getElementById('spin-popup')?.remove(); 
-            if (this.timerInterval) clearInterval(this.timerInterval); 
-        } 
+        if(!this.isSpinning) document.getElementById('spin-popup')?.remove(); 
     }
 };
 
