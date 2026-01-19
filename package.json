@@ -2,6 +2,7 @@
   "name": "daily-crop-game",
   "version": "1.0.0",
   "description": "Farming Game Backend",
+  "type": "module",
   "main": "api/index.js",
   "dependencies": {
     "firebase-admin": "^11.11.0",
