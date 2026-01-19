@@ -2,11 +2,33 @@
 import db from './db.js';
 import { GameConfig } from './gameConfig.js';
 
+// [FITUR 1] Helper: Ambil tanaman random berdasarkan bobot 'chance'
+// Ini memastikan "Random sesuai chance-nya" tetap berjalan untuk jenis tanaman.
 function getRandomPlant() {
     if (!GameConfig || !GameConfig.Crops) return 'ginger'; 
-    const keys = Object.keys(GameConfig.Crops);
-    if (keys.length === 0) return 'ginger';
-    return keys[Math.floor(Math.random() * keys.length)];
+    
+    const crops = GameConfig.Crops;
+    const keys = Object.keys(crops);
+    
+    // 1. Hitung Total Chance
+    let totalChance = 0;
+    keys.forEach(key => {
+        totalChance += (crops[key].chance || 0);
+    });
+
+    // 2. Acak angka
+    let randomValue = Math.random() * totalChance;
+
+    // 3. Cari tanaman mana yang terpilih
+    for (const key of keys) {
+        const chance = crops[key].chance || 0;
+        if (randomValue < chance) {
+            return key; 
+        }
+        randomValue -= chance;
+    }
+
+    return 'ginger'; // Fallback
 }
 
 export default async function handler(req, res) {
@@ -28,6 +50,7 @@ export default async function handler(req, res) {
         const userData = doc.data();
         let farmPlots = userData.farmPlots || [];
 
+        // Fallback Init
         if (farmPlots.length === 0) {
              farmPlots = [
                 { id: 1, status: 'empty', plant: null, harvestAt: 0 },
@@ -42,10 +65,11 @@ export default async function handler(req, res) {
         // === ACTION: PLANT ===
         if (action === 'plant') {
             const plot = farmPlots[plotIndex];
-            
-            // Validasi: Hanya boleh tanam di lahan kosong
-            if (!plot || plot.status !== 'empty') return res.status(400).json({ error: "Invalid plot status (Must be empty)" });
+            if (!plot || plot.status !== 'empty') {
+                return res.status(400).json({ error: "Invalid plot status (Must be empty)" });
+            }
 
+            // Gunakan Random Weighted Chance
             const seed = getRandomPlant(); 
             const cropConfig = (GameConfig.Crops && GameConfig.Crops[seed]) ? GameConfig.Crops[seed] : { time: 60 };
 
@@ -65,24 +89,21 @@ export default async function handler(req, res) {
         if (action === 'harvest') {
             const plot = farmPlots[plotIndex];
 
-            // Validasi Status
             if (!plot || (plot.status !== 'growing' && plot.status !== 'ready')) {
                 return res.status(400).json({ error: "Invalid plot status for harvest" });
             }
             
-            // Validasi Waktu (Anti-Cheat)
             if (now < plot.harvestAt - 2000) {
                 return res.status(400).json({ error: "Crop is not ready yet!" });
             }
 
             const cropName = plot.plant || 'ginger';
-            const cropConfig = GameConfig.Crops[cropName] || { minYield: 1, maxYield: 1, time: 60 };
+            
+            // [FITUR 2] JUMLAH PANEN DIPATOK JADI 1
+            // Sesuai permintaan: "Hanya 1 tak boleh lebih"
+            const yieldAmount = 1; 
 
-            const min = cropConfig.minYield || 1;
-            const max = cropConfig.maxYield || 1;
-            const yieldAmount = Math.floor(Math.random() * (max - min + 1)) + min;
-
-            // Auto Replant Logic
+            // Auto Replant (Tetap pakai Random Chance untuk jenis tanaman berikutnya)
             const newSeed = getRandomPlant();
             const newConfig = (GameConfig.Crops && GameConfig.Crops[newSeed]) ? GameConfig.Crops[newSeed] : { time: 60 };
 
@@ -98,12 +119,8 @@ export default async function handler(req, res) {
 
             const updatePayload = {
                 farmPlots: farmPlots,
-                user: {
-                    totalHarvest: currentTotalHarvest + yieldAmount
-                },
-                warehouse: {
-                    [cropName]: currentStock + yieldAmount
-                }
+                user: { totalHarvest: currentTotalHarvest + yieldAmount },
+                warehouse: { [cropName]: currentStock + yieldAmount }
             };
 
             await userRef.set(updatePayload, { merge: true });
