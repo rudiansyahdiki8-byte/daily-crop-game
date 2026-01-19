@@ -16,6 +16,7 @@ const TASK_MAPPING = {
 };
 
 export default async function handler(req, res) {
+    // 1. Setup Header CORS
     res.setHeader('Access-Control-Allow-Credentials', true);
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'POST,OPTIONS');
@@ -24,7 +25,6 @@ export default async function handler(req, res) {
     if (req.method !== 'POST') return res.status(405).json({ error: 'Method Not Allowed' });
 
     const { userId, taskId } = req.body;
-
     if (!userId || !taskId) return res.status(400).json({ error: "Missing Data" });
 
     try {
@@ -34,29 +34,45 @@ export default async function handler(req, res) {
         if (!doc.exists) return res.status(404).json({ error: "User not found" });
 
         const userData = doc.data();
-        const lastClaim = (userData.user.task_cooldowns && userData.user.task_cooldowns[taskId]) || 0;
+        // Ambil data user.task_cooldowns dengan aman (jika undefined, anggap kosong)
+        const cooldowns = (userData.user && userData.user.task_cooldowns) ? userData.user.task_cooldowns : {};
+        const lastClaim = cooldowns[taskId] || 0;
         const now = Date.now();
 
-        // 1. VALIDASI WAKTU (24 JAM)
+        // 2. VALIDASI WAKTU (24 JAM)
         // 86400000 ms = 24 jam
         if (now - lastClaim < 86400000) {
-            const timeLeft = Math.ceil((86400000 - (now - lastClaim)) / 3600000);
-            return res.status(400).json({ error: `Tunggu ${timeLeft} jam lagi!` });
+            const timeLeftHours = Math.ceil((86400000 - (now - lastClaim)) / 3600000);
+            return res.status(400).json({ error: `Tunggu ${timeLeftHours} jam lagi!` });
         }
 
-        // 2. VALIDASI HADIAH
-        const configKey = TASK_MAPPING[taskId];
-        const rewardAmount = GameConfig.Tasks[configKey] || 50; // Default 50 jika tidak ada di config
+        // 3. VALIDASI HADIAH
+        // Pastikan GameConfig dan Tasks ada. Jika tidak, pakai default 50.
+        let rewardAmount = 50;
+        if (GameConfig && GameConfig.Tasks) {
+            const configKey = TASK_MAPPING[taskId];
+            if (GameConfig.Tasks[configKey]) {
+                rewardAmount = GameConfig.Tasks[configKey];
+            }
+        }
 
-        // 3. UPDATE DATABASE
-        // Gunakan dot notation untuk update nested field (task_cooldowns.taskId)
-        await userRef.update({
-            "user.coins": db.FieldValue.increment(rewardAmount),
-            [`user.task_cooldowns.${taskId}`]: now,
-            "user.totalFreeEarnings": db.FieldValue.increment(rewardAmount)
-        });
+        // 4. UPDATE DATABASE (PAKAI SET MERGE AGAR AMAN)
+        // Cara ini akan membuat field 'task_cooldowns' otomatis jika belum ada.
+        const updateData = {
+            user: {
+                coins: (userData.user.coins || 0) + rewardAmount,
+                totalFreeEarnings: (userData.user.totalFreeEarnings || 0) + rewardAmount,
+                task_cooldowns: {
+                    ...cooldowns, // Pertahankan cooldown task lain
+                    [taskId]: now // Update task ini
+                }
+            }
+        };
 
-        // 4. RESPONSE SUKSES
+        // Gunakan set({ ... }, { merge: true }) alih-alih update()
+        // Ini mencegah error "No document to update" atau "Field path invalid"
+        await userRef.set(updateData, { merge: true });
+
         return res.status(200).json({ 
             success: true, 
             reward: rewardAmount,
@@ -66,6 +82,7 @@ export default async function handler(req, res) {
 
     } catch (error) {
         console.error("Task API Error:", error);
-        return res.status(500).json({ error: "Server Error" });
+        // Kirim pesan error yang jelas ke Frontend
+        return res.status(500).json({ error: "Server Error: " + error.message });
     }
 }
