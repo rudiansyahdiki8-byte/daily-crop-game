@@ -31,6 +31,25 @@ const WithdrawSystem = {
         this.fetchLiveRates();
     },
 
+    show() {
+        // Auto-create wrapper jika belum ada
+        let modal = document.getElementById('WalletModal');
+        if (!modal) {
+            modal = document.createElement('div');
+            modal.id = 'WalletModal';
+            modal.className = "fixed inset-0 z-[60] hidden"; 
+            document.body.appendChild(modal);
+        }
+        
+        modal.classList.remove('hidden');
+        this.render(modal); // Render ulang saat dibuka
+    },
+
+    close() {
+        const modal = document.getElementById('WalletModal');
+        if (modal) modal.classList.add('hidden');
+    },
+
     async fetchLiveRates() {
         const updateStatus = document.getElementById('wd-rate-status');
         if(updateStatus) updateStatus.innerHTML = '<span class="animate-pulse text-yellow-400">Syncing...</span>';
@@ -241,3 +260,4 @@ const WithdrawSystem = {
 };
 
 window.WithdrawSystem = WithdrawSystem;
+
