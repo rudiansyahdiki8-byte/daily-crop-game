@@ -1,13 +1,14 @@
 // js/state.js
 // STATE MANAGEMENT (FRONTEND)
-// Versi Baru: Terkoneksi ke Backend Vercel (API), bukan Firebase langsung.
+// Versi Baru: Terkoneksi ke Backend Vercel (API) & Harga Dinamis Per Jam.
 
-// 1. DATA DEFAULT (Template jika user baru main)
+// 1. DATA DEFAULT (PENTING: JANGAN DIHAPUS)
+// Ini template untuk user baru. Jika dihapus, user baru akan error.
 const defaultUser = {
     username: "Juragan Baru",
     userId: null, 
     plan: "FREE", 
-    coins: 100, // Modal awal (Server yang menentukan validitasnya nanti)
+    coins: 100, // Modal awal
     lastActive: Date.now(),
     isFirstPlantDone: false, 
     totalHarvest: 0,
@@ -29,28 +30,25 @@ const defaultUser = {
 
 // 2. GAME STATE UTAMA
 let GameState = {
-    user: { ...defaultUser },
+    user: { ...defaultUser }, // Copy data default ke user saat ini
     warehouse: {},
     farmPlots: [],
     market: { prices: {}, lastRefresh: 0 },
     isLoaded: false,
-    isSaving: false, // Flag untuk mencegah spam save
+    isSaving: false,
 
-    // --- FUNGSI LOAD (PANGGIL API VERCEL) ---
+    // --- FUNGSI LOAD (DARI SERVER) ---
     async load() {
         console.log("🔄 [STATE] Connecting to Server...");
-
-        // A. Deteksi User ID (Telegram / Browser)
         let finalUserId, finalUsername;
 
+        // Deteksi Telegram vs Browser
         if (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.initDataUnsafe && window.Telegram.WebApp.initDataUnsafe.user) {
-            // Mode Telegram Asli
             const tgUser = window.Telegram.WebApp.initDataUnsafe.user;
             finalUserId = "TG-" + tgUser.id;
             finalUsername = tgUser.first_name + (tgUser.last_name ? " " + tgUser.last_name : "");
             window.Telegram.WebApp.expand();
         } else {
-            // Mode Testing Browser (Bypass)
             console.warn("⚠️ Mode Browser: Menggunakan ID Tester");
             finalUserId = "TG-TESTER-123";
             finalUsername = "Juragan Lokal";
@@ -58,70 +56,60 @@ let GameState = {
 
         this.user.userId = finalUserId;
 
-        // B. Panggil API Load
         try {
-            // Kita panggil file 'api/load.js' yang ada di Vercel
             const response = await fetch(`/api/load?userId=${finalUserId}`);
-            
             if (!response.ok) throw new Error(`Server Error: ${response.status}`);
             
             const result = await response.json();
 
             if (result.exists && result.data) {
-                // KASUS 1: USER LAMA (Data ada di Server)
+                // USER LAMA: Load data dari server
                 console.log("✅ [STATE] Data loaded from Server");
                 const data = result.data;
                 
-                this.user = { ...defaultUser, ...data.user }; // Merge agar field baru tidak hilang
-                this.user.username = finalUsername; // Update nama sesuai Telegram terbaru
+                // Merge data server dengan defaultUser (agar field baru tidak error)
+                this.user = { ...defaultUser, ...data.user };
+                this.user.username = finalUsername; // Update nama
                 this.warehouse = data.warehouse || {};
                 this.farmPlots = data.farmPlots || [];
-                
-                // Market prices diambil dari server config nanti, tapi kita load dulu yg tersimpan
                 this.market = data.market || { prices: {}, lastRefresh: 0 };
             } else {
-                // KASUS 2: USER BARU (Server belum punya data)
+                // USER BARU: Inisialisasi data awal
                 console.log("🆕 [STATE] New User detected, initializing...");
                 this.user.username = finalUsername;
                 
-                // Siapkan 4 Plot Awal
+                // Beri lahan awal
                 this.farmPlots = [
                     { id: 1, status: 'empty', plant: null, harvestAt: 0 },
                     { id: 2, status: 'locked', plant: null, harvestAt: 0 },
                     { id: 3, status: 'locked', plant: null, harvestAt: 0 },
                     { id: 4, status: 'locked', plant: null, harvestAt: 0 }
                 ];
-
-                // Paksa Simpan Pertama Kali agar data terbentuk di Server
+                
+                // Simpan ke server agar terdaftar
                 await this.save(true);
             }
-
             this.isLoaded = true;
             
-            // Render Ulang Header & Farm jika UI sudah siap
+            // Refresh UI
             if(window.UIEngine) UIEngine.updateHeader();
             if(window.FarmSystem) FarmSystem.init();
 
         } catch (e) {
             console.error("❌ [STATE] Load Failed:", e);
-            // Tampilkan pesan error ke user (opsional)
-            // alert("Gagal terhubung ke Server. Cek koneksi internet.");
-            
-            // Tetap set true agar tidak stuck loading screen (User masuk mode offline sementara)
+            // Tetap masuk game (mode offline sementara) agar tidak stuck
             this.isLoaded = true; 
         }
     },
 
-    // --- FUNGSI SAVE (PANGGIL API VERCEL) ---
+    // --- FUNGSI SAVE (KE SERVER) ---
     async save(force = false) {
-        // Jangan save jika belum load atau tidak dipaksa
         if (!this.isLoaded && !force) return;
-        if (this.isSaving) return; // Mencegah double request
+        if (this.isSaving) return;
 
         this.isSaving = true;
         this.user.lastActive = Date.now();
 
-        // Siapkan Paket Data
         const payload = {
             user: this.user,
             warehouse: this.warehouse,
@@ -130,7 +118,6 @@ let GameState = {
         };
 
         try {
-            // Kita panggil file 'api/save.js'
             const response = await fetch('/api/save', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -139,13 +126,8 @@ let GameState = {
                     payload: payload
                 })
             });
-
             if (!response.ok) throw new Error("Save rejected by server");
-            
-            // Jika ingin debug: console.log("💾 [STATE] Saved.");
-            
             if(window.UIEngine) UIEngine.updateHeader();
-
         } catch (e) {
             console.error("⚠️ [STATE] Save Failed (Background):", e);
         } finally {
@@ -155,23 +137,40 @@ let GameState = {
 
     // --- UTILITIES (HELPER) ---
     
-    // Mengambil harga dari GameConfig yang sudah diload dari server
-    getPrice(key) {
-        // Fallback ke config lokal jika server belum respond
-        if (window.GameConfig && window.GameConfig.Crops && window.GameConfig.Crops[key]) {
-            // Ambil harga rata-rata atau min price sebagai display
-            return window.GameConfig.Crops[key].minPrice;
-        }
-        return 10;
+    // [LOGIKA BARU] HARGA BERGERAK TIAP JAM (CRYPTO STYLE)
+    getPrice(cropKey) {
+        // 1. Cek Config
+        if (!window.GameConfig || !window.GameConfig.Crops) return 10;
+        
+        const crop = window.GameConfig.Crops[cropKey];
+        if (!crop) return 10;
+
+        // 2. Buat "Seed" Berdasarkan Jam (Agar harga berubah tiap jam)
+        const now = new Date();
+        const timeSeed = now.getFullYear() * 10000 + (now.getMonth() + 1) * 100 + now.getDate() + now.getHours();
+        
+        // 3. Tambah Variasi Nama Tanaman (Agar harga Jahe != harga Cabai)
+        const uniqueFactor = cropKey.length + (crop.time || 0);
+        
+        // 4. Rumus Sinus (Gelombang Naik Turun 0.0 - 1.0)
+        const randomFactor = Math.abs(Math.sin(timeSeed + uniqueFactor)); 
+
+        // 5. Hitung Harga Akhir (Antara Min dan Max)
+        const range = crop.maxPrice - crop.minPrice;
+        const finalPrice = Math.floor(crop.minPrice + (range * randomFactor));
+        
+        return finalPrice;
     },
     
-    // Refresh market (sekarang logic ini bisa dipindah ke server, tapi untuk display visual tetap di sini)
     refreshMarketPrices() {
         const now = Date.now();
-        // Cek apakah perlu refresh visual
+        // Cek apakah sudah ganti jam?
         if (now - this.market.lastRefresh > 3600000) {
             this.market.lastRefresh = now;
-            this.save();
+            // Update UI jika sedang buka Shop
+            if(window.MarketSystem && document.getElementById('Shop') && !document.getElementById('Shop').classList.contains('hidden')) {
+                MarketSystem.renderShop();
+            }
         }
     }
 };
@@ -181,11 +180,9 @@ setInterval(() => {
     if(GameState.isLoaded) GameState.save();
 }, 10000);
 
-// Expose ke Window
 window.GameState = GameState;
 
-// PlanConfig & DropEngine dipindah logic-nya ke Server, 
-// tapi kita simpan placeholder di sini agar UI tidak error.
+// Placeholder PlanConfig (Biar UI tidak error sebelum load config server)
 window.PlanConfig = {
     FREE: { name: "Free Farmer" },
     MORTGAGE: { name: "Mortgage Farmer" },
