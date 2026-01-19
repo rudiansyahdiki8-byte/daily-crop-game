@@ -1,85 +1,76 @@
 // js/farm.js
-// ==========================================
-// FARM SYSTEM (API INTEGRATED)
-// Logic Backend Only: Mencegah manipulasi klien.
-// ==========================================
+// FRONTEND FARM SYSTEM
+// Logic: Visual di sini, Matematika di Server API
 
 const FarmSystem = {
-    plantData: window.HerbData || {}, 
-    maxVisibleSlots: 4, // Sesuai file asli
+    maxVisibleSlots: 4, // Default 4 slot tampil
     isTaskMenuOpen: false,
     interval: null,
 
-    // DEFINISI TUGAS HARIAN (Sesuai File Asli)
+    // DEFINISI TUGAS (UI Only - Angka diambil dari Config)
     dailyTasks: [
-        { id: 'daily_login', name: 'Login', icon: 'fa-calendar-check', reward: window.GameConfig?.Tasks?.Login || 100 },
-        { id: 'visit_farm', name: 'Visit', icon: 'fa-walking', reward: window.GameConfig?.Tasks?.Visit || 50 },
-        { id: 'free_reward', name: 'Gift', icon: 'fa-gift', reward: window.GameConfig?.Tasks?.Gift || 50 },
-        { id: 'clean_farm', name: 'Clean', icon: 'fa-broom', reward: window.GameConfig?.Tasks?.Clean || 50 },
-        { id: 'water_plants', name: 'Water', icon: 'fa-tint', reward: window.GameConfig?.Tasks?.Water || 50 },
-        { id: 'fertilizer', name: 'Fertilize', icon: 'fa-seedling', reward: window.GameConfig?.Tasks?.Fertilizer || 50 },
-        { id: 'kill_pests', name: 'Pest', icon: 'fa-bug', reward: window.GameConfig?.Tasks?.Pest || 50 },
-        { id: 'harvest_once', name: 'Harvest', icon: 'fa-sickle', reward: window.GameConfig?.Tasks?.Harvest || 100 },
-        { id: 'sell_item', name: 'Sell', icon: 'fa-coins', reward: window.GameConfig?.Tasks?.Sell || 100 },
+        { id: 'daily_login', name: 'Login', icon: 'fa-calendar-check', reward: window.GameConfig?.Tasks?.Login || 120 },
+        { id: 'visit_farm', name: 'Visit', icon: 'fa-walking', reward: window.GameConfig?.Tasks?.Visit || 120 },
+        { id: 'free_reward', name: 'Gift', icon: 'fa-gift', reward: window.GameConfig?.Tasks?.Gift || 120 },
+        { id: 'clean_farm', name: 'Clean', icon: 'fa-broom', reward: window.GameConfig?.Tasks?.Clean || 120 },
+        { id: 'water_plants', name: 'Water', icon: 'fa-tint', reward: window.GameConfig?.Tasks?.Water || 150 },
+        { id: 'fertilizer', name: 'Fertilize', icon: 'fa-seedling', reward: window.GameConfig?.Tasks?.Fertilizer || 150 },
+        { id: 'kill_pests', name: 'Pest', icon: 'fa-bug', reward: window.GameConfig?.Tasks?.Pest || 150 },
+        { id: 'harvest_once', name: 'Harvest', icon: 'fa-sickle', reward: window.GameConfig?.Tasks?.Harvest || 180 },
+        { id: 'sell_item', name: 'Sell', icon: 'fa-coins', reward: window.GameConfig?.Tasks?.Sell || 180 },
         { id: 'claim_spin', name: 'Spin', icon: 'fa-dharmachakra', reward: 0, action: 'spin' }
     ],
     
     init() {
-        // Init dummy jika data belum load (Prevent Crash)
+        // Init dummy jika data kosong (Visual Only)
         if(!GameState.farmPlots || GameState.farmPlots.length === 0) {
             GameState.farmPlots = Array(4).fill(null).map((_, i) => ({
                 id: i + 1, status: i===0?'empty':'locked', plant: null, harvestAt: 0 
             }));
         }
 
-        this.updateSlotStatus(); // Pastikan status lahan sesuai pembelian user
+        this.updateSlotStatus(); 
         this.renderLayout();
-        this.renderFarmGrid(); 
-        this.startEngine();
+        this.startEngine();     // Timer visual (countdown)
         this.startTaskTimer();
     },
 
     updateSlotStatus() {
+        // Logic visual membuka gembok lahan berdasarkan pembelian
         const purchased = GameState.user.landPurchasedCount || 0;
         GameState.farmPlots.forEach((plot, index) => {
-            // Jangan ubah status lahan yang sedang tumbuh/siap panen
             if (plot.status === 'growing' || plot.status === 'ready') return;
             
-            // Logic pembukaan lahan (Sesuai File Asli)
+            // Slot 1 selalu terbuka. Slot 2, 3, 4 terbuka jika dibeli.
             if (index === 0) {
-                if (plot.status === 'locked' || plot.status === 'disabled') plot.status = 'empty';
+                 if(plot.status !== 'empty') plot.status = 'empty';
             } 
             else if (index === 1) plot.status = (purchased >= 1) ? 'empty' : 'locked';
             else if (index === 2) plot.status = (purchased >= 2) ? 'empty' : 'locked';
-            else {
-                plot.status = (purchased >= 3 && index < 4) ? 'empty' : 'disabled';
-                if (index >= 4) plot.status = 'disabled';
-            }
+            else if (index === 3) plot.status = (purchased >= 3) ? 'empty' : 'locked';
+            // Slot > 4 disembunyikan/disabled visualnya jika belum waktunya
         });
     },
 
-    // --- LOGIKA UTAMA (API CONNECTED) ---
-
-    // 1. TANAM (PLANT)
+    // --- 1. TANAM (PLANT) ---
     async plantAll() {
-        this.updateSlotStatus();
+        // Cari slot kosong pertama
         const emptyIndices = [];
         GameState.farmPlots.forEach((plot, index) => {
             if (plot.status === 'empty') emptyIndices.push(index);
         });
 
         if (emptyIndices.length === 0) {
-            UIEngine.showRewardPopup("FULL", "No empty plots.", null, "OK");
+            UIEngine.showRewardPopup("FULL", "No empty plots available.", null, "OK");
             return;
         }
 
-        UIEngine.showRewardPopup("PLANTING", "Server Calculating...", null, "...");
+        UIEngine.showRewardPopup("PLANTING", "Planting seeds...", null, "...");
         
         // KUNCI STATE (Agar tidak ditimpa autosave)
         GameState.isSyncing = true; 
 
         try {
-            // Tanam di slot kosong pertama yang ditemukan
             const targetIndex = emptyIndices[0]; 
 
             const response = await fetch('/api/farm', {
@@ -94,12 +85,12 @@ const FarmSystem = {
             const result = await response.json();
 
             if (result.success) {
-                // UPDATE STATE DARI SERVER
+                // UPDATE STATE DARI SERVER (Trust The Server)
                 GameState.farmPlots = result.farmPlots; 
                 this.renderFarmGrid();
                 UIEngine.showRewardPopup("SUCCESS", `Planted Seeds!`, null, "GROW!");
             } else {
-                UIEngine.showRewardPopup("ERROR", result.error || "Plant Failed", null, "CLOSE");
+                UIEngine.showRewardPopup("FAILED", result.error || "Plant Failed", null, "CLOSE");
             }
         } catch (e) {
             console.error(e);
@@ -109,7 +100,7 @@ const FarmSystem = {
         }
     },
 
-    // 2. PANEN (HARVEST)
+    // --- 2. PANEN (HARVEST) ---
     async harvestAll(specificIndex = null) {
         let indicesToHarvest = [];
         if (specificIndex !== null) {
@@ -124,13 +115,13 @@ const FarmSystem = {
 
         if (indicesToHarvest.length === 0) return;
 
-        // Cek Gudang Penuh (Frontend Check)
+        // Cek Gudang Penuh (Frontend Check Sederhana)
         if (window.WarehouseSystem && WarehouseSystem.isFull(indicesToHarvest.length)) {
-            UIEngine.showRewardPopup("FULL", "Storage Full!", () => WarehouseSystem.show(), "OPEN");
+            UIEngine.showRewardPopup("FULL", "Warehouse Full!", () => WarehouseSystem.show(), "OPEN");
             return; 
         }
 
-        // Jalankan Iklan (Sesuai File Asli)
+        // Jalankan Iklan (Jika Ada)
         if (window.AdsManager && window.AdsManager.showHybridStack) {
             AdsManager.showHybridStack(2, () => {
                 this.processHarvestAPI(indicesToHarvest);
@@ -141,11 +132,11 @@ const FarmSystem = {
     },
 
     async processHarvestAPI(indicesToHarvest) {
-        UIEngine.showRewardPopup("HARVESTING", "Verifying...", null, "...");
+        UIEngine.showRewardPopup("HARVESTING", "Connecting to server...", null, "...");
         GameState.isSyncing = true; // KUNCI STATE
 
         try {
-            // Request panen untuk setiap plot
+            // Request panen per slot
             const promises = indicesToHarvest.map(index => 
                 fetch('/api/farm', {
                     method: 'POST',
@@ -163,19 +154,19 @@ const FarmSystem = {
 
             if (successResult) {
                 // UPDATE SELURUH DATA DARI SERVER (PENTING!)
-                // Jangan hitung manual di sini, percaya pada server
+                // Kita ganti total data lokal dengan data server yang baru
                 GameState.farmPlots = successResult.farmPlots;
                 GameState.warehouse = successResult.warehouse;
                 GameState.user = successResult.user;
 
-                // Efek Visual
+                // Efek Visual Terbang
                 indicesToHarvest.forEach(idx => {
                     this.playFlyAnimation('assets_iso/stage_growing.png', idx);
                 });
 
                 this.renderFarmGrid();
                 UIEngine.updateHeader(); // Update Koin/Level di Header
-                UIEngine.showRewardPopup("HARVEST", `Success! Items added.`, null, "GREAT");
+                UIEngine.showRewardPopup("HARVEST", successResult.message, null, "GREAT");
             } else {
                 const errorMsg = results.find(r => r.error)?.error || "Failed";
                 UIEngine.showRewardPopup("FAILED", errorMsg, null, "CLOSE");
@@ -189,13 +180,13 @@ const FarmSystem = {
         }
     },
 
-    // --- TUGAS (TASKS) ---
+    // --- 3. TUGAS (TASKS) ---
     async processTaskAPI(task, btnElement) {
-        UIEngine.showRewardPopup("CLAIMING", "Contacting Server...", null, "...");
+        UIEngine.showRewardPopup("CLAIMING", "Verifying task...", null, "...");
         GameState.isSyncing = true;
 
         try {
-            const response = await fetch('/api/tasks', {
+            const response = await fetch('/api/tasks', { // Panggil API Tasks baru
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -206,10 +197,8 @@ const FarmSystem = {
             const result = await response.json();
 
             if (result.success) {
-                // Update Koin & Cooldown dari Server
-                // Perhatikan: Kita menambah manual di sini hanya untuk UI instan, 
-                // tapi data server adalah kebenaran utama.
-                GameState.user.coins = (GameState.user.coins || 0) + result.reward;
+                // Update Koin & Cooldown dari hasil Server
+                GameState.user.coins = result.newCoins;
                 
                 if (!GameState.user.task_cooldowns) GameState.user.task_cooldowns = {};
                 GameState.user.task_cooldowns[task.id] = result.newCooldown;
@@ -220,7 +209,7 @@ const FarmSystem = {
                 
                 UIEngine.showRewardPopup("SUCCESS", `Task Done! +${result.reward} PTS`, null, "OK");
             } else {
-                UIEngine.showRewardPopup("FAILED", result.error || "Cooldown aktif", null, "CLOSE");
+                UIEngine.showRewardPopup("FAILED", result.error || "Please wait", null, "CLOSE");
             }
         } catch (e) {
             console.error(e);
@@ -231,20 +220,22 @@ const FarmSystem = {
     },
 
     handleTaskClick(task, btnElement) {
-        if (task.action === 'spin') { SpinSystem.show(); return; }
+        if (task.action === 'spin') { 
+            if(window.SpinSystem) SpinSystem.show(); 
+            return; 
+        }
         
+        // Iklan untuk Task
         if (window.AdsManager && window.AdsManager.showHybridStack) {
             AdsManager.showHybridStack(3, () => {
                 this.processTaskAPI(task, btnElement);
             });
         } else {
-            console.warn("AdsManager missing, bypassing...");
             this.processTaskAPI(task, btnElement);
         }
     },
 
-    // --- VISUAL & RENDER (TIDAK PERLU DIUBAH BANYAK) ---
-    
+    // --- VISUAL RENDERER (Sama seperti file asli) ---
     renderLayout() {
         const container = document.getElementById('FarmingHouse');
         if (!container) return;
@@ -267,7 +258,7 @@ const FarmSystem = {
         `;
         container.appendChild(header);
 
-        // Left Menu
+        // Menu Kiri (Warehouse & Market)
         const leftMenu = document.createElement('div');
         leftMenu.className = "hud-left pointer-events-auto";
         leftMenu.innerHTML = `
@@ -286,18 +277,18 @@ const FarmSystem = {
         `;
         container.appendChild(leftMenu);
 
-        // Farm Container
+        // Farm Grid Container
         const farmContainer = document.createElement('div');
         farmContainer.className = "w-full h-full overflow-y-auto no-scrollbar relative z-10";
         farmContainer.innerHTML = `
             <div class="w-full flex justify-center mt-2 mb-[-40px] pt-20 relative z-0 pointer-events-none translate-x-4">
                 <img src="assets_iso/farm_house.png" class="w-72 drop-shadow-2xl animate-in fade-in" onerror="this.style.display='none'"> 
             </div>
-            <div id="farm-grid" class="pt-4 pb-40 pl-6"></div> 
+            <div id="farm-grid" class="pt-4 pb-40 pl-6 flex flex-wrap justify-center gap-4"></div> 
             `;
         container.appendChild(farmContainer);
 
-        // FAB Menu
+        // FAB Menu (Tasks)
         const fabContainer = document.createElement('div');
         fabContainer.className = "fab-menu";
         fabContainer.innerHTML = `
@@ -321,10 +312,12 @@ const FarmSystem = {
         this.updateSlotStatus();
         grid.innerHTML = '';
         const now = Date.now();
-        const displayLimit = this.maxVisibleSlots;
         
-        for (let i = 0; i < displayLimit; i++) {
-            const plot = GameState.farmPlots[i];
+        // Render sesuai limit layar (misal 4)
+        for (let i = 0; i < this.maxVisibleSlots; i++) {
+            // Jika data plot belum ada di array (misal user baru), buat visual dummy
+            const plot = GameState.farmPlots[i] || { id: i+1, status: 'locked', plant: null, harvestAt: 0 };
+            
             const div = document.createElement('div');
             div.className = 'plot-container';
             let landImg = (plot.status === 'locked') ? 'assets_iso/land_locked.png' : 'assets_iso/land_empty.png';
@@ -333,11 +326,11 @@ const FarmSystem = {
 
             // 1. LOCKED
             if (plot.status === 'locked') {
-                const price2 = window.GameConfig?.ShopItems?.LandPrice_2 || 5000;
-                const price3 = window.GameConfig?.ShopItems?.LandPrice_3 || 10000;
+                const price2 = window.GameConfig?.ShopItems?.LandPrice_2 || 10000;
+                const price3 = window.GameConfig?.ShopItems?.LandPrice_3 || 750000;
                 let priceLabel = i === 1 ? (price2/1000)+"K" : (price3/1000)+"K";
                 contentOverlay = `<div class="iso-ui"><div class="bg-black/80 text-yellow-400 px-2 py-1 rounded-lg text-[10px] font-black border border-yellow-500/50 backdrop-blur-sm shadow-lg"><i class="fas fa-lock text-[8px] mr-1"></i>${priceLabel}</div></div>`;
-                clickAction = () => { UIEngine.navigate('Shop'); MarketSystem.switchTab('buy'); };
+                clickAction = () => { UIEngine.navigate('Shop'); if(window.MarketSystem) MarketSystem.switchTab('buy'); };
             } 
             // 2. EMPTY
             else if (plot.status === 'empty') {
@@ -383,7 +376,7 @@ const FarmSystem = {
         if(!listContent) return;
         listContent.innerHTML = '';
 
-        // Tombol Plant Random
+        // Tombol Plant Random (Shortcut)
         const plantBtn = document.createElement('button');
         plantBtn.className = "w-full bg-emerald-500/20 hover:bg-emerald-500/40 border border-emerald-500/50 rounded-xl py-1 px-2 flex items-center gap-3 transition-all active:scale-95";
         plantBtn.innerHTML = `<div class="w-8 h-8 rounded-full bg-emerald-500 flex items-center justify-center text-white"><i class="fas fa-seedling text-xs"></i></div><span class="text-[9px] font-black uppercase text-white">Plant Random</span>`;
@@ -477,6 +470,7 @@ const FarmSystem = {
         this.interval = setInterval(() => {
             let change = false;
             const now = Date.now();
+            // Cek visual growing -> ready
             GameState.farmPlots.forEach(plot => {
                 if (plot.status === 'growing') {
                     if (now >= plot.harvestAt) {
@@ -484,8 +478,8 @@ const FarmSystem = {
                         plot.harvestAt = 0;
                         change = true;
                     } else {
-                        // Jika masih tumbuh, kita tetap rerender setiap detik untuk update timer visual
-                        // Tapi tidak perlu update state status
+                        // Jika masih tumbuh, timer visual perlu update
+                        // tapi tidak ubah status
                         change = true; 
                     }
                 }
