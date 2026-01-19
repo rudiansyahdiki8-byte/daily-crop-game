@@ -1,15 +1,16 @@
 // js/farm.js
 // ==========================================
-// FARM SYSTEM (FINAL INTEGRATION)
-// Fitur: Server Backend + AdsManager (Hybrid Stack)
+// FARM SYSTEM (API INTEGRATED)
+// Logic Backend Only: Mencegah manipulasi klien.
 // ==========================================
 
 const FarmSystem = {
     plantData: window.HerbData || {}, 
-    maxVisibleSlots: 4,
+    maxVisibleSlots: 4, // Sesuai file asli
     isTaskMenuOpen: false,
+    interval: null,
 
-    // DEFINISI TUGAS HARIAN
+    // DEFINISI TUGAS HARIAN (Sesuai File Asli)
     dailyTasks: [
         { id: 'daily_login', name: 'Login', icon: 'fa-calendar-check', reward: window.GameConfig?.Tasks?.Login || 100 },
         { id: 'visit_farm', name: 'Visit', icon: 'fa-walking', reward: window.GameConfig?.Tasks?.Visit || 50 },
@@ -24,13 +25,14 @@ const FarmSystem = {
     ],
     
     init() {
-        // Init dummy jika data belum load
+        // Init dummy jika data belum load (Prevent Crash)
         if(!GameState.farmPlots || GameState.farmPlots.length === 0) {
             GameState.farmPlots = Array(4).fill(null).map((_, i) => ({
                 id: i + 1, status: i===0?'empty':'locked', plant: null, harvestAt: 0 
             }));
         }
 
+        this.updateSlotStatus(); // Pastikan status lahan sesuai pembelian user
         this.renderLayout();
         this.renderFarmGrid(); 
         this.startEngine();
@@ -40,17 +42,15 @@ const FarmSystem = {
     updateSlotStatus() {
         const purchased = GameState.user.landPurchasedCount || 0;
         GameState.farmPlots.forEach((plot, index) => {
+            // Jangan ubah status lahan yang sedang tumbuh/siap panen
             if (plot.status === 'growing' || plot.status === 'ready') return;
             
+            // Logic pembukaan lahan (Sesuai File Asli)
             if (index === 0) {
                 if (plot.status === 'locked' || plot.status === 'disabled') plot.status = 'empty';
             } 
-            else if (index === 1) {
-                plot.status = (purchased >= 1) ? 'empty' : 'locked';
-            } 
-            else if (index === 2) {
-                plot.status = (purchased >= 2) ? 'empty' : 'locked';
-            } 
+            else if (index === 1) plot.status = (purchased >= 1) ? 'empty' : 'locked';
+            else if (index === 2) plot.status = (purchased >= 2) ? 'empty' : 'locked';
             else {
                 plot.status = (purchased >= 3 && index < 4) ? 'empty' : 'disabled';
                 if (index >= 4) plot.status = 'disabled';
@@ -58,7 +58,193 @@ const FarmSystem = {
         });
     },
 
-    // --- RENDER LAYOUT ---
+    // --- LOGIKA UTAMA (API CONNECTED) ---
+
+    // 1. TANAM (PLANT)
+    async plantAll() {
+        this.updateSlotStatus();
+        const emptyIndices = [];
+        GameState.farmPlots.forEach((plot, index) => {
+            if (plot.status === 'empty') emptyIndices.push(index);
+        });
+
+        if (emptyIndices.length === 0) {
+            UIEngine.showRewardPopup("FULL", "No empty plots.", null, "OK");
+            return;
+        }
+
+        UIEngine.showRewardPopup("PLANTING", "Server Calculating...", null, "...");
+        
+        // KUNCI STATE (Agar tidak ditimpa autosave)
+        GameState.isSyncing = true; 
+
+        try {
+            // Tanam di slot kosong pertama yang ditemukan
+            const targetIndex = emptyIndices[0]; 
+
+            const response = await fetch('/api/farm', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    userId: GameState.user.userId,
+                    action: 'plant',
+                    plotIndex: targetIndex
+                })
+            });
+            const result = await response.json();
+
+            if (result.success) {
+                // UPDATE STATE DARI SERVER
+                GameState.farmPlots = result.farmPlots; 
+                this.renderFarmGrid();
+                UIEngine.showRewardPopup("SUCCESS", `Planted Seeds!`, null, "GROW!");
+            } else {
+                UIEngine.showRewardPopup("ERROR", result.error || "Plant Failed", null, "CLOSE");
+            }
+        } catch (e) {
+            console.error(e);
+            UIEngine.showRewardPopup("ERROR", "Connection Error", null, "CLOSE");
+        } finally {
+            GameState.isSyncing = false; // BUKA KUNCI
+        }
+    },
+
+    // 2. PANEN (HARVEST)
+    async harvestAll(specificIndex = null) {
+        let indicesToHarvest = [];
+        if (specificIndex !== null) {
+            if (GameState.farmPlots[specificIndex]?.status === 'ready') {
+                indicesToHarvest.push(specificIndex);
+            }
+        } else {
+            GameState.farmPlots.forEach((plot, index) => {
+                if (plot.status === 'ready') indicesToHarvest.push(index);
+            });
+        }
+
+        if (indicesToHarvest.length === 0) return;
+
+        // Cek Gudang Penuh (Frontend Check)
+        if (window.WarehouseSystem && WarehouseSystem.isFull(indicesToHarvest.length)) {
+            UIEngine.showRewardPopup("FULL", "Storage Full!", () => WarehouseSystem.show(), "OPEN");
+            return; 
+        }
+
+        // Jalankan Iklan (Sesuai File Asli)
+        if (window.AdsManager && window.AdsManager.showHybridStack) {
+            AdsManager.showHybridStack(2, () => {
+                this.processHarvestAPI(indicesToHarvest);
+            });
+        } else {
+            this.processHarvestAPI(indicesToHarvest);
+        }
+    },
+
+    async processHarvestAPI(indicesToHarvest) {
+        UIEngine.showRewardPopup("HARVESTING", "Verifying...", null, "...");
+        GameState.isSyncing = true; // KUNCI STATE
+
+        try {
+            // Request panen untuk setiap plot
+            const promises = indicesToHarvest.map(index => 
+                fetch('/api/farm', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        userId: GameState.user.userId,
+                        action: 'harvest',
+                        plotIndex: index
+                    })
+                }).then(res => res.json())
+            );
+
+            const results = await Promise.all(promises);
+            const successResult = results.find(r => r.success);
+
+            if (successResult) {
+                // UPDATE SELURUH DATA DARI SERVER (PENTING!)
+                // Jangan hitung manual di sini, percaya pada server
+                GameState.farmPlots = successResult.farmPlots;
+                GameState.warehouse = successResult.warehouse;
+                GameState.user = successResult.user;
+
+                // Efek Visual
+                indicesToHarvest.forEach(idx => {
+                    this.playFlyAnimation('assets_iso/stage_growing.png', idx);
+                });
+
+                this.renderFarmGrid();
+                UIEngine.updateHeader(); // Update Koin/Level di Header
+                UIEngine.showRewardPopup("HARVEST", `Success! Items added.`, null, "GREAT");
+            } else {
+                const errorMsg = results.find(r => r.error)?.error || "Failed";
+                UIEngine.showRewardPopup("FAILED", errorMsg, null, "CLOSE");
+            }
+
+        } catch (e) {
+            console.error(e);
+            UIEngine.showRewardPopup("ERROR", "Connection Error", null, "CLOSE");
+        } finally {
+            GameState.isSyncing = false; // BUKA KUNCI
+        }
+    },
+
+    // --- TUGAS (TASKS) ---
+    async processTaskAPI(task, btnElement) {
+        UIEngine.showRewardPopup("CLAIMING", "Contacting Server...", null, "...");
+        GameState.isSyncing = true;
+
+        try {
+            const response = await fetch('/api/tasks', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    userId: GameState.user.userId,
+                    taskId: task.id
+                })
+            });
+            const result = await response.json();
+
+            if (result.success) {
+                // Update Koin & Cooldown dari Server
+                // Perhatikan: Kita menambah manual di sini hanya untuk UI instan, 
+                // tapi data server adalah kebenaran utama.
+                GameState.user.coins = (GameState.user.coins || 0) + result.reward;
+                
+                if (!GameState.user.task_cooldowns) GameState.user.task_cooldowns = {};
+                GameState.user.task_cooldowns[task.id] = result.newCooldown;
+                
+                if(btnElement) this.playCoinAnimation(btnElement);
+                this.renderTaskButtons();
+                UIEngine.updateHeader();
+                
+                UIEngine.showRewardPopup("SUCCESS", `Task Done! +${result.reward} PTS`, null, "OK");
+            } else {
+                UIEngine.showRewardPopup("FAILED", result.error || "Cooldown aktif", null, "CLOSE");
+            }
+        } catch (e) {
+            console.error(e);
+            UIEngine.showRewardPopup("ERROR", "API Error", null, "CLOSE");
+        } finally {
+            GameState.isSyncing = false;
+        }
+    },
+
+    handleTaskClick(task, btnElement) {
+        if (task.action === 'spin') { SpinSystem.show(); return; }
+        
+        if (window.AdsManager && window.AdsManager.showHybridStack) {
+            AdsManager.showHybridStack(3, () => {
+                this.processTaskAPI(task, btnElement);
+            });
+        } else {
+            console.warn("AdsManager missing, bypassing...");
+            this.processTaskAPI(task, btnElement);
+        }
+    },
+
+    // --- VISUAL & RENDER (TIDAK PERLU DIUBAH BANYAK) ---
+    
     renderLayout() {
         const container = document.getElementById('FarmingHouse');
         if (!container) return;
@@ -128,252 +314,7 @@ const FarmSystem = {
         this.renderTaskButtons();
         this.renderFarmGrid();
     },
-    
-    toggleTaskMenu() {
-        const content = document.getElementById('task-list-content');
-        const iconContainer = document.getElementById('fab-icon-container');
-        this.isTaskMenuOpen = !this.isTaskMenuOpen;
-        
-        if(this.isTaskMenuOpen) {
-            content.classList.add('open');
-            iconContainer.innerHTML = `<i class="fas fa-times text-emerald-600 text-xl"></i>`;
-        } else {
-            content.classList.remove('open');
-            iconContainer.innerHTML = `<img src="https://img.icons8.com/plasticine/100/task.png" class="w-8 h-8 object-contain" alt="task"/>`;
-        }
-    },
 
-    renderTaskButtons() {
-        const listContent = document.getElementById('task-list-content');
-        if(!listContent) return;
-        listContent.innerHTML = '';
-
-        // Tombol Plant Random
-        const plantBtn = document.createElement('button');
-        plantBtn.className = "w-full bg-emerald-500/20 hover:bg-emerald-500/40 border border-emerald-500/50 rounded-xl py-1 px-2 flex items-center gap-3 transition-all active:scale-95";
-        plantBtn.innerHTML = `<div class="w-8 h-8 rounded-full bg-emerald-500 flex items-center justify-center text-white"><i class="fas fa-seedling text-xs"></i></div><span class="text-[9px] font-black uppercase text-white">Plant Random</span>`;
-        plantBtn.onclick = () => { this.toggleTaskMenu(); this.plantAll(); };
-        listContent.appendChild(plantBtn);
-
-        const cooldowns = GameState.user.task_cooldowns || {};
-        const now = Date.now();
-        let readyCount = 0;
-
-        this.dailyTasks.forEach(task => {
-            const lastClaim = cooldowns[task.id] || 0;
-            const isCooldown = (now - lastClaim) < 86400000; // 24 Jam
-            
-            if (!isCooldown) readyCount++;
-
-            const btn = document.createElement('button');
-            const styleClass = isCooldown ? 
-                'bg-gray-800/50 border-gray-700 opacity-50 grayscale cursor-not-allowed' : 
-                'bg-white/5 border-white/10 hover:bg-white/10';
-
-            btn.className = `w-full rounded-xl py-1.5 px-2 flex items-center gap-3 transition-all active:scale-95 border ${styleClass}`;            
-            
-            let statusHTML = '';
-            if (isCooldown) {
-                const timeLeft = 86400000 - (now - lastClaim);
-                const hours = Math.floor((timeLeft / (1000 * 60 * 60)));
-                statusHTML = `<span class="text-[8px] text-gray-500 font-bold ml-auto">${hours}H</span>`;
-            } else {
-                statusHTML = task.reward > 0 ? `<span class="text-[8px] text-yellow-400 font-black ml-auto">+${task.reward}</span>` : `<i class="fas fa-chevron-right text-[8px] text-gray-400 ml-auto"></i>`;
-            }
-
-            btn.innerHTML = `
-                <div class="w-6 h-6 rounded-full bg-black/40 flex items-center justify-center text-gray-300 border border-white/5">
-                    <i class="fas ${task.icon} text-[10px]"></i>
-                </div>
-                <span class="text-[9px] font-bold uppercase text-gray-300 text-left flex-1">${task.name}</span>
-                ${statusHTML}
-            `;
-            
-            if(!isCooldown) {
-                btn.onclick = () => this.handleTaskClick(task, btn);
-            }
-            listContent.appendChild(btn);
-        });
-
-        const notifDot = document.getElementById('task-notification');
-        if(notifDot) notifDot.style.display = readyCount > 0 ? 'block' : 'none';
-    },
-
-    // --- KLIK TASK (WITH ADS) ---
-    handleTaskClick(task, btnElement) {
-        // Pengecualian Spin
-        if (task.action === 'spin') { SpinSystem.show(); return; }
-        
-        // 1. PANGGIL IKLAN (Stack 3)
-        // Pastikan AdsManager.showHybridStack ada di ads.js
-        if (window.AdsManager && window.AdsManager.showHybridStack) {
-            AdsManager.showHybridStack(3, () => {
-                // 2. JIKA IKLAN SELESAI -> PANGGIL API
-                this.processTaskAPI(task, btnElement);
-            });
-        } else {
-            // Fallback jika ads.js error/belum load
-            console.warn("AdsManager missing, bypassing...");
-            this.processTaskAPI(task, btnElement);
-        }
-    },
-
-    // --- KLIK PANEN (WITH ADS) ---
-    async harvestAll(specificIndex = null) {
-        let indicesToHarvest = [];
-        
-        if (specificIndex !== null) {
-            if (GameState.farmPlots[specificIndex]?.status === 'ready') {
-                indicesToHarvest.push(specificIndex);
-            }
-        } else {
-            GameState.farmPlots.forEach((plot, index) => {
-                if (plot.status === 'ready') indicesToHarvest.push(index);
-            });
-        }
-
-        if (indicesToHarvest.length === 0) return;
-
-        if (window.WarehouseSystem && WarehouseSystem.isFull(indicesToHarvest.length)) {
-            UIEngine.showRewardPopup("FULL", "Storage Full!", () => WarehouseSystem.show(), "OPEN");
-            return; 
-        }
-
-        // 1. PANGGIL IKLAN (Stack 2)
-        if (window.AdsManager && window.AdsManager.showHybridStack) {
-            AdsManager.showHybridStack(2, () => {
-                // 2. JIKA IKLAN SELESAI -> PANGGIL API
-                this.processHarvestAPI(indicesToHarvest);
-            });
-        } else {
-            this.processHarvestAPI(indicesToHarvest);
-        }
-    },
-
-    // ==========================================
-    // LOGIKA API BACKEND (TERPISAH & AMAN)
-    // ==========================================
-
-    async processTaskAPI(task, btnElement) {
-        UIEngine.showRewardPopup("CLAIMING", "Contacting Server...", null, "...");
-
-        try {
-            const response = await fetch('/api/tasks', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    userId: GameState.user.userId,
-                    taskId: task.id
-                })
-            });
-
-            const result = await response.json();
-
-            if (result.success) {
-                GameState.user.coins += result.reward;
-                if (!GameState.user.task_cooldowns) GameState.user.task_cooldowns = {};
-                GameState.user.task_cooldowns[task.id] = result.newCooldown;
-                
-                if(btnElement) this.playCoinAnimation(btnElement);
-                this.renderTaskButtons();
-                UIEngine.updateHeader();
-                
-                UIEngine.showRewardPopup("SUCCESS", `Task Done! +${result.reward} PTS`, null, "OK");
-            } else {
-                UIEngine.showRewardPopup("FAILED", result.error || "Cooldown aktif", null, "CLOSE");
-            }
-        } catch (e) {
-            console.error(e);
-            UIEngine.showRewardPopup("ERROR", "API Error. Cek api/tasks.js", null, "CLOSE");
-        }
-    },
-
-    async plantAll() {
-        this.updateSlotStatus();
-        const emptyIndices = [];
-        GameState.farmPlots.forEach((plot, index) => {
-            if (plot.status === 'empty') emptyIndices.push(index);
-        });
-
-        if (emptyIndices.length === 0) {
-            UIEngine.showRewardPopup("FULL", "No empty plots.", null, "OK");
-            return;
-        }
-
-        UIEngine.showRewardPopup("PLANTING", "Server Calculating...", null, "...");
-
-        try {
-            const promises = emptyIndices.map(index => 
-                fetch('/api/farm', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        userId: GameState.user.userId,
-                        action: 'plant',
-                        plotIndex: index
-                    })
-                }).then(res => res.json())
-            );
-
-            const results = await Promise.all(promises);
-            const successResult = results.find(r => r.success);
-            
-            if (successResult) {
-                GameState.farmPlots = successResult.farmPlots;
-                this.renderFarmGrid();
-                UIEngine.showRewardPopup("SUCCESS", `Planted Seeds!`, null, "GROW!");
-            } else {
-                UIEngine.showRewardPopup("ERROR", "Plant Failed", null, "CLOSE");
-            }
-        } catch (e) {
-            console.error(e);
-            UIEngine.showRewardPopup("ERROR", "Connection Error", null, "CLOSE");
-        }
-    },
-
-    async processHarvestAPI(indicesToHarvest) {
-        UIEngine.showRewardPopup("HARVESTING", "Verifying...", null, "...");
-        
-        try {
-            const promises = indicesToHarvest.map(index => 
-                fetch('/api/farm', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        userId: GameState.user.userId,
-                        action: 'harvest',
-                        plotIndex: index
-                    })
-                }).then(res => res.json())
-            );
-
-            const results = await Promise.all(promises);
-            const successResult = results.find(r => r.success);
-
-            if (successResult) {
-                GameState.farmPlots = successResult.farmPlots;
-                GameState.warehouse = successResult.warehouse;
-                GameState.user = successResult.user;
-
-                indicesToHarvest.forEach(idx => {
-                    this.playFlyAnimation('assets_iso/stage_growing.png', idx);
-                });
-
-                this.renderFarmGrid();
-                UIEngine.updateHeader();
-                UIEngine.showRewardPopup("HARVEST", `Success! Items added.`, null, "GREAT");
-            } else {
-                const errorMsg = results.find(r => r.error)?.error || "Failed";
-                UIEngine.showRewardPopup("FAILED", errorMsg, null, "CLOSE");
-            }
-
-        } catch (e) {
-            console.error(e);
-            UIEngine.showRewardPopup("ERROR", "Connection Error", null, "CLOSE");
-        }
-    },
-
-    // --- RENDER GRID & ANIMASI ---
     renderFarmGrid() {
         const grid = document.getElementById('farm-grid');
         if (!grid) return;
@@ -381,7 +322,7 @@ const FarmSystem = {
         grid.innerHTML = '';
         const now = Date.now();
         const displayLimit = this.maxVisibleSlots;
-
+        
         for (let i = 0; i < displayLimit; i++) {
             const plot = GameState.farmPlots[i];
             const div = document.createElement('div');
@@ -422,7 +363,77 @@ const FarmSystem = {
             grid.appendChild(div);
         }
     },
+
+    toggleTaskMenu() {
+        const content = document.getElementById('task-list-content');
+        const iconContainer = document.getElementById('fab-icon-container');
+        this.isTaskMenuOpen = !this.isTaskMenuOpen;
         
+        if(this.isTaskMenuOpen) {
+            content.classList.add('open');
+            iconContainer.innerHTML = `<i class="fas fa-times text-emerald-600 text-xl"></i>`;
+        } else {
+            content.classList.remove('open');
+            iconContainer.innerHTML = `<img src="https://img.icons8.com/plasticine/100/task.png" class="w-8 h-8 object-contain" alt="task"/>`;
+        }
+    },
+
+    renderTaskButtons() {
+        const listContent = document.getElementById('task-list-content');
+        if(!listContent) return;
+        listContent.innerHTML = '';
+
+        // Tombol Plant Random
+        const plantBtn = document.createElement('button');
+        plantBtn.className = "w-full bg-emerald-500/20 hover:bg-emerald-500/40 border border-emerald-500/50 rounded-xl py-1 px-2 flex items-center gap-3 transition-all active:scale-95";
+        plantBtn.innerHTML = `<div class="w-8 h-8 rounded-full bg-emerald-500 flex items-center justify-center text-white"><i class="fas fa-seedling text-xs"></i></div><span class="text-[9px] font-black uppercase text-white">Plant Random</span>`;
+        plantBtn.onclick = () => { this.toggleTaskMenu(); this.plantAll(); };
+        listContent.appendChild(plantBtn);
+
+        const cooldowns = GameState.user.task_cooldowns || {};
+        const now = Date.now();
+        let readyCount = 0;
+
+        this.dailyTasks.forEach(task => {
+            const lastClaim = cooldowns[task.id] || 0;
+            const isCooldown = (now - lastClaim) < 86400000; 
+            
+            if (!isCooldown) readyCount++;
+
+            const btn = document.createElement('button');
+            const styleClass = isCooldown ? 
+                'bg-gray-800/50 border-gray-700 opacity-50 grayscale cursor-not-allowed' : 
+                'bg-white/5 border-white/10 hover:bg-white/10';
+
+            btn.className = `w-full rounded-xl py-1.5 px-2 flex items-center gap-3 transition-all active:scale-95 border ${styleClass}`;            
+            
+            let statusHTML = '';
+            if (isCooldown) {
+                const timeLeft = 86400000 - (now - lastClaim);
+                const hours = Math.floor((timeLeft / (1000 * 60 * 60)));
+                statusHTML = `<span class="text-[8px] text-gray-500 font-bold ml-auto">${hours}H</span>`;
+            } else {
+                statusHTML = task.reward > 0 ? `<span class="text-[8px] text-yellow-400 font-black ml-auto">+${task.reward}</span>` : `<i class="fas fa-chevron-right text-[8px] text-gray-400 ml-auto"></i>`;
+            }
+
+            btn.innerHTML = `
+                <div class="w-6 h-6 rounded-full bg-black/40 flex items-center justify-center text-gray-300 border border-white/5">
+                    <i class="fas ${task.icon} text-[10px]"></i>
+                </div>
+                <span class="text-[9px] font-bold uppercase text-gray-300 text-left flex-1">${task.name}</span>
+                ${statusHTML}
+            `;
+            if(!isCooldown) {
+                btn.onclick = () => this.handleTaskClick(task, btn);
+            }
+            listContent.appendChild(btn);
+        });
+
+        const notifDot = document.getElementById('task-notification');
+        if(notifDot) notifDot.style.display = readyCount > 0 ? 'block' : 'none';
+    },
+
+    // ANIMASI & ENGINE
     playFlyAnimation(imgUrl, index) {
         const grid = document.getElementById('farm-grid');
         if (!grid || !grid.children[index]) return;
@@ -473,7 +484,9 @@ const FarmSystem = {
                         plot.harvestAt = 0;
                         change = true;
                     } else {
-                        change = true;
+                        // Jika masih tumbuh, kita tetap rerender setiap detik untuk update timer visual
+                        // Tapi tidak perlu update state status
+                        change = true; 
                     }
                 }
             });
