@@ -2,14 +2,19 @@
 import db from './db.js';
 import { GameConfig } from './gameConfig.js';
 
-// Helper: RNG Sederhana untuk Server
+// Helper: Ambil tanaman random dengan aman
 function getRandomPlant() {
+    // Pengaman jika GameConfig belum siap
+    if (!GameConfig || !GameConfig.Crops) return 'ginger'; 
+    
     const keys = Object.keys(GameConfig.Crops);
-    // Logic gacha sederhana (bisa dipercanggih nanti sesuai rarity)
+    if (keys.length === 0) return 'ginger';
+
     return keys[Math.floor(Math.random() * keys.length)];
 }
 
 export default async function handler(req, res) {
+    // 1. Setup Header
     res.setHeader('Access-Control-Allow-Credentials', true);
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'POST,OPTIONS');
@@ -18,7 +23,6 @@ export default async function handler(req, res) {
     if (req.method !== 'POST') return res.status(405).json({ error: 'Method Not Allowed' });
 
     const { userId, action, plotIndex } = req.body;
-
     if (!userId) return res.status(400).json({ error: "Missing User ID" });
 
     try {
@@ -30,7 +34,7 @@ export default async function handler(req, res) {
         const userData = doc.data();
         let farmPlots = userData.farmPlots || [];
         
-        // Init Plots jika kosong
+        // Init Plots jika kosong (Fail-safe)
         if (farmPlots.length === 0) {
              farmPlots = [
                 { id: 1, status: 'empty', plant: null, harvestAt: 0 },
@@ -46,23 +50,22 @@ export default async function handler(req, res) {
         if (action === 'plant') {
             const plot = farmPlots[plotIndex];
 
-            // Validasi
-            if (!plot) return res.status(400).json({ error: "Plot tidak ditemukan" });
+            if (!plot) return res.status(400).json({ error: "Plot invalid" });
             if (plot.status !== 'empty') return res.status(400).json({ error: "Lahan tidak kosong" });
 
-            // Pilih Tanaman (Server yang menentukan secara Acak)
             const seed = getRandomPlant(); 
-            const cropConfig = GameConfig.Crops[seed];
+            const cropConfig = (GameConfig.Crops && GameConfig.Crops[seed]) ? GameConfig.Crops[seed] : { time: 60 };
 
-            // Update Plot
+            // Update State Plot
             farmPlots[plotIndex] = {
                 ...plot,
                 status: 'growing',
                 plant: seed,
-                harvestAt: now + (cropConfig.time * 1000) // Server hitung waktu
+                harvestAt: now + (cropConfig.time * 1000) 
             };
 
-            await userRef.update({ farmPlots });
+            // Simpan Database
+            await userRef.set({ farmPlots }, { merge: true });
 
             return res.status(200).json({ 
                 success: true, 
@@ -71,31 +74,25 @@ export default async function handler(req, res) {
             });
         }
 
-        // === ACTION: HARVEST (PANEN & TANAM ULANG) ===
+        // === ACTION: HARVEST (PANEN & REPLANT) ===
         if (action === 'harvest') {
             const plot = farmPlots[plotIndex];
 
-            // Validasi
             if (!plot || plot.status !== 'growing') return res.status(400).json({ error: "Belum siap panen" });
             
-            // Cek Waktu (Toleransi 2 detik)
-            if (now < plot.harvestAt - 2000) {
-                return res.status(400).json({ error: "Tanaman belum matang!" });
+            // Validasi Waktu (Toleransi 5 Detik biar sinkron dengan Frontend)
+            if (now < plot.harvestAt - 5000) {
+                return res.status(400).json({ error: "Tunggu sebentar lagi!" });
             }
 
             // 1. Hitung Hasil
             const cropName = plot.plant || 'ginger';
-            const yieldAmount = 1; // Default 1 (Bisa tambah logic buff di sini nanti)
+            const yieldAmount = 1; 
 
-            // 2. Masukkan ke Gudang
-            const warehouseKey = `warehouse.${cropName}`;
-
-            // 3. AUTO REPLANT (Fitur Game Anda)
-            // Server pilih tanaman baru
+            // 2. Auto Replant (Tanam Ulang)
             const newSeed = getRandomPlant();
-            const newConfig = GameConfig.Crops[newSeed];
+            const newConfig = (GameConfig.Crops && GameConfig.Crops[newSeed]) ? GameConfig.Crops[newSeed] : { time: 60 };
 
-            // Update Plot jadi Growing lagi (bukan empty)
             farmPlots[plotIndex] = {
                 ...plot,
                 status: 'growing',
@@ -103,22 +100,32 @@ export default async function handler(req, res) {
                 harvestAt: now + (newConfig.time * 1000)
             };
 
-            // 4. Simpan Database (Atomic Update)
-            await userRef.update({
+            // 3. UPDATE DATABASE (PAKAI SET MERGE)
+            // Ini kuncinya! Kita update warehouse menggunakan dot notation di dalam merge object.
+            // Firestore otomatis membuat map 'warehouse' jika belum ada.
+            const updatePayload = {
                 farmPlots: farmPlots,
-                [warehouseKey]: db.FieldValue.increment(yieldAmount),
-                "user.totalHarvest": db.FieldValue.increment(yieldAmount)
-            });
+                user: {
+                    totalHarvest: db.FieldValue.increment(yieldAmount)
+                },
+                warehouse: {
+                    [cropName]: db.FieldValue.increment(yieldAmount)
+                }
+            };
 
-            // Ambil data terbaru
+            await userRef.set(updatePayload, { merge: true });
+
+            // 4. Ambil Data Terbaru untuk Update UI
+            // Kita ambil snapshot baru agar data gudang di frontend sinkron
             const updatedDoc = await userRef.get();
+            const finalData = updatedDoc.data();
 
             return res.status(200).json({ 
                 success: true, 
-                message: `Harvested ${cropName} & Replanted ${newSeed}`, 
-                farmPlots,
-                warehouse: updatedDoc.data().warehouse,
-                user: updatedDoc.data().user
+                message: `Harvested ${cropName}`, 
+                farmPlots: finalData.farmPlots,
+                warehouse: finalData.warehouse || {},
+                user: finalData.user
             });
         }
 
@@ -126,6 +133,6 @@ export default async function handler(req, res) {
 
     } catch (error) {
         console.error("Farm API Error:", error);
-        return res.status(500).json({ error: error.message });
+        return res.status(500).json({ error: "Server Error: " + error.message });
     }
 }
