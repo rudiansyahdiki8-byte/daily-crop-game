@@ -25,7 +25,9 @@ const WithdrawSystem = {
     init() {
         this.selectedMethod = 'faucetpay';
         this.currentTab = 'withdraw';
+        // Render awal dengan data aman
         this.render();
+        // Ambil harga asli di background
         this.fetchLiveRates();
     },
 
@@ -83,15 +85,17 @@ const WithdrawSystem = {
 
     render() {
         const wdArea = document.getElementById('withdraw-area');
-        if (!wdArea) return;
+        if (!wdArea) return; // Stop jika elemen tidak ada (misal user belum buka menu)
 
         wdArea.className = "glass w-full max-w-sm rounded-[2.5rem] p-6 border border-white/10 relative overflow-hidden flex flex-col max-h-[85vh] shadow-2xl";
         
-        // --- BAGIAN INI YANG MEMPERBAIKI ERROR 'toLocaleString' ---
-        // Kita gunakan (|| 0) agar kalau data belum ada, dia pakai angka 0.
+        // --- BAGIAN PENGAMAN CRASH ---
+        // Kita pakai (|| {}) dan (|| 0) supaya tidak ada yang 'null'
         const userData = GameState.user || {}; 
         const coins = userData.coins || 0;     
-        const currentBalance = coins.toLocaleString(); // Aman sekarang!
+        
+        // Formatting angka sekarang aman karena 'coins' pasti ada isinya minimal 0
+        const currentBalance = coins.toLocaleString(); 
 
         const headerHTML = `
             <div class="flex justify-between items-center mb-6">
