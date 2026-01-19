@@ -1,31 +1,30 @@
 // js/spin.js
-// Flow Update: Spin First -> Result -> Watch Ad to Claim (Loss Aversion)
-// Config Update: Semua angka diambil dari window.GameConfig.Spin
+// Flow: (Free) Watch Ad -> Call Server -> Spin Animation -> Show Result
+// Flow: (Paid) Call Server -> Spin Animation -> Show Result
 
 const SpinSystem = {
-    // Cooldown dari Config (Default 1 Jam)
-    cooldownTime: window.GameConfig.Spin.CooldownFree, 
+    cooldownTime: window.GameConfig.Spin?.CooldownFree || 3600000, 
     isSpinning: false,
 
-    // DEFINISI 8 SEGMEN RODA (Visual Urut Jarum Jam)
-    // Label dan Value sekarang dinamis mengikuti Config
+    // VISUAL SEGMEN (Harus urut sesuai logika API server 0-7)
     segments: [
-        { id: 'coin_low', type: 'coin', val: window.GameConfig.Spin.RewardCoinLow, label: `${window.GameConfig.Spin.RewardCoinLow} PTS`, color: '#60a5fa', icon: 'fa-coins' },       
-        { id: 'herb_common', type: 'herb', rarity: 'Common', label: 'Common', color: '#4ade80', icon: 'fa-leaf' }, 
-        { id: 'coin_high', type: 'coin', val: window.GameConfig.Spin.RewardCoinHigh, label: `${window.GameConfig.Spin.RewardCoinHigh} PTS`, color: '#fbbf24', icon: 'fa-coins' },     
-        { id: 'herb_common', type: 'herb', rarity: 'Common', label: 'Common', color: '#4ade80', icon: 'fa-leaf' }, 
-        { id: 'coin_mid', type: 'coin', val: window.GameConfig.Spin.RewardCoinMid, label: `${window.GameConfig.Spin.RewardCoinMid} PTS`, color: '#60a5fa', icon: 'fa-coins' },     
-        { id: 'herb_rare', type: 'herb', rarity: 'Rare', label: 'Rare', color: '#c084fc', icon: 'fa-star' },       
-        { id: 'jackpot', type: 'jackpot', val: window.GameConfig.Spin.Jackpot, label: 'JACKPOT', color: '#f43f5e', icon: 'fa-gem' },    
-        { id: 'coin_low', type: 'coin', val: window.GameConfig.Spin.RewardCoinLow, label: `${window.GameConfig.Spin.RewardCoinLow} PTS`, color: '#60a5fa', icon: 'fa-coins' }         
+        { id: 0, label: 'LOW', color: '#60a5fa', icon: 'fa-coins' },       
+        { id: 1, label: 'HERB', color: '#4ade80', icon: 'fa-leaf' }, 
+        { id: 2, label: 'HIGH', color: '#fbbf24', icon: 'fa-coins' },     
+        { id: 3, label: 'HERB', color: '#4ade80', icon: 'fa-leaf' }, 
+        { id: 4, label: 'MID', color: '#60a5fa', icon: 'fa-coins' },     
+        { id: 5, label: 'RARE', color: '#c084fc', icon: 'fa-star' },       
+        { id: 6, label: 'JACKPOT', color: '#f43f5e', icon: 'fa-gem' },    
+        { id: 7, label: 'LOW', color: '#60a5fa', icon: 'fa-coins' }         
     ],
 
     show() {
+        if(document.getElementById('spin-popup')) return;
+        
         const overlay = document.createElement('div');
         overlay.id = "spin-popup";
         overlay.className = "fixed inset-0 bg-black/95 backdrop-blur-xl z-[999] flex items-center justify-center p-4 animate-in";
         
-        // CSS INJECTION UNTUK RODA
         const style = document.createElement('style');
         style.innerHTML = `
             .wheel-container { position: relative; width: 280px; height: 280px; border-radius: 50%; border: 4px solid rgba(255,255,255,0.1); overflow: hidden; box-shadow: 0 0 50px rgba(16,185,129,0.2); transition: transform 4s cubic-bezier(0.15, 0, 0.15, 1); }
@@ -33,7 +32,6 @@ const SpinSystem = {
         `;
         overlay.appendChild(style);
 
-        // GENERATE VISUAL RODA
         let wheelHTML = '';
         this.segments.forEach((seg, i) => {
             const rotation = i * 45; 
@@ -49,9 +47,7 @@ const SpinSystem = {
                 </div>`;
         });
         const gradientColors = this.segments.map((s, i) => `${s.color} ${i * 12.5}% ${(i + 1) * 12.5}%`).join(', ');
-        
-        // Perbaikan: Menampilkan Harga Spin Paid dari Config di Tombol
-        const spinCost = window.GameConfig.Spin.CostPaid;
+        const spinCost = window.GameConfig.Spin?.CostPaid || 1000;
 
         overlay.innerHTML = `
             <div class="glass w-full max-w-sm rounded-[2.5rem] p-6 border border-white/10 text-center relative overflow-hidden shadow-2xl flex flex-col items-center">
@@ -88,145 +84,143 @@ const SpinSystem = {
     async start(type) {
         if (this.isSpinning) return;
         
-        // 1. CEK SYARAT & PAYMENT DULU (Pakai Config)
-        if (type === 'paid') {
-            const cost = window.GameConfig.Spin.CostPaid;
+        // 1. Logic Free: Nonton Iklan Dulu
+        if (type === 'free') {
+            // Cek Timer Client Side (Pre-check)
+            const lastSpin = GameState.user.spin_free_cooldown || 0;
+            const remaining = this.cooldownTime - (Date.now() - parseInt(lastSpin));
+            if (remaining > 0) {
+                UIEngine.showRewardPopup("COOLDOWN", "Please wait before spinning again.", null, "OK");
+                return;
+            }
+
+            // Panggil Iklan
+            if(window.AdsManager) {
+                AdsManager.showHybridStack(2, () => {
+                    this.callServer(type); // Iklan Sukses -> Call Server
+                });
+            } else {
+                this.callServer(type); // Fallback jika ads blocked
+            }
+        } 
+        // 2. Logic Paid: Langsung Server
+        else {
+            const cost = window.GameConfig.Spin?.CostPaid || 1000;
             if (GameState.user.coins < cost) {
                 UIEngine.showRewardPopup("NO COINS", `Need ${cost} PTS to spin.`, null, "CLOSE");
                 return;
             }
-            GameState.user.coins -= cost;
-        } else if (type === 'free') {
-            // Anti-Cheat: Langsung kunci cooldown
-            GameState.user.spin_free_cooldown = Date.now();
+            this.callServer(type);
         }
-
-        await GameState.save();
-        UIEngine.updateHeader();
-
-        // 2. JALANKAN SPIN (Visual)
-        this.executeSpin(type);
     },
 
-    executeSpin(type) {
+    async callServer(type) {
         this.isSpinning = true;
-        const wheel = document.getElementById('real-wheel');
+        
+        // Disable Tombol
         const btnFree = document.getElementById('btn-spin-free');
         const btnPaid = document.getElementById('btn-spin-paid');
         if(btnFree) btnFree.disabled = true;
         if(btnPaid) btnPaid.disabled = true;
 
-        // --- ALGORITMA GACHA (Weighted) ---
-        // Peluang tetap di sini (Hardcoded logic is fine for now)
-        const rand = Math.random() * 100;
-        let targetIndex = 0; 
-        
-        // 40% Koin Kecil, 30% Common, 20% Koin Sedang, 9% Rare, 1% Jackpot
-        if (rand < 40) { const opts = [0, 4, 7]; targetIndex = opts[Math.floor(Math.random() * opts.length)]; } 
-        else if (rand < 70) { const opts = [1, 3]; targetIndex = opts[Math.floor(Math.random() * opts.length)]; }
-        else if (rand < 90) { targetIndex = 2; }
-        else if (rand < 99) { targetIndex = 5; }
-        else { targetIndex = 6; } // JACKPOT
+        try {
+            // REQUEST KE API
+            const response = await fetch('/api/spin', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ userId: GameState.user.userId, type: type })
+            });
+            const result = await response.json();
 
-        // Hitung Rotasi Visual
+            if (result.success) {
+                // Update State (Koin berkurang/bertambah sudah diurus server)
+                // Kita update lokal agar UI sinkron
+                GameState.user.coins = result.userCoins;
+                if(result.userCooldown) GameState.user.spin_free_cooldown = result.userCooldown;
+                if(result.warehouse) GameState.warehouse = result.warehouse;
+
+                // PUTAR RODA VISUAL SESUAI HASIL SERVER
+                this.animateWheel(result.targetIndex, result.reward);
+            } else {
+                UIEngine.showRewardPopup("ERROR", result.error || "Spin Failed", null, "CLOSE");
+                this.isSpinning = false;
+                this.updateTimer();
+            }
+
+        } catch (e) {
+            console.error(e);
+            UIEngine.showRewardPopup("ERROR", "Connection Error", null, "RETRY");
+            this.isSpinning = false;
+            this.updateTimer();
+        }
+    },
+
+    animateWheel(targetIndex, reward) {
+        const wheel = document.getElementById('real-wheel');
+        if(!wheel) return;
+
+        // Hitung Rotasi
+        // 0 derajat ada di atas (12 jam). Target index 0 ada di 0 derajat.
+        // Kita perlu memutar papan agar index target mendarat di arah jarum (atas).
         const segmentAngle = 360 / 8;
+        // Agar target ada di atas, rotasi harus negatif (berlawanan) atau 360 - target
+        // Random offset agar tidak selalu tepat di tengah garis
         const randomOffset = Math.floor(Math.random() * 20) - 10; 
-        const spinRounds = 5 * 360;
+        const spinRounds = 5 * 360; // 5 putaran penuh
         const targetRotation = spinRounds + (360 - (targetIndex * segmentAngle)) + randomOffset;
 
         wheel.style.transition = "transform 4s cubic-bezier(0.15, 0, 0.15, 1)";
         wheel.style.transform = `rotate(${targetRotation}deg)`;
 
-        // Selesai Muter -> Tampilkan Result Logic
+        // Setelah Animasi Selesai
         setTimeout(() => {
-            this.handleResult(this.segments[targetIndex], type);
             this.isSpinning = false;
+            UIEngine.updateHeader(); // Update koin di header
+            UIEngine.showRewardPopup(
+                "CONGRATULATIONS", 
+                `<div class="flex flex-col items-center gap-2">
+                    <span class="text-3xl animate-bounce">🎁</span>
+                    <span class="text-lg font-black text-white uppercase">${reward.name}</span>
+                    <span class="text-[9px] text-gray-400">Has been added to your account!</span>
+                </div>`, 
+                null, 
+                "AWESOME"
+            );
+            this.updateTimer();
         }, 4000);
     },
 
-    handleResult(prize, type) {
-        // Tentukan nama hadiah (Jika Herb, pilih random dari rarity-nya)
-        let finalPrizeName = prize.label;
-        let finalPrizeKey = null;
-
-        if (prize.type === 'herb') {
-            // Ambil Data Tanaman yang sudah connect ke Config (via HerbData)
-            const candidates = Object.keys(window.HerbData).filter(k => window.HerbData[k].rarity === prize.rarity);
-            if(candidates.length > 0) {
-                finalPrizeKey = candidates[Math.floor(Math.random() * candidates.length)];
-                finalPrizeName = window.HerbData[finalPrizeKey].name;
-            }
-        }
-
-        // --- LOGIC FREE VS PAID ---
-        if (type === 'paid') {
-            this.grantReward(prize, finalPrizeKey);
-            UIEngine.showRewardPopup("CONGRATULATIONS", `You got ${finalPrizeName}!`, null, "AWESOME");
-        } 
-        else {
-            // FREE: Tampilkan Popup "Claim with Ad"
-            UIEngine.showRewardPopup(
-                "YOU WON!", 
-                `<div class="flex flex-col items-center gap-2">
-                    <span class="text-3xl animate-bounce">${prize.icon ? `<i class="fas ${prize.icon}" style="color:${prize.color}"></i>` : '🎁'}</span>
-                    <span class="text-lg font-black text-white uppercase">${finalPrizeName}</span>
-                    <span class="text-[9px] text-gray-400">Watch Ad to claim this reward!</span>
-                </div>`, 
-                () => {
-                    // PANGGIL IKLAN DI SINI
-                    AdsManager.showHybridStack(2, () => {
-                        this.grantReward(prize, finalPrizeKey);
-                        UIEngine.showRewardPopup("CLAIMED", `${finalPrizeName} added to inventory!`, null, "NICE");
-                    });
-                }, 
-                "WATCH AD & CLAIM"
-            );
-        }        
-        document.getElementById('spin-popup')?.remove();
+    updateTimer: function() {
+        const freeBtn = document.getElementById('btn-spin-free');
+        const lastSpin = GameState.user.spin_free_cooldown || 0;
+        if (!freeBtn) return;
         if (this.timerInterval) clearInterval(this.timerInterval);
+        
+        const cdTime = this.cooldownTime; 
+
+        this.timerInterval = setInterval(() => {
+            const remaining = cdTime - (Date.now() - parseInt(lastSpin));
+            if (remaining > 0) {
+                freeBtn.disabled = true; 
+                freeBtn.classList.add('opacity-50', 'cursor-not-allowed', 'grayscale');
+                const mins = Math.floor((remaining / 60000) % 60); 
+                const secs = Math.floor((remaining / 1000) % 60);
+                freeBtn.innerHTML = `<span class="flex items-center justify-center gap-2"><i class="fas fa-clock"></i> Wait ${mins}:${secs < 10 ? '0' : ''}${secs}</span>`;
+            } else {
+                freeBtn.disabled = false; 
+                freeBtn.classList.remove('opacity-50', 'cursor-not-allowed', 'grayscale');
+                freeBtn.innerHTML = `<span class="flex items-center justify-center gap-2"><i class="fas fa-play-circle group-hover:rotate-12 transition-transform"></i> Spin Free</span>`;
+                clearInterval(this.timerInterval);
+            }
+        }, 1000);
     },
 
-    async grantReward(prize, herbKey) {
-        if (prize.type === 'coin' || prize.type === 'jackpot') {
-            GameState.user.coins += prize.val;
+    close: function() { 
+        if(!this.isSpinning) { 
+            document.getElementById('spin-popup')?.remove(); 
+            if (this.timerInterval) clearInterval(this.timerInterval); 
         } 
-        else if (prize.type === 'herb' && herbKey) {
-            GameState.warehouse[herbKey] = (GameState.warehouse[herbKey] || 0) + 1;
-        }
-
-        await GameState.save();
-        if(window.UIEngine) UIEngine.updateHeader();
     }
 };
 
-SpinSystem.updateTimer = function() {
-    const freeBtn = document.getElementById('btn-spin-free');
-    const lastSpin = GameState.user.spin_free_cooldown || 0;
-    if (!freeBtn) return;
-    if (this.timerInterval) clearInterval(this.timerInterval);
-    
-    // Timer pakai Cooldown dari Config
-    const cdTime = this.cooldownTime; 
-
-    this.timerInterval = setInterval(() => {
-        const remaining = cdTime - (Date.now() - parseInt(lastSpin));
-        if (remaining > 0) {
-            freeBtn.disabled = true; 
-            freeBtn.classList.add('opacity-50', 'cursor-not-allowed', 'grayscale');
-            const mins = Math.floor((remaining / 60000) % 60); const secs = Math.floor((remaining / 1000) % 60);
-            freeBtn.innerHTML = `<span class="flex items-center justify-center gap-2"><i class="fas fa-clock"></i> Wait ${mins}:${secs < 10 ? '0' : ''}${secs}</span>`;
-        } else {
-            freeBtn.disabled = false; 
-            freeBtn.classList.remove('opacity-50', 'cursor-not-allowed', 'grayscale');
-            freeBtn.innerHTML = `<span class="flex items-center justify-center gap-2"><i class="fas fa-play-circle group-hover:rotate-12 transition-transform"></i> Spin Free</span>`;
-            clearInterval(this.timerInterval);
-        }
-    }, 1000);
-};
-
-SpinSystem.close = function() { if(!this.isSpinning) { document.getElementById('spin-popup')?.remove(); if (this.timerInterval) clearInterval(this.timerInterval); } };
-
-
 window.SpinSystem = SpinSystem;
-
-
