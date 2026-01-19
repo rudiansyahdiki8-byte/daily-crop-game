@@ -2,7 +2,6 @@
 import db from './db.js';
 import { GameConfig } from './gameConfig.js';
 
-// Helper: Ambil tanaman random
 function getRandomPlant() {
     if (!GameConfig || !GameConfig.Crops) return 'ginger'; 
     const keys = Object.keys(GameConfig.Crops);
@@ -24,13 +23,11 @@ export default async function handler(req, res) {
     try {
         const userRef = db.collection('users').doc(userId);
         const doc = await userRef.get();
-
         if (!doc.exists) return res.status(404).json({ error: "User not found" });
 
         const userData = doc.data();
         let farmPlots = userData.farmPlots || [];
-        
-        // Init Plots jika kosong
+
         if (farmPlots.length === 0) {
              farmPlots = [
                 { id: 1, status: 'empty', plant: null, harvestAt: 0 },
@@ -46,8 +43,8 @@ export default async function handler(req, res) {
         if (action === 'plant') {
             const plot = farmPlots[plotIndex];
             
-            // Allow planting only on empty plots
-            if (!plot || plot.status !== 'empty') return res.status(400).json({ error: "Lahan tidak valid" });
+            // Validasi: Hanya boleh tanam di lahan kosong
+            if (!plot || plot.status !== 'empty') return res.status(400).json({ error: "Invalid plot status (Must be empty)" });
 
             const seed = getRandomPlant(); 
             const cropConfig = (GameConfig.Crops && GameConfig.Crops[seed]) ? GameConfig.Crops[seed] : { time: 60 };
@@ -67,36 +64,35 @@ export default async function handler(req, res) {
         // === ACTION: HARVEST ===
         if (action === 'harvest') {
             const plot = farmPlots[plotIndex];
-            
-            // [PERBAIKAN UTAMA DI SINI]
-            // Kita izinkan status 'growing' ATAU 'ready'.
-            // Ini mengatasi masalah jika Frontend terlanjur menyimpan status 'ready' ke DB.
+
+            // Validasi Status
             if (!plot || (plot.status !== 'growing' && plot.status !== 'ready')) {
-                return res.status(400).json({ error: "Belum siap panen (Status Salah)" });
+                return res.status(400).json({ error: "Invalid plot status for harvest" });
             }
             
-            // Validasi Waktu (Toleransi 5 Detik)
-            // Walaupun status sudah 'ready' di DB, kita tetap cek waktu server biar aman dari cheat.
-            if (now < plot.harvestAt - 5000) {
-                return res.status(400).json({ error: "Tunggu sebentar lagi!" });
+            // Validasi Waktu (Anti-Cheat)
+            if (now < plot.harvestAt - 2000) {
+                return res.status(400).json({ error: "Crop is not ready yet!" });
             }
 
-            // 1. Hitung Hasil
             const cropName = plot.plant || 'ginger';
-            const yieldAmount = 1; 
+            const cropConfig = GameConfig.Crops[cropName] || { minYield: 1, maxYield: 1, time: 60 };
 
-            // 2. Auto Replant
+            const min = cropConfig.minYield || 1;
+            const max = cropConfig.maxYield || 1;
+            const yieldAmount = Math.floor(Math.random() * (max - min + 1)) + min;
+
+            // Auto Replant Logic
             const newSeed = getRandomPlant();
             const newConfig = (GameConfig.Crops && GameConfig.Crops[newSeed]) ? GameConfig.Crops[newSeed] : { time: 60 };
 
             farmPlots[plotIndex] = {
                 ...plot,
-                status: 'growing', // Kembalikan ke growing
+                status: 'growing',
                 plant: newSeed,
                 harvestAt: now + (newConfig.time * 1000)
             };
 
-            // 3. UPDATE DATABASE (Manual Math)
             const currentStock = (userData.warehouse && userData.warehouse[cropName]) ? userData.warehouse[cropName] : 0;
             const currentTotalHarvest = (userData.user && userData.user.totalHarvest) ? userData.user.totalHarvest : 0;
 
@@ -116,7 +112,7 @@ export default async function handler(req, res) {
             
             return res.status(200).json({ 
                 success: true, 
-                message: `Harvested ${cropName}`, 
+                message: `Harvested ${yieldAmount}x ${cropName}`, 
                 farmPlots: farmPlots,
                 warehouse: newWarehouse,
                 user: { ...userData.user, totalHarvest: currentTotalHarvest + yieldAmount }
