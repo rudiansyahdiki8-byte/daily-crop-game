@@ -1,6 +1,6 @@
 // js/herbs.js
 // DATA VISUAL TANAMAN (GAMBAR & NAMA)
-// Logic Harga & Waktu diambil dari Window.GameConfig (config.js)
+// Logic Harga & Waktu diambil dari Window.GameConfig (yang di-load dari server)
 
 const HerbAssets = {
     // COMMON
@@ -35,34 +35,37 @@ const HerbAssets = {
     saffron:     { name: 'Saffron', img: 'https://img.icons8.com/external-flaticons-lineal-color-flat-icons/64/external-saffron-world-cuisine-flaticons-lineal-color-flat-icons-2.png', rarity: 'Legendary' }
 };
 
-// ==========================================
-// SYSTEM PENGGABUNGAN DATA (JANGAN DIUBAH)
-// Menggabungkan Gambar (Assets) + Angka (Config)
-// ==========================================
-const HerbData = {};
+// Container Data Global (Awalnya Kosong)
+window.HerbData = {};
 
-// Cek apakah Config sudah dimuat di index.html?
-if (window.GameConfig && window.GameConfig.Crops) {
+function initHerbData() {
+    // Cek apakah Config Server sudah masuk?
+    if (!window.GameConfig || !window.GameConfig.Crops) {
+        console.warn("[HERBS] Config Server belum siap. Menunggu...");
+        return; 
+    }
+
+    console.log("[HERBS] Menggabungkan Aset Visual dengan Config Server...");
+    
     for (const key in HerbAssets) {
-        // Ambil data angka dari config.js
         const configData = window.GameConfig.Crops[key];
         
         if (configData) {
-            // Gabungkan Data: Gambar + Harga/Waktu
-            HerbData[key] = {
-                ...HerbAssets[key], // Ambil nama & img
-                ...configData       // Ambil time, price, chance
+            window.HerbData[key] = {
+                ...HerbAssets[key], // Ambil nama & img dari sini (Frontend)
+                ...configData       // Ambil time, price, chance dari Server (Backend)
             };
         } else {
-            console.warn(`[HERBS] Config hilang untuk tanaman: ${key}`);
-            // Fallback (Jaga-jaga agar tidak error)
-            HerbData[key] = { ...HerbAssets[key], time: 180, minPrice: 10, maxPrice: 20, chance: 10 };
+            // Fallback aman jika config server macet
+            window.HerbData[key] = { ...HerbAssets[key], time: 0, minPrice: 0 };
         }
     }
-} else {
-    console.error("[CRITICAL] GameConfig not loaded! Check index.html order.");
-    alert("System Error: Config file missing.");
+    
+    console.log("[HERBS] Data Tanaman Siap Digunakan!");
 }
 
-// Export ke Window agar bisa dibaca file lain
-window.HerbData = HerbData;
+// 1. Coba init langsung (Jika config kebetulan sudah ada di cache browser)
+initHerbData();
+
+// 2. Dengarkan Event 'ConfigLoaded' yang dikirim oleh file config.js
+window.addEventListener('ConfigLoaded', initHerbData);
