@@ -324,16 +324,54 @@ const FarmSystem = {
         if(notifDot) notifDot.style.display = readyCount > 0 ? 'block' : 'none';
     },
 
+// --- UPDATE: PANGGIL API TASKS ---
     handleTaskClick(task, btnElement) {
+        // Pengecualian untuk Spin (karena punya sistem sendiri)
         if (task.action === 'spin') { SpinSystem.show(); return; }
+        
+        // 1. Tampilkan Iklan Dulu (Wajib Nonton)
         AdsManager.showAd('reward', async () => {
-            GameState.user.coins += task.reward;
-            if (!GameState.user.task_cooldowns) GameState.user.task_cooldowns = {};
-            GameState.user.task_cooldowns[task.id] = Date.now();
-            if(btnElement) this.playCoinAnimation(btnElement);
-            await GameState.save(); 
-            this.renderTaskButtons();
-            UIEngine.showRewardPopup("SUCCESS", `Task Done! +${task.reward} PTS`, null, "OK");
+            
+            // 2. Tampilkan Loading Popup
+            UIEngine.showRewardPopup("CLAIMING", "Verifying task...", null, "...");
+
+            try {
+                // 3. Panggil Server untuk Validasi & Reward
+                const response = await fetch('/api/tasks', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        userId: GameState.user.userId,
+                        taskId: task.id
+                    })
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    // 4. Update State Lokal (Agar UI responsif)
+                    GameState.user.coins += result.reward;
+                    
+                    if (!GameState.user.task_cooldowns) GameState.user.task_cooldowns = {};
+                    GameState.user.task_cooldowns[task.id] = result.newCooldown;
+                    
+                    // Efek Koin Terbang
+                    if(btnElement) this.playCoinAnimation(btnElement);
+                    
+                    // Update Tampilan Tombol
+                    this.renderTaskButtons();
+                    UIEngine.updateHeader();
+                    
+                    UIEngine.showRewardPopup("SUCCESS", `Task Done! +${result.reward} PTS`, null, "OK");
+                } else {
+                    // Gagal (Misal cooldown belum selesai atau cheat)
+                    UIEngine.showRewardPopup("FAILED", result.error, null, "CLOSE");
+                }
+
+            } catch (e) {
+                console.error(e);
+                UIEngine.showRewardPopup("ERROR", "Server Connection Failed", null, "CLOSE");
+            }
         });
     },
 
@@ -454,3 +492,4 @@ const FarmSystem = {
 };
 
 window.FarmSystem = FarmSystem;
+
