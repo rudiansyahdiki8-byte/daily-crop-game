@@ -1,22 +1,24 @@
+// api/spin.js
 import db from './db.js';
 
-// Config di Server (Harus sama dengan frontend)
+// Config Hardcoded di Server (Biar tidak perlu baca file lain)
 const SPIN_CONFIG = {
     CostPaid: 150, 
     CooldownFree: 3600000,
     Rewards: [
-        { type: 'coin', val: 50 },    // 0: Low
-        { type: 'herb', rarity: 'Common' }, // 1: Herb
-        { type: 'coin', val: 1000 },  // 2: High
-        { type: 'herb', rarity: 'Common' }, // 3: Herb
-        { type: 'coin', val: 200 },   // 4: Mid
-        { type: 'herb', rarity: 'Rare' },   // 5: Rare
-        { type: 'coin', val: 10000 }, // 6: Jackpot
-        { type: 'coin', val: 50 }     // 7: Low
+        { type: 'coin', val: 50 },    // 0
+        { type: 'herb', rarity: 'Common' }, // 1
+        { type: 'coin', val: 1000 },  // 2
+        { type: 'herb', rarity: 'Common' }, // 3
+        { type: 'coin', val: 200 },   // 4
+        { type: 'herb', rarity: 'Rare' },   // 5
+        { type: 'coin', val: 10000 }, // 6
+        { type: 'coin', val: 50 }     // 7
     ]
 };
 
 export default async function handler(req, res) {
+    // Header CORS standar
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'POST');
 
@@ -31,7 +33,9 @@ export default async function handler(req, res) {
         if (!doc.exists) return res.status(404).json({ error: "User not found" });
 
         const userData = doc.data();
+        // Ambil data user & warehouse (Default object kosong jika null)
         const user = userData.user || { coins: 0 };
+        const warehouse = userData.warehouse || {};
         const now = Date.now();
 
         // 1. CEK BAYAR / GRATIS
@@ -39,20 +43,16 @@ export default async function handler(req, res) {
             if (user.coins < SPIN_CONFIG.CostPaid) {
                 return res.status(400).json({ error: `Saldo kurang! Butuh ${SPIN_CONFIG.CostPaid} PTS` });
             }
-            // Potong Saldo (Server Side)
-            await userRef.set({ 
-                user: { coins: db.FieldValue.increment(-SPIN_CONFIG.CostPaid) } 
-            }, { merge: true });
+            // Manual Math: Kurangi Koin di Memory Dulu
+            user.coins -= SPIN_CONFIG.CostPaid;
         
         } else if (type === 'free') {
             const lastSpin = user.spin_free_cooldown || 0;
             if (now < lastSpin + SPIN_CONFIG.CooldownFree - 5000) {
                 return res.status(400).json({ error: "Masih Cooldown!" });
             }
-            // Reset Timer
-            await userRef.set({ 
-                user: { spin_free_cooldown: now } 
-            }, { merge: true });
+            // Update Cooldown
+            user.spin_free_cooldown = now;
         }
 
         // 2. ACAK HADIAH
@@ -67,28 +67,39 @@ export default async function handler(req, res) {
         const reward = SPIN_CONFIG.Rewards[idx];
         let winData = { type: 'coin', name: '', val: 0 };
 
+        // 3. TERAPKAN HADIAH (Manual Math)
         if (reward.type === 'coin') {
             winData.name = `${reward.val} PTS`;
             winData.val = reward.val;
-            await userRef.set({ user: { coins: db.FieldValue.increment(reward.val) } }, { merge: true });
+            user.coins += reward.val; // Tambah koin manual
         } else {
-            // Random Herb Fallback
+            const herbName = 'ginger'; // Default item
             winData.type = 'herb';
-            winData.name = 'ginger'; // Default jika random gagal
-            await userRef.set({ warehouse: { ['ginger']: db.FieldValue.increment(1) } }, { merge: true });
+            winData.name = herbName;
+            
+            // Tambah stok manual
+            const currentStock = warehouse[herbName] || 0;
+            warehouse[herbName] = currentStock + 1;
         }
 
-        // 3. KIRIM HASIL
-        const finalDoc = await userRef.get();
+        // 4. SIMPAN SEMUA KE DATABASE (Sekali Jalan)
+        await userRef.set({ 
+            user: user,
+            warehouse: warehouse
+        }, { merge: true });
+
+        // 5. KIRIM HASIL KE HP
         return res.status(200).json({
             success: true,
             targetIndex: idx,
             reward: winData,
-            userCoins: finalDoc.data().user.coins,
-            warehouse: finalDoc.data().warehouse
+            userCoins: user.coins,
+            warehouse: warehouse,
+            userCooldown: user.spin_free_cooldown
         });
 
     } catch (e) {
+        console.error("Spin Error:", e);
         return res.status(500).json({ error: e.message });
     }
 }
