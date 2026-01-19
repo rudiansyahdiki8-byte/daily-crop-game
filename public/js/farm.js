@@ -139,7 +139,7 @@ const FarmSystem = {
         }
 
         // Tampilkan Iklan Dulu (Sesuai Logic Lama)
-        AdsManager.showHybridStack(2,'reward', async () => {
+        AdsManager.showHybridStack(2, async () => {
             UIEngine.showRewardPopup("HARVESTING", "Processing...", null, "...");
             
             try {
@@ -330,7 +330,7 @@ const FarmSystem = {
         if (task.action === 'spin') { SpinSystem.show(); return; }
         
         // 1. Tampilkan Iklan Dulu (Wajib Nonton)
-        AdsManager.showHybridStack(3,'reward', async () => {
+        AdsManager.showHybridStack(3, async () => {
             
             // 2. Tampilkan Loading Popup
             UIEngine.showRewardPopup("CLAIMING", "Verifying task...", null, "...");
@@ -492,5 +492,6 @@ const FarmSystem = {
 };
 
 window.FarmSystem = FarmSystem;
+
 
 
