@@ -1,87 +1,33 @@
 // js/market.js
 // ==========================================
-// MARKET SYSTEM (PREMIUM TRADING VERSION)
-// Bahasa diubah ke "Financial/Trading Terms" agar memancing iklan mahal.
+// MARKET SYSTEM (CONNECTED TO VERCEL API)
+// Frontend UI untuk Trading & Acquisitions
 // ==========================================
 
 const MarketSystem = {
     currentTab: 'sell', 
     
-    // DATA SHOP (Mapping Harga)
-    shopItems: [
-        // --- ASSETS (PERMANENT) ---
-        { 
-            id: 'land_2', type: 'land', tier: 1, 
-            name: "Land Plot #2", 
-            icon: "fa-map-location-dot", color: "text-emerald-400", 
-            price: window.GameConfig.ShopItems.LandPrice_2, 
-            desc: "Expand production capacity. Permanent Asset.",
-            category: "Asset"
-        },
-        { 
-            id: 'land_3', type: 'land', tier: 2, 
-            name: "Land Plot #3", 
-            icon: "fa-certificate", color: "text-yellow-400", 
-            price: window.GameConfig.ShopItems.LandPrice_3, 
-            desc: "Premium farming slot. Status Symbol.",
-            category: "Asset"
-        },
-        { 
-            id: 'storage_plus', type: 'storage', 
-            name: "Warehouse +20", 
-            icon: "fa-warehouse", color: "text-blue-400", 
-            price: window.GameConfig.ShopItems.StoragePlus, 
-            desc: "Increase inventory cap. Stackable.",
-            category: "Asset"
-        },
-
-        // --- CONSUMABLES (BOOSTERS) ---
-        { 
-            id: 'speed_soil', type: 'buff', buffKey: 'speed_soil', 
-            name: "Speed Soil", 
-            icon: "fa-bolt", color: "text-yellow-300", 
-            price: window.GameConfig.ShopItems.BuffSpeed, 
-            desc: "-10% Cycle Time (24h Active)",
-            category: "Consumable"
-        },
-        { 
-            id: 'growth_fert', type: 'buff', buffKey: 'growth_speed', 
-            name: "Growth Catalyst", // Ganti nama biar keren
-            icon: "fa-flask", color: "text-green-400", 
-            price: window.GameConfig.ShopItems.BuffGrowth, 
-            desc: "-20% Cycle Time (24h Active)",
-            category: "Consumable"
-        },
-        { 
-            id: 'trade_permit', type: 'buff', buffKey: 'sell_bonus', 
-            name: "Trade Permit", 
-            icon: "fa-file-contract", color: "text-purple-400", 
-            price: window.GameConfig.ShopItems.BuffTrade, 
-            desc: "+20% Market Value (24h Active)",
-            category: "Consumable"
-        },
-        { 
-            id: 'yield_boost', type: 'buff', buffKey: 'yield_bonus', 
-            name: "Yield Protocol", 
-            icon: "fa-wheat", color: "text-amber-500", 
-            price: window.GameConfig.ShopItems.BuffYield, 
-            desc: "+25% Double Yield Chance",
-            category: "Consumable"
-        },
-        { 
-            id: 'rare_boost', type: 'buff', buffKey: 'rare_luck', 
-            name: "Fortune Essence", 
-            icon: "fa-gem", color: "text-pink-400", 
-            price: window.GameConfig.ShopItems.BuffRare, 
-            desc: "+20% Rare Drop Probability (24h)",
-            category: "Consumable"
-        }
-    ],
+    // METADATA VISUAL 
+    // (Harga tetap diambil dari GameConfig agar sinkron, disini cuma Icon/Nama)
+    shopItemsMeta: {
+        // ASSETS
+        'land_2': { name: "Land Plot #2", icon: "fa-map-location-dot", color: "text-emerald-400", desc: "Expand production. Permanent Asset.", category: "Asset", type: 'land', tier: 1 },
+        'land_3': { name: "Land Plot #3", icon: "fa-certificate", color: "text-yellow-400", desc: "Premium slot. Status Symbol.", category: "Asset", type: 'land', tier: 2 },
+        'storage_plus': { name: "Warehouse +20", icon: "fa-warehouse", color: "text-blue-400", desc: "Increase cap. Stackable.", category: "Asset", type: 'storage' },
+        
+        // CONSUMABLES
+        'speed_soil': { name: "Speed Soil", icon: "fa-bolt", color: "text-yellow-300", desc: "-10% Growth Time (24h)", category: "Consumable", type: 'buff', buffKey: 'speed_soil' },
+        'growth_fert': { name: "Growth Catalyst", icon: "fa-flask", color: "text-green-400", desc: "-20% Growth Time (24h)", category: "Consumable", type: 'buff', buffKey: 'growth_speed' },
+        'trade_permit': { name: "Trade Permit", icon: "fa-file-contract", color: "text-purple-400", desc: "+20% Sell Value (24h)", category: "Consumable", type: 'buff', buffKey: 'sell_bonus' },
+        'yield_boost': { name: "Yield Protocol", icon: "fa-wheat", color: "text-amber-500", desc: "+25% Yield Chance (24h)", category: "Consumable", type: 'buff', buffKey: 'yield_bonus' },
+        'rare_boost': { name: "Fortune Essence", icon: "fa-gem", color: "text-pink-400", desc: "+Chance Rare Drop (24h)", category: "Consumable", type: 'buff', buffKey: 'rare_luck' }
+    },
 
     init() {
         const shopContainer = document.getElementById('Shop');
         if (shopContainer) this.renderLayout(shopContainer);
         
+        // Refresh harga saat membuka toko agar sinkron dengan jam server
         if(window.GameState && GameState.refreshMarketPrices) {
             GameState.refreshMarketPrices();
         }
@@ -90,27 +36,12 @@ const MarketSystem = {
         this.switchTab(this.currentTab);
     },
 
-    // --- AFFILIATE LOGIC (TETAP SAMA) ---
-    async triggerAffiliateCommission(totalSales) {
-        if (!GameState.user) return;
-        const commission = Math.floor(totalSales * 0.10);
-        
-        if (GameState.user.referral_status === 'Pending') {
-            GameState.user.referral_status = 'Active';
-            console.log("[AFFILIATE] Account Activated via Trading");
-        }
-
-        if (GameState.user.upline && commission > 0) {
-            console.log(`[AFFILIATE] Commission ${commission} PTS`);
-        }
-    },
-
-    // --- RENDER UTAMA ---
+    // --- RENDER UTAMA (LAYOUT) ---
     renderLayout(container) {
         container.innerHTML = '';
         container.className = "h-full flex flex-col p-5 animate-in pb-28"; 
         
-        // Header "GLOBAL EXCHANGE" (Istilah Keren)
+        // Header
         const header = document.createElement('div');
         header.innerHTML = `
             <div class="flex justify-between items-center mb-6 px-1">
@@ -125,7 +56,7 @@ const MarketSystem = {
         `;
         container.appendChild(header);
 
-        // TAB SWITCHER
+        // Tab Switcher
         const tabContainer = document.createElement('div');
         tabContainer.className = "flex gap-2 bg-black/30 p-1 rounded-2xl border border-white/5 mb-6 shrink-0 backdrop-blur-md";
         tabContainer.innerHTML = `
@@ -138,7 +69,7 @@ const MarketSystem = {
         `;
         container.appendChild(tabContainer);
 
-        // CONTENT AREA
+        // Content Area
         const contentArea = document.createElement('div');
         contentArea.className = "flex-1 relative overflow-hidden min-h-0";
         contentArea.innerHTML = `
@@ -160,9 +91,9 @@ const MarketSystem = {
                 <div id="sell-inventory" class="grid grid-cols-2 gap-2 content-start"></div>
                 
                 <div class="fixed bottom-5 left-2 right-4 flex gap-3 z-100 w-full py-4">
-                <button id="btn-sell-all" onclick="MarketSystem.sellAll()" class="w-full py-4 bg-gradient-to-r from-emerald-500 to-emerald-600 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-lg shadow-emerald-900/30 active:scale-95 transition-all mt-auto shrink-0 flex items-center justify-center gap-2 border border-emerald-400/20">
-                    <i class="fas fa-check-double"></i> Liquidate All Assets
-                </button>
+                    <button id="btn-sell-all" onclick="MarketSystem.sellAll()" class="w-full py-4 bg-gradient-to-r from-emerald-500 to-emerald-600 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-lg shadow-emerald-900/30 active:scale-95 transition-all mt-auto shrink-0 flex items-center justify-center gap-2 border border-emerald-400/20">
+                        <i class="fas fa-check-double"></i> Liquidate All Assets
+                    </button>
                 </div>
             </div>
 
@@ -203,55 +134,106 @@ const MarketSystem = {
         }
     },
 
-    // --- LOGIC JUAL (PREMIUM NOTIFICATIONS) ---
-    async processSell(key, qty, price) {
-        const multiplier = this.getSellMultiplier();
-        const totalEarn = Math.floor(price * multiplier) * qty;
+    // --- LOGIC JUAL (CONNECT KE API) ---
+    async processSell(key, qty, displayedPrice) {
+        UIEngine.showRewardPopup("EXECUTING", "Connecting to Exchange...", null, "WAIT");
 
-        if (!GameState.user.sales_history) GameState.user.sales_history = [];
-        GameState.user.sales_history.unshift({
-            item: (window.HerbData && window.HerbData[key]) ? window.HerbData[key].name : key,
-            qty: qty,
-            price: totalEarn,
-            date: new Date().toLocaleTimeString()
-        });
-        if (GameState.user.sales_history.length > 5) GameState.user.sales_history.pop();
+        try {
+            // Panggil API
+            const response = await fetch('/api/market', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    userId: GameState.user.userId,
+                    action: 'sell',
+                    itemKey: key,
+                    amount: qty
+                })
+            });
+            const result = await response.json();
 
-        GameState.user.coins += totalEarn;
-        GameState.user.totalSold += totalEarn;
-        GameState.warehouse[key] -= qty;
-        
-        await this.triggerAffiliateCommission(totalEarn);
-        await GameState.save(); 
+            if (result.success) {
+                // Update State Lokal dari Response Server
+                GameState.user.coins = result.newCoins;
+                GameState.warehouse[key] = result.newStock;
+                if(!GameState.user.totalSold) GameState.user.totalSold = 0;
+                GameState.user.totalSold += result.earned;
 
-        UIEngine.updateHeader();
-        this.renderSellInventory();
-        this.calculatePreview();
-        
-        // Popup dengan bahasa Ekonomi
-        UIEngine.showRewardPopup("TRANSACTION COMPLETE", `Successfully liquidated ${qty} units. Revenue: ${totalEarn} PTS.`, null, "CONFIRM");
+                // Catat History Lokal (Visual)
+                if (!GameState.user.sales_history) GameState.user.sales_history = [];
+                GameState.user.sales_history.unshift({
+                    item: (window.HerbData && HerbData[key]) ? HerbData[key].name : key,
+                    qty: qty,
+                    price: result.earned,
+                    date: new Date().toLocaleTimeString()
+                });
+                if (GameState.user.sales_history.length > 5) GameState.user.sales_history.pop();
+
+                await this.triggerAffiliateCommission(result.earned);
+
+                // Refresh UI
+                UIEngine.updateHeader();
+                this.renderSellInventory();
+                this.calculatePreview();
+                
+                UIEngine.showRewardPopup("TRANSACTION COMPLETE", `Liquidated ${qty} units for ${result.earned.toLocaleString()} PTS.`, null, "CONFIRM");
+            } else {
+                UIEngine.showRewardPopup("FAILED", result.error || "Transaction declined", null, "CLOSE");
+            }
+        } catch (e) {
+            console.error(e);
+            UIEngine.showRewardPopup("ERROR", "Connection Error", null, "CLOSE");
+        }
     },
 
     async sellAll() {
-        const total = this.calculatePreview();
-        if (total <= 0) return;
+        const warehouse = GameState.warehouse;
+        const itemsToSell = Object.keys(warehouse).filter(k => warehouse[k] > 0);
+        
+        if (itemsToSell.length === 0) return;
 
-        // "Liquidate" terdengar lebih mahal daripada "Sell All"
-        UIEngine.showRewardPopup("LIQUIDATION", `Liquidate entire inventory for ${total.toLocaleString()} PTS?`, async () => {
-            Object.keys(GameState.warehouse).forEach(k => { GameState.warehouse[k] = 0; });
-            GameState.user.coins += total;
-            GameState.user.totalSold += total;
-            
-            await this.triggerAffiliateCommission(total);
-            await GameState.save(); 
+        UIEngine.showRewardPopup("LIQUIDATION", "Liquidating all assets...", null, "WAIT");
 
+        let totalEarned = 0;
+        let successCount = 0;
+
+        // Proses satu per satu untuk keamanan
+        for (const key of itemsToSell) {
+            const qty = warehouse[key];
+            try {
+                const response = await fetch('/api/market', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        userId: GameState.user.userId,
+                        action: 'sell',
+                        itemKey: key,
+                        amount: qty
+                    })
+                });
+                const result = await response.json();
+                if (result.success) {
+                    GameState.user.coins = result.newCoins;
+                    GameState.warehouse[key] = result.newStock;
+                    totalEarned += result.earned;
+                    successCount++;
+                }
+            } catch (e) {
+                console.error("Sell error for " + key, e);
+            }
+        }
+
+        if (successCount > 0) {
             UIEngine.updateHeader();
             this.renderSellInventory();
             this.calculatePreview();
-            UIEngine.showRewardPopup("FUNDS ADDED", `Revenue of ${total.toLocaleString()} PTS has been added to your wallet.`, null, "EXCELLENT");
-        }, "LIQUIDATE");
+            UIEngine.showRewardPopup("LIQUIDATION REPORT", `Sold ${successCount} types of assets. Total Revenue: ${totalEarned.toLocaleString()} PTS.`, null, "EXCELLENT");
+        } else {
+            UIEngine.showRewardPopup("FAILED", "Could not complete transactions.", null, "CLOSE");
+        }
     },
 
+    // --- RENDER INVENTORY JUAL ---
     renderSellInventory() {
         const container = document.getElementById('sell-inventory');
         if (!container) return;
@@ -263,12 +245,12 @@ const MarketSystem = {
             if (count > 0) {
                 isEmpty = false;
                 const plantInfo = (window.HerbData && HerbData[key]) ? HerbData[key] : { img: '', name: key };
-                const currentPrice = GameState.getPrice(key);
+                const currentPrice = GameState.getPrice(key); // Ambil harga dinamis
                 
                 container.innerHTML += `
-                    <div onclick="MarketSystem.openSellModal('${key}', ${count}, ${currentPrice})" class="market-row cursor-pointer group">
+                    <div onclick="MarketSystem.openSellModal('${key}', ${count}, ${currentPrice})" class="market-row cursor-pointer group glass p-3 rounded-2xl border border-white/5 flex items-center justify-between mb-2 hover:bg-white/5 transition-all">
                         <div class="flex items-center gap-3">
-                            <img src="${plantInfo.img}" class="w-6 h-6 object-contain drop-shadow-sm group-hover:scale-110 transition-transform">
+                            <img src="${plantInfo.img}" class="w-8 h-8 object-contain drop-shadow-sm group-hover:scale-110 transition-transform">
                             <div class="flex flex-col">
                                 <span class="text-[9px] font-black text-white uppercase leading-tight">${plantInfo.name}</span>
                                 <span class="text-[7px] text-gray-500">Vol: ${count}</span>
@@ -287,7 +269,7 @@ const MarketSystem = {
         
         if (isEmpty) {
             container.innerHTML = `
-                <div class="flex flex-col items-center justify-center py-8 opacity-50 bg-white/5 rounded-2xl border border-white/5 border-dashed">
+                <div class="col-span-2 flex flex-col items-center justify-center py-8 opacity-50 bg-white/5 rounded-2xl border border-white/5 border-dashed">
                     <i class="fas fa-chart-pie text-2xl text-gray-600 mb-2"></i>
                     <p class="text-[8px] uppercase font-bold text-gray-500">No Assets Available</p>
                 </div>`;
@@ -307,6 +289,127 @@ const MarketSystem = {
         }, "EXECUTE TRADE");
     },
 
+    // --- LOGIC BELI (CONNECT KE API) ---
+    async buyItem(id, displayPrice) {
+        if (GameState.user.coins < displayPrice) { 
+            UIEngine.showRewardPopup("INSUFFICIENT FUNDS", "Please add more funds to your wallet.", null, "CLOSE");
+            return;
+        }
+
+        const meta = this.shopItemsMeta[id];
+        UIEngine.showRewardPopup("CONFIRM ACQUISITION", `Authorize purchase of ${meta.name} for ${displayPrice.toLocaleString()} PTS?`, async () => {
+            
+            // Panggil API
+            UIEngine.showRewardPopup("PROCESSING", "Acquiring asset...", null, "WAIT");
+
+            try {
+                const response = await fetch('/api/market', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        userId: GameState.user.userId, 
+                        action: 'buy', 
+                        itemKey: id 
+                    })
+                });
+                const result = await response.json();
+
+                if (result.success) {
+                    // Update State
+                    GameState.user.coins = result.newCoins;
+                    if(result.farmPlots) GameState.farmPlots = result.farmPlots;
+                    if(result.extraStorage) GameState.user.extraStorage = result.extraStorage;
+
+                    // Update UI
+                    UIEngine.updateHeader();
+                    this.renderShopItems();
+                    UIEngine.showRewardPopup("SUCCESS", result.message, null, "DISMISS");
+                } else {
+                    UIEngine.showRewardPopup("FAILED", result.error, null, "CLOSE");
+                }
+            } catch(e) {
+                UIEngine.showRewardPopup("ERROR", "Connection Error", null, "CLOSE");
+            }
+        }, "AUTHORIZE");
+    },
+
+    // --- RENDER ITEMS TOKO (Beli) ---
+    renderShopItems() {
+       const assetContainer = document.getElementById('shop-assets');
+       const consumContainer = document.getElementById('shop-consumables');
+       if (!assetContainer || !consumContainer) return;
+
+       assetContainer.innerHTML = '';
+       consumContainer.innerHTML = '';
+
+       const activeBuffs = GameState.user.activeBuffs || {};
+       const configItems = window.GameConfig.ShopItems || {};
+       
+       Object.keys(this.shopItemsMeta).forEach(key => {
+            const item = this.shopItemsMeta[key];
+            const price = configItems[key] || 999999; 
+            
+            let disabled = false;
+            let btnText = `${price.toLocaleString()} PTS`;
+            let btnClass = "bg-white/5 text-white hover:bg-white/10 border-white/10";
+            
+            // Logic Disabled Status
+            if (item.type === 'land') {
+                const purchased = GameState.user.landPurchasedCount || 0;
+                if (item.tier === 1 && purchased >= 1) { disabled = true; btnText = "OWNED"; btnClass = "bg-gray-800 text-gray-500 border-transparent"; }
+                if (item.tier === 2 && purchased < 1) { disabled = true; btnText = "LOCKED"; btnClass = "bg-red-900/20 text-red-500 border-red-500/20 opacity-50"; }
+                if (item.tier === 2 && purchased >= 2) { disabled = true; btnText = "OWNED"; btnClass = "bg-gray-800 text-gray-500 border-transparent"; }
+            } 
+            else if (item.type === 'buff') {
+                if (activeBuffs[item.buffKey] > Date.now()) { 
+                    disabled = true;
+                    btnText = "ACTIVE"; 
+                    btnClass = "bg-emerald-500/20 text-emerald-400 border-emerald-500/50 animate-pulse"; 
+                }
+            }
+
+            // HTML CARD
+            const html = `
+            <div class="glass p-3 rounded-2xl border border-white/5 flex flex-col justify-between h-full relative overflow-hidden group">
+                <div class="flex items-start justify-between mb-2">
+                    <div class="w-8 h-8 rounded-lg bg-black/30 flex items-center justify-center">
+                        <i class="fas ${item.icon} ${item.color} text-sm"></i>
+                    </div>
+                    ${item.type === 'land' ? '<i class="fas fa-star text-[8px] text-yellow-500"></i>' : ''}
+                </div>
+                <div class="mb-2">
+                    <h4 class="text-[9px] font-black uppercase text-white leading-tight mb-0.5">${item.name}</h4>
+                    <p class="text-[7px] text-gray-400 leading-tight">${item.desc}</p>
+                </div>
+                <button onclick="MarketSystem.buyItem('${key}', ${price})" class="w-full py-2 rounded-xl text-[8px] font-black uppercase border transition-all ${btnClass}" ${disabled ? 'disabled' : ''}>
+                    ${btnText}
+                </button>
+            </div>`;
+
+            if (item.category === 'Asset') {
+                const assetHtml = `
+                <div class="glass p-4 rounded-2xl flex items-center justify-between border border-white/5 relative overflow-hidden mb-2">
+                    <div class="flex items-center gap-4 relative z-10">
+                        <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-gray-800 to-black flex items-center justify-center border border-white/5 shadow-inner">
+                            <i class="fas ${item.icon} ${item.color} text-xl"></i>
+                        </div>
+                        <div>
+                            <h4 class="text-[10px] font-black uppercase text-white">${item.name}</h4>
+                            <p class="text-[8px] text-gray-400 font-bold max-w-[120px]">${item.desc}</p>
+                        </div>
+                    </div>
+                    <button onclick="MarketSystem.buyItem('${key}', ${price})" class="px-4 py-2 rounded-xl text-[9px] font-black uppercase border transition-all min-w-[80px] ${btnClass}" ${disabled ? 'disabled' : ''}>
+                        ${btnText}
+                    </button>
+                </div>`;
+                assetContainer.innerHTML += assetHtml;
+            } else {
+                consumContainer.innerHTML += html;
+            }
+       });
+    },
+
+    // --- UTILS ---
     getSellMultiplier() {
         let multiplier = 1;
         if (GameState.user.adBoosterCooldown > Date.now()) multiplier += 0.2; 
@@ -326,127 +429,22 @@ const MarketSystem = {
         return total;
     },
 
-    renderShopItems() {
-       const assetContainer = document.getElementById('shop-assets');
-       const consumContainer = document.getElementById('shop-consumables');
-       if (!assetContainer || !consumContainer) return;
-
-       assetContainer.innerHTML = '';
-       consumContainer.innerHTML = '';
-
-       const activeBuffs = GameState.user.activeBuffs || {};
-       
-       this.shopItems.forEach(item => {
-            let disabled = false;
-            let btnText = `${item.price.toLocaleString()} PTS`;
-            let btnClass = "bg-white/5 text-white hover:bg-white/10 border-white/10";
-            
-            if (item.type === 'land') {
-                const purchased = GameState.user.landPurchasedCount || 0;
-                if (item.tier === 1 && purchased >= 1) { disabled = true; btnText = "OWNED"; btnClass = "bg-gray-800 text-gray-500 border-transparent"; }
-                if (item.tier === 2 && purchased < 1) { disabled = true; btnText = "LOCKED"; btnClass = "bg-red-900/20 text-red-500 border-red-500/20 opacity-50"; }
-                if (item.tier === 2 && purchased >= 2) { disabled = true; btnText = "OWNED"; btnClass = "bg-gray-800 text-gray-500 border-transparent"; }
-            } 
-            else if (item.type === 'buff') {
-                if (activeBuffs[item.buffKey] > Date.now()) { 
-                    disabled = true;
-                    btnText = "ACTIVE"; 
-                    btnClass = "bg-emerald-500/20 text-emerald-400 border-emerald-500/50 animate-pulse"; 
-                } else {
-                    btnClass = "bg-white/10 text-white hover:bg-white/20 border-white/5";
-                }
-            }
-            else if (item.type === 'storage') {
-                 btnClass = "bg-blue-600 text-white hover:bg-blue-500 shadow-lg shadow-blue-900/20 border-transparent";
-            }
-
-            // HTML CARD (Visual tidak berubah, hanya logic teks)
-            const html = `
-            <div class="glass p-3 rounded-2xl border border-white/5 flex flex-col justify-between h-full relative overflow-hidden group">
-                <div class="flex items-start justify-between mb-2">
-                    <div class="w-8 h-8 rounded-lg bg-black/30 flex items-center justify-center">
-                        <i class="fas ${item.icon} ${item.color} text-sm"></i>
-                    </div>
-                    ${item.type === 'land' ? '<i class="fas fa-star text-[8px] text-yellow-500"></i>' : ''}
-                </div>
-                <div class="mb-2">
-                    <h4 class="text-[9px] font-black uppercase text-white leading-tight mb-0.5">${item.name}</h4>
-                    <p class="text-[7px] text-gray-400 leading-tight">${item.desc}</p>
-                </div>
-                <button onclick="MarketSystem.buyItem('${item.id}', ${item.price})" class="w-full py-2 rounded-xl text-[8px] font-black uppercase border transition-all ${btnClass}" ${disabled ? 'disabled' : ''}>
-                    ${btnText}
-                </button>
-            </div>`;
-
-            if (item.category === 'Asset') {
-                const assetHtml = `
-                <div class="glass p-4 rounded-2xl flex items-center justify-between border border-white/5 relative overflow-hidden">
-                    <div class="flex items-center gap-4 relative z-10">
-                        <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-gray-800 to-black flex items-center justify-center border border-white/5 shadow-inner">
-                            <i class="fas ${item.icon} ${item.color} text-xl"></i>
-                        </div>
-                        <div>
-                            <h4 class="text-[10px] font-black uppercase text-white">${item.name}</h4>
-                            <p class="text-[8px] text-gray-400 font-bold max-w-[120px]">${item.desc}</p>
-                        </div>
-                    </div>
-                    <button onclick="MarketSystem.buyItem('${item.id}', ${item.price})" class="px-4 py-2 rounded-xl text-[9px] font-black uppercase border transition-all min-w-[80px] ${btnClass}" ${disabled ? 'disabled' : ''}>
-                        ${btnText}
-                    </button>
-                </div>`;
-                assetContainer.innerHTML += assetHtml;
-            } else {
-                consumContainer.innerHTML += html;
-            }
-       });
-    },
-
-// js/market.js
-
-    async buyItem(id, price) {
-        if (GameState.user.coins < price) { 
-            UIEngine.showRewardPopup("INSUFFICIENT FUNDS", "Please add more funds to your wallet.", null, "CLOSE");
-            return;
-        }
-
-        const item = this.shopItems.find(i => i.id === id);
-        UIEngine.showRewardPopup("CONFIRM ACQUISITION", `Authorize purchase of ${item.name} for ${price.toLocaleString()} PTS?`, async () => {
-            
-            // 1. POTONG SALDO (Lama)
-            GameState.user.coins -= price;
-
-            // 2. [BARU] CATAT PENGELUARAN SHOP
-            if (!GameState.user.totalSpent) GameState.user.totalSpent = 0;
-            GameState.user.totalSpent += price;
-
-            // --- Logic Item (Tetap Sama) ---
-            if (item.type === 'land') {
-                GameState.user.landPurchasedCount = (GameState.user.landPurchasedCount || 0) + 1;
-            } 
-            else if (item.type === 'storage') {
-                GameState.user.extraStorage = (GameState.user.extraStorage || 0) + 20;
-            } 
-            else if (item.type === 'buff') {
-                if (!GameState.user.activeBuffs) GameState.user.activeBuffs = {};
-                GameState.user.activeBuffs[item.buffKey] = Date.now() + 86400000; 
-            }
-
-            await GameState.save();
-            UIEngine.updateHeader();
-            this.renderShopItems(); // Refresh tampilan shop
-            UIEngine.showRewardPopup("SUCCESS", "Asset Acquired Successfully.", null, "DISMISS");
-        }, "AUTHORIZE");
-    },
-
+    // --- AFFILIATE & BOOSTER ---
+    async triggerAffiliateCommission(amount) { /* Diurus Server */ },
+    
     applyPriceBooster() {
         UIEngine.showRewardPopup("MARKET LEVERAGE", "Watch a Sponsor Ad to increase market value by 20%?", async () => {
-            AdsManager.showHybridStack(3, async () => {
-                GameState.user.adBoosterCooldown = Date.now() + 86400000; 
-                await GameState.save();
-                this.checkBoosterStatus();
-                this.calculatePreview();
-                UIEngine.showRewardPopup("LEVERAGE ACTIVE", "Market prices boosted by 20%.", null, "TRADE NOW");
-            });
+            if(window.AdsManager) {
+                AdsManager.showHybridStack(3, async () => {
+                    GameState.user.adBoosterCooldown = Date.now() + 86400000; 
+                    await GameState.save();
+                    this.checkBoosterStatus();
+                    this.calculatePreview();
+                    UIEngine.showRewardPopup("LEVERAGE ACTIVE", "Market prices boosted by 20%.", null, "TRADE NOW");
+                });
+            } else {
+                 UIEngine.showRewardPopup("ADS ERROR", "Ad system not ready.", null, "CLOSE");
+            }
         }, "WATCH AD");
     },
 
@@ -466,6 +464,7 @@ const MarketSystem = {
     },
 
     checkExpiredBuffs() {
+        // Hanya visual check, server punya validasi sendiri
         if (!GameState.user.activeBuffs) return;
         let changed = false;
         Object.keys(GameState.user.activeBuffs).forEach(k => {
@@ -479,4 +478,3 @@ const MarketSystem = {
 };
 
 window.MarketSystem = MarketSystem;
-
