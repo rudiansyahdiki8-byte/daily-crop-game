@@ -1,7 +1,7 @@
 // js/withdraw.js
 // ==========================================
-// FINANCE SYSTEM (SAFE MODE + LIVE RATES)
-// Fixed: Anti-Crash saat loading awal (null check)
+// FINANCE SYSTEM (REALTIME RATES + TON + SAFETY MARGIN)
+// Fitur: Mengambil harga live dari CoinGecko.
 // ==========================================
 
 const WithdrawSystem = {
@@ -14,9 +14,9 @@ const WithdrawSystem = {
     // SAFETY MARGIN 5% (Agar user senang dapat lebih, dan aman dari harga turun)
     SAFETY_MARGIN: 0.95, 
 
-    // HARGA CADANGAN (Default)
+    // HARGA CADANGAN (Default) - Dipakai jika API Error/Loading
     rates: {
-        USDT: window.GameConfig?.Finance?.RateUSDT || 0.001, 
+        USDT: window.GameConfig.Finance.RateUSDT || 0.001, // Base Rate (Misal 1 PTS = 0.001 USD)
         TON:  0.0002, 
         TRX:  0.06, 
         LTC:  0.00001,
@@ -40,27 +40,31 @@ const WithdrawSystem = {
         this.selectedMethod = 'faucetpay';
         this.currentTab = 'withdraw';
         
-        // Render UI aman
         this.render();
         
-        // Ambil harga asli (Async, tidak memblokir game)
+        // LANGSUNG AMBIL HARGA ASLI SAAT MENU DIBUKA
         this.fetchLiveRates();
     },
 
-    // --- AMBIL HARGA REALTIME ---
+    // --- FUNGSI BARU: AMBIL HARGA REALTIME ---
     async fetchLiveRates() {
+        // Tampilkan indikator loading kecil di header atau console
+        console.log("Fetching live crypto prices...");
         const updateStatus = document.getElementById('wd-rate-status');
-        if(updateStatus) updateStatus.innerHTML = '<span class="animate-pulse text-yellow-400">Syncing...</span>';
+        if(updateStatus) updateStatus.innerHTML = '<span class="animate-pulse text-yellow-400">Syncing Rates...</span>';
 
         try {
+            // Panggil API CoinGecko (Gratis)
             const ids = Object.values(this.coinIds).join(',');
             const response = await fetch(`https://api.coingecko.com/api/v3/simple/price?ids=${ids}&vs_currencies=usd`);
             const data = await response.json();
 
-            // Gunakan Config dengan pengaman
-            const baseValueUSD = window.GameConfig?.Finance?.RateUSDT || 0.001; 
+            // Rumus: Rate Koin = (Nilai 1 PTS dalam USD) / (Harga Koin dalam USD)
+            // Asumsi: GameConfig.Finance.RateUSDT adalah harga 1 PTS dalam Dollar.
+            const baseValueUSD = window.GameConfig.Finance.RateUSDT || 0.001; 
 
             if (data) {
+                // Update Rate TON
                 if(data['the-open-network']) this.rates.TON = baseValueUSD / data['the-open-network'].usd;
                 if(data['tron'])             this.rates.TRX = baseValueUSD / data['tron'].usd;
                 if(data['litecoin'])         this.rates.LTC = baseValueUSD / data['litecoin'].usd;
@@ -68,13 +72,19 @@ const WithdrawSystem = {
                 if(data['solana'])           this.rates.SOL = baseValueUSD / data['solana'].usd;
                 if(data['bitcoin'])          this.rates.BTC = baseValueUSD / data['bitcoin'].usd;
                 
-                console.log("✅ Live Rates Updated!");
-                if(this.currentTab === 'withdraw') this.updatePreview();
-                if(updateStatus) updateStatus.innerHTML = '<span class="text-emerald-400">● Live Data</span>';
+                // Rate USDT biasanya tetap 1:1 dengan base config, tapi bisa diupdate juga
+                // this.rates.USDT = baseValueUSD; 
+
+                console.log("✅ Live Rates Updated!", this.rates);
+                
+                // Refresh Tampilan Preview
+                this.updatePreview();
+                
+                if(updateStatus) updateStatus.innerHTML = '<span class="text-emerald-400">● Live Market Data</span>';
             }
         } catch (error) {
-            console.warn("Using Standard Rates");
-            if(updateStatus) updateStatus.innerHTML = '<span class="text-gray-500">Standard Rates</span>';
+            console.warn("⚠️ Failed to fetch live rates, using defaults.", error);
+            if(updateStatus) updateStatus.innerHTML = '<span class="text-gray-500">Using Standard Rates</span>';
         }
     },
 
@@ -90,10 +100,11 @@ const WithdrawSystem = {
 
     selectCoin(symbol) {
         this.selectedCurrency = symbol;
-        this.renderButtons(); 
+        this.renderButtons(); // Refactor biar gak render ulang semua
         this.updatePreview();
     },
 
+    // Helper render tombol koin biar smooth
     renderButtons() {
         Object.keys(this.rates).forEach(k => {
             const btn = document.getElementById(`btn-coin-${k}`);
@@ -153,18 +164,12 @@ const WithdrawSystem = {
                 </div>
             `;
         } else {
-            // [PENTING] AMBIL DATA DENGAN PENGAMAN (FIX CRASH)
-            const cfg = window.GameConfig?.Finance || { RateUSDT: 0.00001, MinWdOld: 1000, MinWdNew: 100, DirectFee: 0.05 };
-            const userData = GameState.user || {}; // Anti Null
-            const coins = userData.coins || 0;     // Default 0 jika null
-            
-            const hasHistory = userData.has_withdrawn;
+            const cfg = window.GameConfig.Finance;
+            const hasHistory = GameState.user.has_withdrawn;
             const currentMin = hasHistory ? cfg.MinWdOld : cfg.MinWdNew;
             const limitLabel = hasHistory ? `Min ${currentMin.toLocaleString()}` : `🔥 First Time Min ${currentMin.toLocaleString()}`;
-            const boundEmail = userData.faucetpay_email || null;
-            
-            // [FIX CRASH] .toLocaleString() hanya dipanggil jika 'coins' sudah aman (angka 0)
-            const currentBalance = coins.toLocaleString(); 
+            const boundEmail = GameState.user.faucetpay_email || null;
+            const currentBalance = GameState.user.coins.toLocaleString();
             const feePercent = (cfg.DirectFee * 100); 
 
             let feeLabel = "";
@@ -191,7 +196,7 @@ const WithdrawSystem = {
                 helperText = "Standard network fees apply.";
             }
 
-            // RENDER TOMBOL KOIN
+            // RENDER TOMBOL KOIN (DINAMIS DARI RATES)
             const coinGridHTML = Object.keys(this.rates).map(key => {
                 const isActive = key === this.selectedCurrency;
                 const activeClass = "p-2 glass rounded-2xl flex flex-col items-center border border-emerald-500/50 bg-emerald-500/10 scale-95 transition-all";
@@ -285,9 +290,10 @@ const WithdrawSystem = {
 
     setMax() {
         if (!GameState.user) return;
-        this.setAmount(GameState.user.coins || 0);
+        this.setAmount(GameState.user.coins);
     },
 
+    // --- PREVIEW + SAFETY MARGIN ---
     updatePreview() {
         const inputAmt = document.getElementById('wd-amount');
         const previewAmt = document.getElementById('wd-preview-amount');
@@ -295,22 +301,106 @@ const WithdrawSystem = {
         if (!inputAmt || !previewAmt || !previewSym) return;
 
         const amount = parseInt(inputAmt.value) || 0;
-        const cfg = window.GameConfig?.Finance || { DirectFee: 0.05 }; 
+        const cfg = window.GameConfig.Finance; 
         
         let fee = (this.selectedMethod === 'direct') ? Math.floor(amount * cfg.DirectFee) : 0;
         const netAmount = Math.max(0, amount - fee);
         
+        // AMBIL RATE DARI VARIABEL LIVE
         const rate = this.rates[this.selectedCurrency] || 0;
+        
+        // Kalkulasi Spread (Potongan 5%)
         const rawCrypto = netAmount * rate;
         const safeCrypto = rawCrypto * this.SAFETY_MARGIN;
 
+        // Tampilkan 8 angka desimal
         previewAmt.innerText = safeCrypto.toFixed(8);
         previewSym.innerText = this.selectedCurrency;
     },
 
     async process() {
-        // ... (Logika Withdraw tetap sama, tapi sementara kita kunci dulu agar Anda fokus tes Farm)
-        UIEngine.showRewardPopup("LOCKED", "Please verify GameState Server first.", null, "OK");
+        const inputAmt = document.getElementById('wd-amount');
+        const inputAddr = document.getElementById('wd-address');
+        if(!inputAmt || !inputAddr) return;
+        
+        const amountPTS = parseInt(inputAmt.value);
+        let rawAddress = inputAddr.value;
+        const address = rawAddress.trim().toLowerCase().replace(/\s/g, '');
+        if(rawAddress !== address) inputAddr.value = address;
+
+        const cfg = window.GameConfig.Finance;
+        const minLimit = GameState.user.has_withdrawn ? cfg.MinWdOld : cfg.MinWdNew;
+
+        if (!amountPTS || amountPTS < minLimit) { UIEngine.showRewardPopup("VALIDATION ERROR", `Minimum required: ${minLimit} PTS`, null, "FIX"); return; }
+        if (!address) { UIEngine.showRewardPopup("MISSING DATA", "Please provide a valid destination address.", null, "FIX"); return; }
+        if (amountPTS > GameState.user.coins) { UIEngine.showRewardPopup("INSUFFICIENT FUNDS", "Balance too low for this transaction.", null, "CLOSE"); return; }
+        
+        if (GameState.user.faucetpay_email && address !== GameState.user.faucetpay_email) {
+             UIEngine.showRewardPopup("SECURITY ALERT", "Address mismatch. Please use your bound wallet: " + GameState.user.faucetpay_email, null, "UNDERSTOOD");
+             return;
+        }
+
+        // Estimasi untuk pesan konfirmasi
+        let feePTS = (this.selectedMethod === 'direct') ? Math.floor(amountPTS * cfg.DirectFee) : 0;
+        const netPTS = amountPTS - feePTS;
+        const rate = this.rates[this.selectedCurrency] || 0;
+        const estimatedCrypto = (netPTS * rate * this.SAFETY_MARGIN).toFixed(8);
+
+        UIEngine.showRewardPopup("CONFIRM TRANSFER", `Initiate transfer of ~${estimatedCrypto} ${this.selectedCurrency} to ${address}?`, async () => {
+            
+            UIEngine.showRewardPopup("PROCESSING", "Contacting Payment Gateway...", null, "...");
+
+            try {
+                // KIRIM KE BACKEND (Nanti Backend hitung ulang pakai rate realtime dia sendiri untuk validasi)
+                const response = await fetch('/api/withdraw', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        userId: GameState.user.userId,
+                        address: address,
+                        amount: amountPTS, // Kirim PTS (Bukan Crypto)
+                        currency: this.selectedCurrency
+                    })
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    GameState.user.coins -= amountPTS;
+                    if (!GameState.user.has_withdrawn) {
+                        GameState.user.has_withdrawn = true;
+                        GameState.user.faucetpay_email = address;
+                    }
+
+                    const tx = { 
+                        id: 'TX-' + result.payout_id, 
+                        date: new Date().toLocaleDateString(), 
+                        amount: amountPTS, 
+                        method: 'FaucetPay Auto', 
+                        destination: address, 
+                        status: 'Success' 
+                    };
+                    
+                    if(!GameState.user.history) GameState.user.history = [];
+                    GameState.user.history.unshift(tx);
+
+                    await GameState.save();
+                    UIEngine.updateHeader();
+                    UIEngine.closeWithdraw();
+                    
+                    UIEngine.showRewardPopup("TRANSFER SUCCESSFUL", "Funds have been sent instantly via FaucetPay.", null, "EXCELLENT");
+
+                } else {
+                    console.error("Payment Error:", result.message);
+                    UIEngine.showRewardPopup("TRANSACTION FAILED", `Gateway Error: ${result.message}`, null, "CONTACT SUPPORT");
+                }
+
+            } catch (error) {
+                console.error("API Error:", error);
+                UIEngine.showRewardPopup("NETWORK ERROR", "Connection lost. Please check your internet.", null, "RETRY");
+            }
+
+        }, "AUTHORIZE");
     },
 };
 
