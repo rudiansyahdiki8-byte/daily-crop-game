@@ -203,20 +203,21 @@ const MarketSystem = {
         }
     },
 
-    async processSell(key, qty, price) {
-        // 1. Tampilkan Loading (Agar user tahu sistem sedang bekerja)
+async processSell(key, qty, price) { // Parameter 'price' di sini hanya hiasan, tidak dipakai hitung
+        
+        // 1. Tampilkan Loading
         UIEngine.showRewardPopup("CONNECTING", "Verifying transaction with server...", null, "...");
 
         try {
-            // 2. PANGGIL BACKEND VERCEL
-            // Kita tidak lagi menghitung koin di sini. Kita minta server yang hitung.
+            // 2. PANGGIL BACKEND (API YANG KITA BUAT)
+            // Di sini kita bilang: "Server, tolong jualkan barang ini. Kamu yang hitung harganya ya."
             const response = await fetch('/api/market/sell', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    userId: GameState.user.userId,
-                    itemKey: key,
-                    qty: qty
+                    userId: GameState.user.userId, // ID User Telegram
+                    itemKey: key,                  // Barang: 'ginger'
+                    qty: qty                       // Jumlah: 1
                 })
             });
 
@@ -224,52 +225,53 @@ const MarketSystem = {
 
             if (result.success) {
                 // === SUKSES DARI SERVER ===
-                
-                // 3. Update Tampilan Frontend (Visual Saja)
-                // Data asli sudah tersimpan aman di Firebase oleh Server
-                
-                // Kurangi stok di tampilan
+                // Server membalas: "Oke, harganya sudah saya koreksi jadi 35. Saldo baru kamu sekian."
+
+                // Update Tampilan (Stok & Koin) sesuai angka dari Server
                 GameState.warehouse[key] -= qty;
+                GameState.user.coins = result.newBalance; // <-- Pakai saldo dari Server!
                 
-                // Tambah koin di tampilan (Pakai angka dari server agar akurat)
-                GameState.user.coins = result.data.newBalance; 
+                // Update Harga Lokal (Supaya tampilan '10' berubah jadi harga asli)
+                if (result.fixedPrice) {
+                    if (!GameState.market.prices) GameState.market.prices = {};
+                    GameState.market.prices[key] = result.fixedPrice;
+                }
                 
-                // Update History Lokal (Opsional, agar laporannya muncul instan)
+                // Update History & UI
                 if (!GameState.user.sales_history) GameState.user.sales_history = [];
                 GameState.user.sales_history.unshift({
                     item: (window.HerbData && window.HerbData[key]) ? window.HerbData[key].name : key,
                     qty: qty,
-                    price: result.data.totalEarn,
+                    price: result.totalEarn,
                     date: new Date().toLocaleTimeString()
                 });
-
-                // Update Header & UI
+                
+                await GameState.save(); // Simpan state lokal (opsional)
                 UIEngine.updateHeader();
                 this.renderSellInventory();
                 this.calculatePreview();
                 
-                // Panggil Affiliate jika ada (Biarkan frontend mentrigger visualnya saja)
-                // Logika saldo affiliate sebaiknya nanti dipindah ke backend juga
-                this.triggerAffiliateCommission(result.data.totalEarn);
+                // Panggil Affiliate (Trigger visual saja)
+                this.triggerAffiliateCommission(result.totalEarn);
 
-                // Tutup Popup Loading, Ganti dengan Sukses
+                // Popup Sukses
                 UIEngine.showRewardPopup(
                     "TRANSACTION COMPLETE", 
-                    `Sold ${qty} units. Revenue: ${result.data.totalEarn.toLocaleString()} PTS.`, 
+                    `Sold ${qty} units.\nRevenue: ${result.totalEarn.toLocaleString()} PTS.`, 
                     null, 
                     "CONFIRM"
                 );
 
             } else {
-                // === GAGAL (DITOLAK SERVER) ===
+                // === GAGAL DARI SERVER ===
                 console.error("Server Reject:", result.error);
                 UIEngine.showRewardPopup("TRANSACTION FAILED", `Server Message: ${result.error}`, null, "CLOSE");
             }
 
         } catch (error) {
-            // === GAGAL KONEKSI (INTERNET/SERVER MATI) ===
+            // === GAGAL KONEKSI ===
             console.error("Network Error:", error);
-            UIEngine.showRewardPopup("CONNECTION ERROR", "Failed to reach server. Please check internet.", null, "RETRY");
+            UIEngine.showRewardPopup("NETWORK ERROR", "Gagal menghubungi server. Cek koneksi internet.", null, "RETRY");
         }
 
     // --- LOGIC JUAL (PREMIUM NOTIFICATIONS) ---
@@ -550,4 +552,5 @@ const MarketSystem = {
 };
 
 window.MarketSystem = MarketSystem;
+
 
