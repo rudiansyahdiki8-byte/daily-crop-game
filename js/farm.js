@@ -216,6 +216,19 @@ renderTaskButtons() {
      async handleTaskClick(task, btnElement) {
         if (task.action === 'spin') { SpinSystem.show(); return; }
         
+        // 1. CEK STATUS LOKAL: Jangan putar iklan jika sudah diklaim
+        const cooldowns = GameState.user.task_cooldowns || {};
+        const lastClaim = cooldowns[task.id] || 0;
+        if ((Date.now() - lastClaim) < 86400000) {
+            UIEngine.showRewardPopup("WAIT", "Tugas ini sudah selesai hari ini.");
+            return;
+        }
+
+        // 2. DISABLE TOMBOL SEMENTARA (Visual Feedback)
+        const originalContent = btnElement.innerHTML;
+        btnElement.disabled = true;
+        btnElement.innerHTML = `<span class="text-[9px] text-gray-400">LOADING...</span>`;
+
         AdsManager.showHybridStack(3, async () => {
             try {
                 const response = await fetch('/api/game/rewards', {
@@ -230,16 +243,25 @@ renderTaskButtons() {
 
                 const result = await response.json();
                 if (result.success) {
-                    GameState.user.coins = result.newBalance;
-                    await GameState.load();
-                    await GameState.save(); 
-                    this.renderTaskButtons();
-                    UIEngine.updateHeader();
+                    // 3. SINKRONISASI PENTING
+                    await GameState.load(); // Ambil data terbaru dari server
+                    UIEngine.updateHeader(); // Update koin di layar
+                    
+                    // 4. GAMBAR ULANG LIST TASK (Agar tombol jadi abu-abu/dikunci)
+                    this.renderTaskButtons(); 
+
                     UIEngine.showRewardPopup("DONE", `+${result.reward} PTS Added!`, null, "OK");
                 } else {
-                    UIEngine.showRewardPopup("OODS", result.error, null, "CLOSE");
+                    // Jika gagal, kembalikan tombol
+                    UIEngine.showRewardPopup("OOPS", result.error, null, "CLOSE");
+                    btnElement.disabled = false;
+                    btnElement.innerHTML = originalContent;
                 }
-            } catch (e) { console.error(e); }
+            } catch (e) { 
+                console.error(e);
+                btnElement.disabled = false;
+                btnElement.innerHTML = originalContent;
+            }
         });
     },
     // js/farm.js - Revisi plantAll [cite: 62]
@@ -511,6 +533,7 @@ renderTaskButtons() {
 
 
 window.FarmSystem = FarmSystem;
+
 
 
 
