@@ -321,21 +321,30 @@ const MarketSystem = {
                 const plantInfo = (window.HerbData && HerbData[key]) ? HerbData[key] : { img: '', name: key };
                 const currentPrice = GameState.getPrice(key);
                 
+                // [PERBAIKAN TAMPILAN DI SINI]
+                // Kita ganti class "market-row" dengan class Tailwind lengkap agar tidak transparan
                 container.innerHTML += `
-                    <div onclick="MarketSystem.openSellModal('${key}', ${count}, ${currentPrice})" class="market-row cursor-pointer group">
+                    <div onclick="MarketSystem.openSellModal('${key}', ${count}, ${currentPrice})" 
+                         class="w-full flex justify-between items-center bg-black/40 hover:bg-white/10 border border-white/10 rounded-xl p-2 mb-2 cursor-pointer group transition-all">
+                        
                         <div class="flex items-center gap-3">
-                            <img src="${plantInfo.img}" class="w-6 h-6 object-contain drop-shadow-sm group-hover:scale-110 transition-transform">
+                            <div class="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center">
+                                <img src="${plantInfo.img}" class="w-6 h-6 object-contain drop-shadow-sm group-hover:scale-110 transition-transform">
+                            </div>
                             <div class="flex flex-col">
                                 <span class="text-[9px] font-black text-white uppercase leading-tight">${plantInfo.name}</span>
-                                <span class="text-[7px] text-gray-500">Vol: ${count}</span>
+                                <span class="text-[7px] text-gray-400 font-bold">Stok: <span class="text-white">${count}</span></span>
                             </div>
                         </div>
+
                         <div class="flex items-center gap-2">
                              <div class="text-right">
                                 <span class="text-[9px] font-black text-emerald-400 block">${currentPrice} PTS</span>
                                 <span class="text-[6px] text-gray-500 uppercase">/ Unit</span>
                              </div>
-                             <i class="fas fa-chevron-right text-[8px] text-gray-600"></i>
+                             <div class="w-5 h-5 rounded-full bg-white/5 flex items-center justify-center">
+                                <i class="fas fa-chevron-right text-[8px] text-gray-400 group-hover:text-white"></i>
+                             </div>
                         </div>
                     </div>`;
             }
@@ -542,6 +551,7 @@ const MarketSystem = {
 };
 
 window.MarketSystem = MarketSystem;
+
 
 
 
