@@ -204,15 +204,19 @@ const MarketSystem = {
     },
 
     // --- LOGIC JUAL (PREMIUM NOTIFICATIONS) ---
-    async processSell(key, qty, price) {
-        UIEngine.showRewardPopup("PROCESSING", "Executing trade...", null, "...");
+    async processSell(key, qty, displayedPrice) {
+        // Tampilkan Loading
+        UIEngine.showRewardPopup("PROCESSING", "Contacting Global Exchange...", null, "...");
 
         try {
+            // Panggil API Backend
             const response = await fetch('/api/market/sell', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                    'Content-Type': 'application/json'
+                },
                 body: JSON.stringify({
-                    initData: window.Telegram.WebApp.initData,
+                    initData: window.Telegram.WebApp.initData, 
                     itemKey: key,
                     qty: qty
                 })
@@ -221,23 +225,32 @@ const MarketSystem = {
             const result = await response.json();
 
             if (result.success) {
-                // --- KUNCI PERBAIKAN: SINKRONISASI STATE ---
-                // Mengambil data warehouse dan koin terbaru dari database [cite: 615]
-                await GameState.load();
-            
+                // [KUNCI PERBAIKAN HANTU]
+                // Jangan kurangi manual (GameState.warehouse[key] -= qty). HAPUS ITU.
+                // Jangan pakai GameState.save(). HAPUS ITU.
                 
-                // Render ulang semua komponen UI yang terpengaruh [cite: 196, 212, 657]
-                UIEngine.updateHeader();       // Update Koin [cite: 1420]
-                UIEngine.renderMiniWarehouse(); // Update gudang kecil di Dashboard [cite: 1455]
-                this.renderSellInventory();    // Update daftar di menu Market [cite: 960]
-                this.calculatePreview();       // Update estimasi total [cite: 975]
-                
-                UIEngine.showRewardPopup("TRADE SUCCESS", `Revenue: ${result.earned} PTS Added.`, null, "OK");
+                // Ganti dengan ini: PAKSA ambil data kebenaran dari Server
+                await GameState.load(); 
+
+                // Update UI setelah data state segar
+                UIEngine.updateHeader();
+                this.renderSellInventory(); // Hantu akan hilang disini karena data warehouse sudah sinkron 0
+                this.calculatePreview();
+
+                UIEngine.showRewardPopup("TRANSACTION SUCCESS", result.message || "Sold successfully!", null, "OK");
             } else {
-                UIEngine.showRewardPopup("TRADE FAILED", result.error, null, "CLOSE");
+                // Jika Error 400 (Stok tidak cukup), kemungkinan data lokal basi.
+                // Kita load ulang juga biar hantunya hilang.
+                console.warn("Sync Error:", result.error);
+                await GameState.load(); 
+                this.renderSellInventory();
+                
+                UIEngine.showRewardPopup("SYNC DATA", "Inventory data updated from server.", null, "CLOSE");
             }
-        } catch (e) {
-            console.error("Market Error:", e);
+
+        } catch (error) {
+            console.error(error);
+            UIEngine.showRewardPopup("CONNECTION ERROR", "Failed to reach server.", null, "RETRY");
         }
     },
 
@@ -512,6 +525,7 @@ const MarketSystem = {
 };
 
 window.MarketSystem = MarketSystem;
+
 
 
 
