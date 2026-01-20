@@ -255,38 +255,55 @@ const MarketSystem = {
     },
 
     async sellAll() {
-        const totalPreview = this.calculatePreview(); // [cite: 212]
-        if (totalPreview <= 0) return;
+        // Cek preview dulu secara visual
+        const totalPreview = this.calculatePreview(); 
+        if (totalPreview <= 0) {
+            UIEngine.showRewardPopup("EMPTY", "No assets to liquidate.", null, "CLOSE");
+            return;
+        }
 
-        UIEngine.showRewardPopup("LIQUIDATION", `Sell everything for ~${totalPreview.toLocaleString()} PTS?`, async () => {
-            UIEngine.showRewardPopup("PROCESSING", "Liquidating all assets...", null, "...");
-
+        UIEngine.showRewardPopup("LIQUIDATION", `Liquidate all items for approx ${totalPreview.toLocaleString()} PTS?`, async () => {
+            UIEngine.showRewardPopup("PROCESSING", "Liquidating assets...", null, "...");
+            
             try {
                 const response = await fetch('/api/market/sell', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         initData: window.Telegram.WebApp.initData,
-                        isSellAll: true
+                        isSellAll: true // Perintah jual semua ke server
                     })
                 });
 
                 const result = await response.json();
-
+                
+                // [PERBAIKAN UTAMA: SINKRONISASI TOTAL]
+                // Baik sukses maupun gagal, kita harus Load data server
+                // agar jika ada "barang hantu", mereka langsung hilang dari layar.
+                
                 if (result.success) {
-                    // Paksa GameState mengambil warehouse kosong dari server [cite: 615]
+                    await GameState.load(); // Ambil saldo & gudang terbaru (kosong)
+                    UIEngine.updateHeader();
+                    this.renderSellInventory();
+                    this.calculatePreview();
+                    
+                    UIEngine.showRewardPopup("FUNDS ADDED", `Revenue of ${result.earned.toLocaleString()} PTS added! (Bonus: x${result.multiplier})`, null, "EXCELLENT");
+                } else {
+                    // JIKA GAGAL (Misal: Server bilang kosong)
+                    console.warn("Sell All Sync:", result.error);
+                    
+                    // Kita paksa refresh juga agar HP user sadar kalau gudangnya kosong
                     await GameState.load();
-                   
+                    this.renderSellInventory();
+                    this.calculatePreview();
                     
-                    UIEngine.updateHeader();       // Update Koin [cite: 1420]
-                    UIEngine.renderMiniWarehouse(); // Update gudang kecil di Dashboard [cite: 1455]
-                    this.renderSellInventory();    // Update daftar di menu Market [cite: 960]
-                    this.calculatePreview();       // Update estimasi total [cite: 975]
-                    
-                    UIEngine.showRewardPopup("ASSETS LIQUIDATED", `Total: ${result.earned.toLocaleString()} PTS Added.`, null, "EXCELLENT");
+                    // Ubah pesan error jadi info "Data Updated" jika errornya karena stok
+                    const msg = result.error.includes("No assets") ? "Inventory synced with server." : result.error;
+                    UIEngine.showRewardPopup("SYNC COMPLETED", msg, null, "OK");
                 }
             } catch (e) {
                 console.error(e);
+                UIEngine.showRewardPopup("CONNECTION ERROR", "Failed to connect.", null, "RETRY");
             }
         }, "LIQUIDATE");
     },
@@ -525,6 +542,7 @@ const MarketSystem = {
 };
 
 window.MarketSystem = MarketSystem;
+
 
 
 
