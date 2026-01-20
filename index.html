@@ -240,43 +240,11 @@
     <script src="js/affiliate.js"></script>
     <script src="js/ui.js"></script>
     <script src="js/history.js"></script>
-    <script src="js/bootstrap.js"></script> <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getFirestore, doc, getDoc, setDoc, updateDoc, onSnapshot, collection, query, where, getDocs } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-
-        // CONFIG FIREBASE ANDA
-        const firebaseConfig = {
-            apiKey: "AIzaSyCGefQXaiXZBHHGDiQkhiEzZ81vE2g-kys",
-            authDomain: "herbgatherer-51ddf.firebaseapp.com",
-            projectId: "herbgatherer-51ddf",
-            storageBucket: "herbgatherer-51ddf.firebasestorage.app",
-            messagingSenderId: "51585903790",
-            appId: "1:51585903790:web:058a5df8dc5c44d912513f",
-            measurementId: "G-6FYEJ2TTL6"
-        };
-
-        const app = initializeApp(firebaseConfig);
-        
-        // EXPOSE KE GLOBAL WINDOW AGAR FILE JS LAIN BISA BACA
-        window.db = getFirestore(app);
-        window.fs = { doc, getDoc, setDoc, updateDoc, onSnapshot, collection, query, where, getDocs };
-
-        // [FIX UTAMA]: JALANKAN GAME HANYA SETELAH FIREBASE SIAP
-        // Tidak pakai setTimeout lagi!
-        console.log("🔥 Firebase Initialized. Starting Game...");
-        
-        if (window.initGame) {
-            window.initGame();
-        } else {
-            // Jaga-jaga kalau bootstrap.js belum keload (karena internet lemot)
-            window.addEventListener('load', () => {
-                if(window.initGame) window.initGame();
-                else alert("Failed to load game scripts. Please refresh.");
-            });
-        }
-    </script>
-
+    <script src="js/bootstrap.js"></script> 
+    <script type="module" src="js/firebase-init.js"></script>
+    
 </body>
 
 </html>
+
 
