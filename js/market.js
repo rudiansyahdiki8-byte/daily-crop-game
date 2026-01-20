@@ -478,6 +478,8 @@ const MarketSystem = {
 
 // js/market.js
 
+    // js/market.js
+
     async buyItem(id, price) {
         if (GameState.user.coins < price) { 
             UIEngine.showRewardPopup("INSUFFICIENT FUNDS", "Please add more funds to your wallet.", null, "CLOSE");
@@ -499,19 +501,48 @@ const MarketSystem = {
 
                 const result = await response.json();
                 if (result.success) {
-                    await GameState.load(); // Sinkronkan data terbaru dari server
+                    // 1. Sinkronkan data mentah dari server
+                    await GameState.load(); 
+                    
+                    // 2. Update Header (Koin)
                     UIEngine.updateHeader();
+                    
+                    // 3. Update Tampilan Toko (Biar tombol berubah jadi OWNED)
                     this.renderShopItems();
+
+                    // --- [PERBAIKAN SINKRONISASI INSTAN] ---
+                    
+                    // Jika yang dibeli adalah LAND:
+                    if (id.includes('land')) {
+                        if (window.FarmSystem) {
+                            // Panggil init kembali untuk menghitung ulang plot yang terbuka
+                            FarmSystem.init(); 
+                        }
+                    }
+
+                    // Jika yang dibeli adalah STORAGE:
+                    if (id.includes('storage')) {
+                        if (window.WarehouseSystem) {
+                            // Update tampilan list gudang agar limit baru terbaca
+                            WarehouseSystem.render(); 
+                        }
+                        if (window.UIEngine && UIEngine.updateDashboard) {
+                            // Update info di Dashboard utama
+                            UIEngine.updateDashboard();
+                        }
+                    }
+
                     UIEngine.showRewardPopup("SUCCESS", "Asset Acquired Successfully.", null, "DISMISS");
                 } else {
                     UIEngine.showRewardPopup("DENIED", result.error, null, "OK");
                 }
             } catch (e) {
                 console.error(e);
+                UIEngine.showRewardPopup("ERROR", "Connection failed.", null, "RETRY");
             }
         }, "AUTHORIZE");
     },
-
+    
     applyPriceBooster() {
     UIEngine.showRewardPopup("MARKET LEVERAGE", "Watch a Sponsor Ad to increase market value by 20%?", async () => {
         AdsManager.showHybridStack(3, async () => {
@@ -561,6 +592,7 @@ const MarketSystem = {
 };
 
 window.MarketSystem = MarketSystem;
+
 
 
 
