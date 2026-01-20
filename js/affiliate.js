@@ -24,11 +24,12 @@ const AffiliateSystem = {
         }
     },
 
+// js/affiliate.js
+
     render() {
         const container = document.getElementById('Affiliate');
         if (!container) return;
 
-        // Ambil Data dari State (Data yang sudah dimuat dari Firebase)
         const myLink = `https://t.me/Daily_CropBot/start?startapp=${GameState.user.userId}`;
         const totalFriends = GameState.user.affiliate?.total_friends || 0;
         const totalEarnings = GameState.user.affiliate?.total_earnings || 0;
@@ -37,7 +38,7 @@ const AffiliateSystem = {
         container.innerHTML = '';
         container.className = "h-full flex flex-col p-5 animate-in pb-24 overflow-y-auto no-scrollbar";
 
-        // 1. HEADER CARD (Visual Tetap Asli)
+        // 1. HEADER CARD (Tetap Sama)
         const header = document.createElement('div');
         header.innerHTML = `
             <div class="glass p-6 rounded-[2.5rem] border border-white/10 relative overflow-hidden mb-6 shadow-2xl">
@@ -68,29 +69,47 @@ const AffiliateSystem = {
         `;
         container.appendChild(header);
 
-        // 2. INVITE SECTION
+        // 2. INVITE SECTION (DENGAN MARKETING TEXT)
         const inviteSec = document.createElement('div');
         inviteSec.className = "mb-6";
+        
+        // Template Pesan Iklan (Jujur & Menarik)
+        // Fokus: Simulasi Tani, Market Real-time, Gratis Main
+        const promoText = `🚜 Join me in Daily Crop! Create your digital farm, plant exotic herbs, and trade them on the Global Market. Simple, relaxing, and fun! Start with my link:`;
+
         inviteSec.innerHTML = `
-            <div class="glass p-5 rounded-[2rem] border border-white/10 relative overflow-hidden group">
-                <h3 class="text-sm font-black text-white uppercase italic tracking-wider">Invite Friends</h3>
-                <span class="text-[8px] text-emerald-400 font-bold bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">Earn 10% Passive</span>
-            </div>
-            <div class="bg-white/5 p-1.5 rounded-2xl border border-white/10 flex items-center gap-2">
-                <div class="bg-black/80 h-10 flex-1 rounded-xl flex items-center px-4 overflow-hidden">
-                    <p class="text-[9px] text-gray-400 truncate font-mono">${myLink}</p>
+            <div class="glass p-5 rounded-[2rem] border border-white/10 relative overflow-hidden group mb-4">
+                <h3 class="text-sm font-black text-white uppercase italic tracking-wider mb-2">Invite Link</h3>
+                
+                <div class="bg-white/5 p-1.5 rounded-2xl border border-white/10 flex items-center gap-2 mb-4">
+                    <div class="bg-black/80 h-10 flex-1 rounded-xl flex items-center px-4 overflow-hidden">
+                        <p class="text-[9px] text-gray-400 truncate font-mono">${myLink}</p>
+                    </div>
+                    <button onclick="AffiliateSystem.copyLink('${myLink}')" class="h-10 w-10 bg-indigo-500 rounded-xl flex items-center justify-center text-white shadow-lg active:scale-90 transition-all">
+                        <i class="fas fa-link"></i>
+                    </button>
                 </div>
-                <button onclick="AffiliateSystem.copyLink('${myLink}')" class="h-10 w-10 bg-indigo-500 rounded-xl flex items-center justify-center text-white shadow-lg active:scale-90 transition-all">
-                    <i class="fas fa-copy"></i>
-                </button>
+
+                <div class="border-t border-white/5 pt-3">
+                    <p class="text-[9px] text-gray-400 font-bold uppercase mb-2"><i class="fas fa-bullhorn text-yellow-400 mr-1"></i> Quick Share Message</p>
+                    <div class="bg-indigo-500/10 p-3 rounded-xl border border-indigo-500/20 relative">
+                        <p class="text-[9px] text-gray-300 italic leading-relaxed pr-8">
+                            "${promoText} <span class="text-indigo-400 font-bold">...</span>"
+                        </p>
+                        <button onclick="AffiliateSystem.copyPromo('${promoText}', '${myLink}')" class="absolute top-2 right-2 w-8 h-8 bg-indigo-500 rounded-lg flex items-center justify-center text-white shadow-lg active:scale-90 transition-all">
+                            <i class="fas fa-copy text-xs"></i>
+                        </button>
+                    </div>
+                </div>
             </div>
-            <p class="text-[8px] text-gray-500 mt-2 px-2 leading-relaxed italic opacity-80">
-                <i class="fas fa-info-circle mr-1"></i> Commission starts after friend's First Market Sell.
+            
+            <p class="text-[8px] text-gray-500 px-2 leading-relaxed italic text-center">
+                Get <span class="text-emerald-400 font-bold">+500 PTS Bonus</span> when your friend sells 1000 PTS worth of crops!
             </p>
         `;
         container.appendChild(inviteSec);
 
-        // 3. FRIENDS LIST
+        // 3. FRIENDS LIST (Tetap Sama dengan Logic Status Baru)
         const listSec = document.createElement('div');
         listSec.className = "flex-1 flex flex-col min-h-0";
         
@@ -102,31 +121,54 @@ const AffiliateSystem = {
                     <p class="text-[9px] font-bold text-gray-400 uppercase">No friends yet</p>
                 </div>`;
         } else {
-            listHTML = friendList.map(f => `
-                <div class="glass p-3 rounded-2xl flex items-center justify-between border border-white/5 mb-2">
+            listHTML = friendList.map(f => {
+                // Logic Status Visual
+                let statusBadge = `<span class="text-[7px] font-bold text-gray-500 bg-gray-800 px-1.5 py-0.5 rounded">PENDING</span>`;
+                let iconColor = "from-gray-700 to-gray-900 grayscale";
+                
+                if (f.earnings >= 100) { 
+                     statusBadge = `<span class="text-[7px] font-bold text-emerald-900 bg-emerald-400 px-1.5 py-0.5 rounded shadow-sm shadow-emerald-500/50">QUALIFIED ✅</span>`;
+                     iconColor = "from-emerald-500 to-teal-600 shadow-lg shadow-emerald-500/30";
+                } else if (f.earnings > 0) {
+                     statusBadge = `<span class="text-[7px] font-bold text-yellow-400 bg-yellow-400/10 px-1.5 py-0.5 rounded">FARMING...</span>`;
+                     iconColor = "from-indigo-500 to-purple-600";
+                }
+
+                return `
+                <div class="glass p-3 rounded-2xl flex items-center justify-between border border-white/5 mb-2 group hover:bg-white/5 transition-colors">
                     <div class="flex items-center gap-3">
-                        <div class="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center font-black text-[10px] text-white">
+                        <div class="w-8 h-8 rounded-full bg-gradient-to-br ${iconColor} flex items-center justify-center font-black text-[10px] text-white transition-all">
                             ${f.name.substring(0, 2).toUpperCase()}
                         </div>
                         <div>
-                            <p class="text-[9px] font-black text-white uppercase">${f.name}</p>
-                            <p class="text-[7px] font-bold text-emerald-400">Active Member</p>
+                            <p class="text-[9px] font-black text-white uppercase mb-0.5">${f.name}</p>
+                            ${statusBadge}
                         </div>
                     </div>
                     <div class="text-right">
-                        <p class="text-[9px] font-black text-white">+${f.earnings.toLocaleString()} PTS</p>
-                        <p class="text-[7px] text-gray-500 uppercase tracking-tighter">Earnings</p>
+                        <p class="text-[9px] font-black text-emerald-400">+${f.earnings.toLocaleString()} PTS</p>
+                        <p class="text-[7px] text-gray-500 uppercase tracking-tighter">Commission</p>
                     </div>
-                </div>`).join('');
+                </div>`;
+            }).join('');
         }
 
         listSec.innerHTML = `<h3 class="text-sm font-black text-white uppercase italic tracking-wider mb-3 px-2">Referral List</h3><div class="overflow-y-auto no-scrollbar pb-10">${listHTML}</div>`;
         container.appendChild(listSec);
     },
 
+    // FUNGSI COPY LINK BIASA
     copyLink(text) {
         navigator.clipboard.writeText(text).then(() => {
             if (window.UIEngine) UIEngine.showRewardPopup("COPIED", "Referral link copied!", null, "OK");
+        });
+    },
+
+    // FUNGSI COPY MESSAGE + LINK
+    copyPromo(text, link) {
+        const fullMessage = `${text} ${link}`;
+        navigator.clipboard.writeText(fullMessage).then(() => {
+            if (window.UIEngine) UIEngine.showRewardPopup("COPIED", "Promo message copied to clipboard!", null, "GREAT");
         });
     }
 };
