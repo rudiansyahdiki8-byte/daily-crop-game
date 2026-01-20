@@ -203,7 +203,7 @@ renderTaskButtons() {
             `;
             
             if(!isCooldown) {
-                btn.onclick = () => this.handleTaskClick(task, btn);
+                btn.onclick = () => this.skClick(task, btn);
             }
             listContent.appendChild(btn);
         });
@@ -213,56 +213,34 @@ renderTaskButtons() {
     },
 
 // js/farm.js - Revisi Task
-    async handleTaskClick(task, btnElement) {
-            if (task.action === 'spin') { SpinSystem.show(); return; }
+     async handleTaskClick(task, btnElement) {
+        if (task.action === 'spin') { SpinSystem.show(); return; }
+        
+        AdsManager.showHybridStack(3, async () => {
+            try {
+                const response = await fetch('/api/game/rewards', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        initData: window.Telegram.WebApp.initData,
+                        action: 'CLAIM_TASK',
+                        payload: { taskId: task.id }
+                    })
+                });
 
-            // 1. PROTEKSI AWAL: Cek status task di memori lokal sebelum panggil iklan
-            // Jika task sudah selesai atau masih cooldown, hentikan fungsi di sini.
-            if (task.isCompleted || (task.nextAvailable && Date.now() < task.nextAvailable)) {
-                UIEngine.showRewardPopup("COOLDOWN", "Task belum siap atau sudah diklaim.");
-                return;
-            }
-
-            // 2. DISABLE TOMBOL: Hindari pemain klik berkali-kali
-            btnElement.disabled = true;
-            const originalText = btnElement.innerText;
-            btnElement.innerText = "LOADING...";
-
-            AdsManager.showHybridStack(3, async () => {
-                try {
-                    const response = await fetch('/api/game/rewards', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            initData: window.Telegram.WebApp.initData,
-                            action: 'CLAIM_TASK',
-                            payload: { taskId: task.id }
-                        })
-                    });
-
-                    const result = await response.json();
-                    if (result.success) {
-                        // 3. SINKRONISASI DATABASE: Ambil status koin DAN cooldown terbaru
-                        // Jangan hanya update coins, tapi load seluruh GameState terbaru.
-                        await GameState.load(); 
-
-                        // 4. REFRESH UI: Update header koin dan render ulang semua tombol
-                        UIEngine.updateHeader(); 
-                        this.renderTaskButtons(); // Ini akan menggambar tombol dalam status 'Disabled/Cooldown'
-
-                        UIEngine.showRewardPopup("DONE", `+${result.reward} PTS Added!`, null, "OK");
-                    } else {
-                        // Jika gagal (misal: server menolak karena cooldown), aktifkan tombol lagi
-                        btnElement.disabled = false;
-                        btnElement.innerText = originalText;
-                        UIEngine.showRewardPopup("OOPS", result.error, null, "CLOSE");
-                    }
-                } catch (e) { 
-                    btnElement.disabled = false;
-                    btnElement.innerText = originalText;
-                    console.error(e); 
+                const result = await response.json();
+                if (result.success) {
+                    GameState.user.coins = result.newBalance;
+                    await GameState.load();
+                    await GameState.save(); 
+                    this.renderTaskButtons();
+                    UIEngine.updateHeader();
+                    UIEngine.showRewardPopup("DONE", `+${result.reward} PTS Added!`, null, "OK");
+                } else {
+                    UIEngine.showRewardPopup("OODS", result.error, null, "CLOSE");
                 }
-            });
+            } catch (e) { console.error(e); }
+        });
     },
     // js/farm.js - Revisi plantAll [cite: 62]
     async plantAll() {
@@ -533,6 +511,7 @@ renderTaskButtons() {
 
 
 window.FarmSystem = FarmSystem;
+
 
 
 
