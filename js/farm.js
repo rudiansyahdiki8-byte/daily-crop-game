@@ -153,71 +153,85 @@ const FarmSystem = {
         }
     },
 
+// [REVISI] Render Tombol Task (Mapping ke Config)
 renderTaskButtons() {
-        const listContent = document.getElementById('task-list-content');
-        if(!listContent) return;
+    const listContent = document.getElementById('task-list-content');
+    if(!listContent) return;
+    
+    listContent.innerHTML = ''; // Bersihkan layar
+
+    // Tombol Plant Random (Tetap Ada)
+    const plantBtn = document.createElement('button');
+    plantBtn.className = "w-full bg-emerald-500/20 hover:bg-emerald-500/40 border border-emerald-500/50 rounded-xl py-1 px-2 flex items-center gap-3 transition-all active:scale-95 mb-2";
+    plantBtn.innerHTML = `<div class="w-8 h-8 rounded-full bg-emerald-500 flex items-center justify-center text-white"><i class="fas fa-seedling text-xs"></i></div><span class="text-[9px] font-black uppercase text-white">Plant Random</span>`;
+    plantBtn.onclick = () => { this.toggleTaskMenu(); this.plantAll(); };
+    listContent.appendChild(plantBtn);
+
+    const cooldowns = GameState.user.task_cooldowns || {};
+    const now = Date.now();
+    let readyCount = 0;
+
+    this.dailyTasks.forEach(task => {
+        const lastClaim = cooldowns[task.id] || 0;
+        const isCooldown = (now - lastClaim) < 86400000;
         
-        listContent.innerHTML = '';
+        if (!isCooldown) readyCount++;
 
-        // Tombol Plant Random
-        const plantBtn = document.createElement('button');
-        plantBtn.className = "w-full bg-emerald-500/20 hover:bg-emerald-500/40 border border-emerald-500/50 rounded-xl py-1 px-2 flex items-center gap-3 transition-all active:scale-95";
-        plantBtn.innerHTML = `<div class="w-8 h-8 rounded-full bg-emerald-500 flex items-center justify-center text-white"><i class="fas fa-seedling text-xs"></i></div><span class="text-[9px] font-black uppercase text-white">Plant Random</span>`;
-        plantBtn.onclick = () => { this.toggleTaskMenu(); this.plantAll(); };
-        listContent.appendChild(plantBtn);
-
-        // [PERBAIKAN UTAMA DISINI]
-        // Ambil data dari Firebase (GameState), BUKAN LocalStorage
-        const cooldowns = GameState.user.task_cooldowns || {};
-        const now = Date.now();
-        let readyCount = 0;
-
-        this.dailyTasks.forEach(task => {
-            const lastClaim = cooldowns[task.id] || 0;
-            const isCooldown = (now - lastClaim) < 86400000;
-            
-            if (!isCooldown) readyCount++;
-
-            const btn = document.createElement('button');
-            const styleClass = isCooldown ? 
-                'bg-gray-800/50 border-gray-700 opacity-50 grayscale cursor-not-allowed' : 
-                'bg-white/5 border-white/10 hover:bg-white/10';
-
-            btn.className = `w-full rounded-xl py-1.5 px-2 flex items-center gap-3 transition-all active:scale-95 border ${styleClass}`;            
-            
-            let statusHTML = '';
-            if (isCooldown) {
-                const timeLeft = 86400000 - (now - lastClaim);
-                const hours = Math.floor((timeLeft / (1000 * 60 * 60)));
-                statusHTML = `<span class="text-[8px] text-gray-500 font-bold ml-auto">${hours}H</span>`;
-            } else {
-                statusHTML = task.reward > 0 ? `<span class="text-[8px] text-yellow-400 font-black ml-auto">+${task.reward}</span>` : `<i class="fas fa-chevron-right text-[8px] text-gray-400 ml-auto"></i>`;
+        // [MAPPING BARU] Cocokkan ID 'visit_farm' -> 'Visit' agar terbaca di Config
+        let displayReward = 100;
+        if (window.GameConfig && window.GameConfig.Tasks) {
+            // Mapping Manual: ID di farm.js -> Key di config.js
+            const map = {
+                'daily_login': 'Login', 'visit_farm': 'Visit', 'free_reward': 'Gift',
+                'clean_farm': 'Clean', 'water_plants': 'Water', 'fertilizer': 'Fertilizer',
+                'kill_pests': 'Pest', 'harvest_once': 'Harvest', 'sell_item': 'Sell'
+            };
+            const configKey = map[task.id];
+            if (configKey && window.GameConfig.Tasks[configKey]) {
+                displayReward = window.GameConfig.Tasks[configKey];
             }
+        }
 
-            btn.innerHTML = `
-                <div class="w-6 h-6 rounded-full bg-black/40 flex items-center justify-center text-gray-300 border border-white/5">
-                    <i class="fas ${task.icon} text-[10px]"></i>
-                </div>
-                <span class="text-[9px] font-bold uppercase text-gray-300 text-left flex-1">${task.name}</span>
-                ${statusHTML}
-            `;
-            
-            if(!isCooldown) {
-                btn.onclick = () => this.skClick(task, btn);
-            }
-            listContent.appendChild(btn);
-        });
+        const btn = document.createElement('button');
+        const styleClass = isCooldown ? 
+            'bg-gray-800/50 border-gray-700 opacity-50 grayscale cursor-not-allowed' : 
+            'bg-white/5 border-white/10 hover:bg-white/10';
 
-        const notifDot = document.getElementById('task-notification');
-        if(notifDot) notifDot.style.display = readyCount > 0 ? 'block' : 'none';
-    },
+        btn.className = `w-full rounded-xl py-1.5 px-2 flex items-center gap-3 transition-all active:scale-95 border ${styleClass}`;            
+        
+        let statusHTML = '';
+        if (isCooldown) {
+            statusHTML = `<span class="text-[8px] text-gray-500 font-bold ml-auto uppercase">DONE</span>`;
+        } else {
+            statusHTML = `<span class="text-[8px] text-yellow-400 font-black ml-auto">+${displayReward}</span>`;
+        }
+
+        btn.innerHTML = `
+            <div class="w-6 h-6 rounded-full bg-black/40 flex items-center justify-center text-gray-300 border border-white/5">
+                <i class="fas ${task.icon} text-[10px]"></i>
+            </div>
+            <span class="text-[9px] font-bold uppercase text-gray-300 text-left flex-1">${task.name}</span>
+            ${statusHTML}
+        `;
+        
+        // Proteksi Klik: Hanya bisa diklik jika TIDAK Cooldown
+        if(!isCooldown) {
+            btn.onclick = () => this.handleTaskClick(task, btn);
+        } else {
+            btn.disabled = true;
+        }
+        listContent.appendChild(btn);
+    });
+
+    const notifDot = document.getElementById('task-notification');
+    if(notifDot) notifDot.style.display = readyCount > 0 ? 'block' : 'none';
+},
 
 // js/farm.js - Revisi Task
-     async handleTaskClick(task, btnElement) {
+       async handleTaskClick(task, btnElement) {
         if (task.action === 'spin') { SpinSystem.show(); return; }
-
-        // 1. CEK STATUS LOKAL: Jika sudah diklaim hari ini, berhenti di sini.
-        // Ini mencegah iklan muncul jika task sudah selesai.
+        
+        // 1. CEK COOLDOWN LOKAL (PENTING: Agar tidak nonton iklan zonk)
         const cooldowns = GameState.user.task_cooldowns || {};
         const lastClaim = cooldowns[task.id] || 0;
         if ((Date.now() - lastClaim) < 86400000) {
@@ -225,7 +239,7 @@ renderTaskButtons() {
             return;
         }
 
-        // 2. MATIKAN TOMBOL: Visual feedback agar tidak diklik ganda
+        // 2. Kunci Tombol (Visual Feedback)
         btnElement.disabled = true;
         btnElement.style.opacity = "0.5";
 
@@ -243,24 +257,23 @@ renderTaskButtons() {
 
                 const result = await response.json();
                 if (result.success) {
-                    // 3. SINKRONISASI TOTAL: Ambil status cooldown terbaru dari server
+                    // 3. AMBIL DATA SERVER TERBARU (JANGAN PAKAI SAVE!)
                     await GameState.load(); 
-                    UIEngine.updateHeader();
+                    UIEngine.updateHeader(); 
                     
-                    // 4. RE-RENDER: Gambar ulang list task agar tombol berubah jadi abu-abu
+                    // 4. Gambar ulang tombol agar langsung berubah jadi 'DONE'
                     this.renderTaskButtons(); 
-
-                    UIEngine.showRewardPopup("DONE", `+${result.reward} PTS Added!`);
+                    UIEngine.showRewardPopup("DONE", `+${result.reward} PTS Added!`, null, "OK");
                 } else {
-                    // Jika gagal, aktifkan kembali tombolnya
+                    // Gagal: Hidupkan tombol lagi
                     btnElement.disabled = false;
                     btnElement.style.opacity = "1";
-                    UIEngine.showRewardPopup("OOPS", result.error);
+                    UIEngine.showRewardPopup("OOPS", result.error, null, "CLOSE");
                 }
             } catch (e) { 
+                console.error(e);
                 btnElement.disabled = false;
                 btnElement.style.opacity = "1";
-                console.error(e); 
             }
         });
     },
@@ -533,6 +546,7 @@ renderTaskButtons() {
 
 
 window.FarmSystem = FarmSystem;
+
 
 
 
