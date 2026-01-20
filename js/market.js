@@ -205,16 +205,12 @@ const MarketSystem = {
 
     // --- LOGIC JUAL (PREMIUM NOTIFICATIONS) ---
     async processSell(key, qty, displayedPrice) {
-        // Tampilkan Loading
         UIEngine.showRewardPopup("PROCESSING", "Contacting Global Exchange...", null, "...");
 
         try {
-            // Panggil API Backend
             const response = await fetch('/api/market/sell', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     initData: window.Telegram.WebApp.initData, 
                     itemKey: key,
@@ -225,32 +221,41 @@ const MarketSystem = {
             const result = await response.json();
 
             if (result.success) {
-                // [KUNCI PERBAIKAN HANTU]
-                // Jangan kurangi manual (GameState.warehouse[key] -= qty). HAPUS ITU.
-                // Jangan pakai GameState.save(). HAPUS ITU.
-                
-                // Ganti dengan ini: PAKSA ambil data kebenaran dari Server
-                await GameState.load(); 
+                // 1. UPDATE LANGSUNG DARI HASIL SERVER (Paling Akurat)
+                if (result.updatedWarehouse) {
+                    GameState.warehouse = result.updatedWarehouse;
+                } else {
+                    // Fallback jika server lupa kirim
+                    await GameState.load();
+                }
 
-                // Update UI setelah data state segar
+                // 2. Refresh Tampilan
                 UIEngine.updateHeader();
-                this.renderSellInventory(); // Hantu akan hilang disini karena data warehouse sudah sinkron 0
+                this.renderSellInventory(); // Hantu pasti hilang karena GameState.warehouse sudah bersih
                 this.calculatePreview();
 
-                UIEngine.showRewardPopup("TRANSACTION SUCCESS", result.message || "Sold successfully!", null, "OK");
+                UIEngine.showRewardPopup("SUCCESS", `Sold for ${result.earned} PTS!`, null, "OK");
+
             } else {
-                // Jika Error 400 (Stok tidak cukup), kemungkinan data lokal basi.
-                // Kita load ulang juga biar hantunya hilang.
-                console.warn("Sync Error:", result.error);
-                await GameState.load(); 
-                this.renderSellInventory();
-                
-                UIEngine.showRewardPopup("SYNC DATA", "Inventory data updated from server.", null, "CLOSE");
+                // --- PENANGANAN ERROR 400 (HANTU) ---
+                console.warn("Server Error:", result.error);
+
+                // Jika errornya "Insufficient stock", berarti itu barang HANTU.
+                // KITA HAPUS PAKSA DARI LAYAR!
+                if (result.error.includes("Insufficient") || result.error.includes("stock")) {
+                    delete GameState.warehouse[key]; // Hapus paksa lokal
+                    this.renderSellInventory();      // Gambar ulang (Hantu hilang)
+                    this.calculatePreview();
+                    
+                    UIEngine.showRewardPopup("SYNC", "Item list updated. Ghost item removed.", null, "CLOSE");
+                } else {
+                    UIEngine.showRewardPopup("FAILED", result.error, null, "CLOSE");
+                }
             }
 
         } catch (error) {
             console.error(error);
-            UIEngine.showRewardPopup("CONNECTION ERROR", "Failed to reach server.", null, "RETRY");
+            UIEngine.showRewardPopup("ERROR", "Connection failed.", null, "RETRY");
         }
     },
 
@@ -271,34 +276,39 @@ const MarketSystem = {
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         initData: window.Telegram.WebApp.initData,
-                        isSellAll: true // Perintah jual semua ke server
+                        isSellAll: true // Perintah jual semua
                     })
                 });
 
                 const result = await response.json();
                 
-                // [PERBAIKAN UTAMA: SINKRONISASI TOTAL]
-                // Baik sukses maupun gagal, kita harus Load data server
-                // agar jika ada "barang hantu", mereka langsung hilang dari layar.
-                
                 if (result.success) {
-                    await GameState.load(); // Ambil saldo & gudang terbaru (kosong)
+                    // [OPTIMASI] Gunakan data gudang terbaru langsung dari server
+                    if (result.updatedWarehouse) {
+                        GameState.warehouse = result.updatedWarehouse;
+                        // Kita juga perlu update saldo koin agar sinkron
+                        GameState.user.coins = (GameState.user.coins || 0) + result.earned; 
+                    } else {
+                        // Fallback aman: Ambil ulang semua data
+                        await GameState.load();
+                    }
+
                     UIEngine.updateHeader();
-                    this.renderSellInventory();
+                    this.renderSellInventory(); // Item akan hilang karena terjual
                     this.calculatePreview();
                     
                     UIEngine.showRewardPopup("FUNDS ADDED", `Revenue of ${result.earned.toLocaleString()} PTS added! (Bonus: x${result.multiplier})`, null, "EXCELLENT");
                 } else {
-                    // JIKA GAGAL (Misal: Server bilang kosong)
+                    // [ANTI-HANTU] Jika Gagal (misal: Server bilang kosong), kita paksa sinkron
                     console.warn("Sell All Sync:", result.error);
                     
-                    // Kita paksa refresh juga agar HP user sadar kalau gudangnya kosong
+                    // Hapus hantu dengan mengambil data 'kosong' dari server
                     await GameState.load();
                     this.renderSellInventory();
                     this.calculatePreview();
                     
-                    // Ubah pesan error jadi info "Data Updated" jika errornya karena stok
-                    const msg = result.error.includes("No assets") ? "Inventory synced with server." : result.error;
+                    // Beri pesan yang jelas
+                    const msg = result.error.includes("No assets") ? "Inventory synced. Ghost items removed." : result.error;
                     UIEngine.showRewardPopup("SYNC COMPLETED", msg, null, "OK");
                 }
             } catch (e) {
@@ -551,6 +561,7 @@ const MarketSystem = {
 };
 
 window.MarketSystem = MarketSystem;
+
 
 
 
