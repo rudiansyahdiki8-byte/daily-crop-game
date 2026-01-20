@@ -203,35 +203,106 @@ const MarketSystem = {
         }
     },
 
-    // --- LOGIC JUAL (PREMIUM NOTIFICATIONS) ---
     async processSell(key, qty, price) {
-        const multiplier = this.getSellMultiplier();
-        const totalEarn = Math.floor(price * multiplier) * qty;
+        // 1. Tampilkan Loading (Agar user tahu sistem sedang bekerja)
+        UIEngine.showRewardPopup("CONNECTING", "Verifying transaction with server...", null, "...");
 
-        if (!GameState.user.sales_history) GameState.user.sales_history = [];
-        GameState.user.sales_history.unshift({
-            item: (window.HerbData && window.HerbData[key]) ? window.HerbData[key].name : key,
-            qty: qty,
-            price: totalEarn,
-            date: new Date().toLocaleTimeString()
-        });
-        if (GameState.user.sales_history.length > 5) GameState.user.sales_history.pop();
+        try {
+            // 2. PANGGIL BACKEND VERCEL
+            // Kita tidak lagi menghitung koin di sini. Kita minta server yang hitung.
+            const response = await fetch('/api/market/sell', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    userId: GameState.user.userId,
+                    itemKey: key,
+                    qty: qty
+                })
+            });
 
-        GameState.user.coins += totalEarn;
-        GameState.user.totalSold += totalEarn;
-        GameState.warehouse[key] -= qty;
+            const result = await response.json();
+
+            if (result.success) {
+                // === SUKSES DARI SERVER ===
+                
+                // 3. Update Tampilan Frontend (Visual Saja)
+                // Data asli sudah tersimpan aman di Firebase oleh Server
+                
+                // Kurangi stok di tampilan
+                GameState.warehouse[key] -= qty;
+                
+                // Tambah koin di tampilan (Pakai angka dari server agar akurat)
+                GameState.user.coins = result.data.newBalance; 
+                
+                // Update History Lokal (Opsional, agar laporannya muncul instan)
+                if (!GameState.user.sales_history) GameState.user.sales_history = [];
+                GameState.user.sales_history.unshift({
+                    item: (window.HerbData && window.HerbData[key]) ? window.HerbData[key].name : key,
+                    qty: qty,
+                    price: result.data.totalEarn,
+                    date: new Date().toLocaleTimeString()
+                });
+
+                // Update Header & UI
+                UIEngine.updateHeader();
+                this.renderSellInventory();
+                this.calculatePreview();
+                
+                // Panggil Affiliate jika ada (Biarkan frontend mentrigger visualnya saja)
+                // Logika saldo affiliate sebaiknya nanti dipindah ke backend juga
+                this.triggerAffiliateCommission(result.data.totalEarn);
+
+                // Tutup Popup Loading, Ganti dengan Sukses
+                UIEngine.showRewardPopup(
+                    "TRANSACTION COMPLETE", 
+                    `Sold ${qty} units. Revenue: ${result.data.totalEarn.toLocaleString()} PTS.`, 
+                    null, 
+                    "CONFIRM"
+                );
+
+            } else {
+                // === GAGAL (DITOLAK SERVER) ===
+                console.error("Server Reject:", result.error);
+                UIEngine.showRewardPopup("TRANSACTION FAILED", `Server Message: ${result.error}`, null, "CLOSE");
+            }
+
+        } catch (error) {
+            // === GAGAL KONEKSI (INTERNET/SERVER MATI) ===
+            console.error("Network Error:", error);
+            UIEngine.showRewardPopup("CONNECTION ERROR", "Failed to reach server. Please check internet.", null, "RETRY");
+        }
+
+    // --- LOGIC JUAL (PREMIUM NOTIFICATIONS) ---
+    //async processSell(key, qty, price) {
+      //  const multiplier = this.getSellMultiplier();
+        //const totalEarn = Math.floor(price * multiplier) * qty;
+
+        //if (!GameState.user.sales_history) GameState.user.sales_history = [];
+        //GameState.user.sales_history.unshift({
+          //  item: (window.HerbData && window.HerbData[key]) ? window.HerbData[key].name : key,
+            //qty: qty,
+            //price: totalEarn,
+            //date: new Date().toLocaleTimeString()
+        //});
+        //if (GameState.user.sales_history.length > 5) GameState.user.sales_history.pop();
+
+        //GameState.user.coins += totalEarn;
+        //GameState.user.totalSold += totalEarn;
+        //GameState.warehouse[key] -= qty;
         
-        await this.triggerAffiliateCommission(totalEarn);
-        await GameState.save(); 
+        //await this.triggerAffiliateCommission(totalEarn);
+        //await GameState.save(); 
 
-        UIEngine.updateHeader();
-        this.renderSellInventory();
-        this.calculatePreview();
+        //UIEngine.updateHeader();
+        //this.renderSellInventory();
+        //this.calculatePreview();
         
         // Popup dengan bahasa Ekonomi
-        UIEngine.showRewardPopup("TRANSACTION COMPLETE", `Successfully liquidated ${qty} units. Revenue: ${totalEarn} PTS.`, null, "CONFIRM");
+        //UIEngine.showRewardPopup("TRANSACTION COMPLETE", `Successfully liquidated ${qty} units. Revenue: ${totalEarn} PTS.`, null, "CONFIRM");
+    //},
     },
 
+    
     async sellAll() {
         const total = this.calculatePreview();
         if (total <= 0) return;
