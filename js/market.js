@@ -2,7 +2,6 @@
 // ==========================================
 // MARKET SYSTEM (PREMIUM TRADING VERSION)
 // Bahasa diubah ke "Financial/Trading Terms" agar memancing iklan mahal.
-// VERSI: CONNECTED TO BACKEND (VERCEL)
 // ==========================================
 
 const MarketSystem = {
@@ -47,7 +46,7 @@ const MarketSystem = {
         },
         { 
             id: 'growth_fert', type: 'buff', buffKey: 'growth_speed', 
-            name: "Growth Catalyst", 
+            name: "Growth Catalyst", // Ganti nama biar keren
             icon: "fa-flask", color: "text-green-400", 
             price: window.GameConfig.ShopItems.BuffGrowth, 
             desc: "-20% Cycle Time (24h Active)",
@@ -83,16 +82,15 @@ const MarketSystem = {
         const shopContainer = document.getElementById('Shop');
         if (shopContainer) this.renderLayout(shopContainer);
         
-        // Refresh harga kita matikan di sini, biarkan Backend yang koreksi saat jual
-        // if(window.GameState && GameState.refreshMarketPrices) {
-        //    GameState.refreshMarketPrices();
-        // }
+        if(window.GameState && GameState.refreshMarketPrices) {
+            GameState.refreshMarketPrices();
+        }
         
         this.checkExpiredBuffs();
         this.switchTab(this.currentTab);
     },
 
-    // --- AFFILIATE LOGIC ---
+    // --- AFFILIATE LOGIC (TETAP SAMA) ---
     async triggerAffiliateCommission(totalSales) {
         if (!GameState.user) return;
         const commission = Math.floor(totalSales * 0.10);
@@ -112,7 +110,7 @@ const MarketSystem = {
         container.innerHTML = '';
         container.className = "h-full flex flex-col p-5 animate-in pb-28"; 
         
-        // Header "GLOBAL EXCHANGE"
+        // Header "GLOBAL EXCHANGE" (Istilah Keren)
         const header = document.createElement('div');
         header.innerHTML = `
             <div class="flex justify-between items-center mb-6 px-1">
@@ -205,72 +203,33 @@ const MarketSystem = {
         }
     },
 
-    // --- [PENTING] FUNGSI JUAL YANG SUDAH TERHUBUNG KE BACKEND ---
+    // --- LOGIC JUAL (PREMIUM NOTIFICATIONS) ---
     async processSell(key, qty, price) {
-        // 1. Tampilkan Loading (Agar user tahu sistem sedang bekerja)
-        UIEngine.showRewardPopup("CONNECTING", "Verifying transaction with server...", null, "...");
+        const multiplier = this.getSellMultiplier();
+        const totalEarn = Math.floor(price * multiplier) * qty;
 
-        try {
-            // 2. PANGGIL BACKEND VERCEL
-            const response = await fetch('/api/market/sell', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    userId: GameState.user.userId,
-                    itemKey: key,
-                    qty: qty
-                })
-            });
+        if (!GameState.user.sales_history) GameState.user.sales_history = [];
+        GameState.user.sales_history.unshift({
+            item: (window.HerbData && window.HerbData[key]) ? window.HerbData[key].name : key,
+            qty: qty,
+            price: totalEarn,
+            date: new Date().toLocaleTimeString()
+        });
+        if (GameState.user.sales_history.length > 5) GameState.user.sales_history.pop();
 
-            const result = await response.json();
+        GameState.user.coins += totalEarn;
+        GameState.user.totalSold += totalEarn;
+        GameState.warehouse[key] -= qty;
+        
+        await this.triggerAffiliateCommission(totalEarn);
+        await GameState.save(); 
 
-            if (result.success) {
-                // === SUKSES DARI SERVER ===
-                
-                // Update Tampilan (Visual Saja)
-                GameState.warehouse[key] -= qty;
-                GameState.user.coins = result.newBalance; // <-- SALDO DARI SERVER (BUKAN HITUNGAN LOKAL)
-                
-                // Update Harga Lokal dengan harga yang dikoreksi server
-                if (result.fixedPrice) {
-                    if (!GameState.market.prices) GameState.market.prices = {};
-                    GameState.market.prices[key] = result.fixedPrice;
-                }
-                
-                // Update History
-                if (!GameState.user.sales_history) GameState.user.sales_history = [];
-                GameState.user.sales_history.unshift({
-                    item: (window.HerbData && window.HerbData[key]) ? window.HerbData[key].name : key,
-                    qty: qty,
-                    price: result.totalEarn,
-                    date: new Date().toLocaleTimeString()
-                });
-                if (GameState.user.sales_history.length > 5) GameState.user.sales_history.pop();
-
-                // Panggil Affiliate Trigger (Visual Only)
-                this.triggerAffiliateCommission(result.totalEarn);
-                
-                // Save State Lokal
-                await GameState.save(); 
-
-                UIEngine.updateHeader();
-                this.renderSellInventory();
-                this.calculatePreview();
-                
-                // Popup Sukses dengan Angka dari Server
-                UIEngine.showRewardPopup("TRANSACTION COMPLETE", `Sold ${qty} units.\nRevenue: ${result.totalEarn.toLocaleString()} PTS.`, null, "CONFIRM");
-
-            } else {
-                // === GAGAL (DITOLAK SERVER) ===
-                console.error("Server Reject:", result.error);
-                UIEngine.showRewardPopup("TRANSACTION FAILED", `Server Message: ${result.error}`, null, "CLOSE");
-            }
-
-        } catch (error) {
-            // === GAGAL KONEKSI ===
-            console.error("Network Error:", error);
-            UIEngine.showRewardPopup("NETWORK ERROR", "Failed to reach server. Please check internet.", null, "RETRY");
-        }
+        UIEngine.updateHeader();
+        this.renderSellInventory();
+        this.calculatePreview();
+        
+        // Popup dengan bahasa Ekonomi
+        UIEngine.showRewardPopup("TRANSACTION COMPLETE", `Successfully liquidated ${qty} units. Revenue: ${totalEarn} PTS.`, null, "CONFIRM");
     },
 
     async sellAll() {
@@ -279,29 +238,17 @@ const MarketSystem = {
 
         // "Liquidate" terdengar lebih mahal daripada "Sell All"
         UIEngine.showRewardPopup("LIQUIDATION", `Liquidate entire inventory for ${total.toLocaleString()} PTS?`, async () => {
-            
-            // NOTE: UNTUK SELL ALL, HARUSNYA KITA BUAT API KHUSUS JUGA NANTI
-            // TAPI UNTUK SEKARANG KITA LOOPING MANUAL DULU KE API processSell
-            // ATAU BIARKAN DULU (Warning: Sell All ini masih pakai logic lama di bawah ini, 
-            // sebaiknya dimatikan dulu atau diganti loop)
-            
-            // SEMENTARA KITA DISABLE DULU AGAR USER PAKAI JUAL SATUAN
-            // KARENA SELL ALL BUTUH API BARU 'api/market/sellAll'
-            
-            UIEngine.showRewardPopup("MAINTENANCE", "Bulk Liquidation is currently under server maintenance. Please sell items individually.", null, "OK");
-            
-            /* KODE LAMA DIMATIKAN
             Object.keys(GameState.warehouse).forEach(k => { GameState.warehouse[k] = 0; });
             GameState.user.coins += total;
             GameState.user.totalSold += total;
+            
             await this.triggerAffiliateCommission(total);
             await GameState.save(); 
+
             UIEngine.updateHeader();
             this.renderSellInventory();
             this.calculatePreview();
             UIEngine.showRewardPopup("FUNDS ADDED", `Revenue of ${total.toLocaleString()} PTS has been added to your wallet.`, null, "EXCELLENT");
-            */
-
         }, "LIQUIDATE");
     },
 
@@ -413,7 +360,7 @@ const MarketSystem = {
                  btnClass = "bg-blue-600 text-white hover:bg-blue-500 shadow-lg shadow-blue-900/20 border-transparent";
             }
 
-            // HTML CARD
+            // HTML CARD (Visual tidak berubah, hanya logic teks)
             const html = `
             <div class="glass p-3 rounded-2xl border border-white/5 flex flex-col justify-between h-full relative overflow-hidden group">
                 <div class="flex items-start justify-between mb-2">
@@ -453,6 +400,8 @@ const MarketSystem = {
             }
        });
     },
+
+// js/market.js
 
     async buyItem(id, price) {
         if (GameState.user.coins < price) { 
@@ -530,3 +479,4 @@ const MarketSystem = {
 };
 
 window.MarketSystem = MarketSystem;
+
