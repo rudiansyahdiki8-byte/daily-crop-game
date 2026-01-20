@@ -224,12 +224,13 @@ const MarketSystem = {
                 // --- KUNCI PERBAIKAN: SINKRONISASI STATE ---
                 // Mengambil data warehouse dan koin terbaru dari database [cite: 615]
                 await GameState.load();
-                UIEngine.updateHeader();
+            
                 
                 // Render ulang semua komponen UI yang terpengaruh [cite: 196, 212, 657]
-                UIEngine.updateHeader();
-                this.renderSellInventory();
-                this.calculatePreview();
+                UIEngine.updateHeader();       // Update Koin [cite: 1420]
+                UIEngine.renderMiniWarehouse(); // Update gudang kecil di Dashboard [cite: 1455]
+                this.renderSellInventory();    // Update daftar di menu Market [cite: 960]
+                this.calculatePreview();       // Update estimasi total [cite: 975]
                 
                 UIEngine.showRewardPopup("TRADE SUCCESS", `Revenue: ${result.earned} PTS Added.`, null, "OK");
             } else {
@@ -262,11 +263,12 @@ const MarketSystem = {
                 if (result.success) {
                     // Paksa GameState mengambil warehouse kosong dari server [cite: 615]
                     await GameState.load();
-                    UIEngine.updateHeader();
+                   
                     
-                    UIEngine.updateHeader(); // [cite: 657]
-                    this.renderSellInventory(); // [cite: 196]
-                    this.calculatePreview(); // [cite: 212]
+                    UIEngine.updateHeader();       // Update Koin [cite: 1420]
+                    UIEngine.renderMiniWarehouse(); // Update gudang kecil di Dashboard [cite: 1455]
+                    this.renderSellInventory();    // Update daftar di menu Market [cite: 960]
+                    this.calculatePreview();       // Update estimasi total [cite: 975]
                     
                     UIEngine.showRewardPopup("ASSETS LIQUIDATED", `Total: ${result.earned.toLocaleString()} PTS Added.`, null, "EXCELLENT");
                 }
@@ -510,6 +512,7 @@ const MarketSystem = {
 };
 
 window.MarketSystem = MarketSystem;
+
 
 
 
