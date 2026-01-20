@@ -107,15 +107,24 @@ const WarehouseSystem = {
     renderInventory() {
         const container = document.getElementById('warehouse-grid');
         if (!container) return;
+        
+        // Bersihkan Hantu Visual
         container.innerHTML = '';
+        
+        // Proteksi jika data null
+        if (!GameState.warehouse) {
+            container.innerHTML = `<div class="col-span-3 text-center text-[9px] text-gray-500">Loading storage...</div>`;
+            return;
+        }
         
         const items = Object.keys(GameState.warehouse);
         let isEmpty = true;
         
         items.forEach(key => {
             const count = GameState.warehouse[key];
-            // Skip jika jumlah 0
-            if (count > 0) {
+            // [PENTING] Hanya gambar jika jumlah > 0. 
+            // Kadang server kirim {ginger: 0}, ini harus difilter.
+            if (count && count > 0) {
                 isEmpty = false;
                 const plantInfo = (window.HerbData && HerbData[key]) ? HerbData[key] : { name: key, img: '' };
                 const rarityColor = plantInfo.rarity === 'Legendary' ? 'border-purple-500/50 shadow-purple-500/20' : 
@@ -135,7 +144,7 @@ const WarehouseSystem = {
             container.innerHTML = `<div class="col-span-3 flex flex-col items-center justify-center py-10 opacity-50"><i class="fas fa-box-open text-4xl text-gray-600 mb-2"></i><p class="text-[9px] uppercase font-bold text-gray-500">Storage Empty</p></div>`;
         }
     },
-
+    
     goToSell() {
         this.close();
         if(window.UIEngine && window.MarketSystem) {
@@ -144,5 +153,6 @@ const WarehouseSystem = {
         }
     }
 };
+
 
 window.WarehouseSystem = WarehouseSystem;
