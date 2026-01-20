@@ -9,7 +9,7 @@ export default async function handler(req, res) {
     if (req.method === 'OPTIONS') return res.status(200).end();
     if (req.method !== 'POST') return res.status(405).json({ error: 'Method Not Allowed' });
 
-    const { userId, type } = req.body; // type: 'free' atau 'paid'
+    const { userId, type } = req.body;
     if (!userId) return res.status(400).json({ error: "Missing User ID" });
 
     try {
@@ -20,46 +20,43 @@ export default async function handler(req, res) {
         const userData = doc.data();
         const user = userData.user || {};
         const now = Date.now();
+        const updates = {}; // Kita kumpulkan update di sini
 
-        // 1. Validasi Cost & Cooldown
+        // 1. VALIDASI & SETUP UPDATE
         if (type === 'paid') {
             const cost = GameConfig.Spin.CostPaid || 150;
             if ((user.coins || 0) < cost) {
                 return res.status(400).json({ error: "Insufficient Coins" });
             }
-            // Potong Saldo
-            user.coins -= cost;
-            user.totalSpent = (user.totalSpent || 0) + cost;
+            // Update Saldo (Dot Notation)
+            const newCoins = (user.coins || 0) - cost;
+            const newSpent = (user.totalSpent || 0) + cost;
+            
+            user.coins = newCoins; // Update memory untuk respon
+            updates['user.coins'] = newCoins; // Update DB
+            updates['user.totalSpent'] = newSpent;
         } 
         else if (type === 'free') {
             const lastSpin = user.spin_free_cooldown || 0;
             const cooldownTime = GameConfig.Spin.CooldownFree || 3600000; // 1 Jam
+            
             if (now - lastSpin < cooldownTime) {
                 return res.status(400).json({ error: "Free Spin is Cooldown" });
             }
-            // Update Cooldown
-            user.spin_free_cooldown = now;
+            
+            // Update Cooldown (Dot Notation - PENTING)
+            user.spin_free_cooldown = now; // Update memory
+            updates['user.spin_free_cooldown'] = now; // Update DB Spesifik
         } else {
             return res.status(400).json({ error: "Invalid Spin Type" });
         }
 
-        // 2. Logika RNG (Random Number Generator) - Di Server!
-        // Index 0-7 (Sesuai visual roda di frontend, searah jarum jam)
-        // 0: Coin 50, 1: Common Herb, 2: Coin 1000 (Jackpot), 3: Common Herb
-        // 4: Coin 200, 5: Rare Herb, 6: Coin 10000 (Super Jackpot), 7: Coin 50
-        
+        // 2. LOGIKA RNG (Random)
         const rand = Math.random() * 100;
         let targetIndex = 0;
         let reward = { type: 'coin', val: 0 };
 
         // Setting Probabilitas (Total 100%)
-        // 50% = Coin Kecil (50)
-        // 30% = Common Herb
-        // 15% = Coin Sedang (200)
-        // 4%  = Rare Herb
-        // 0.9% = Jackpot (1000)
-        // 0.1% = Super Jackpot (10000)
-
         if (rand < 50) { 
             targetIndex = (Math.random() < 0.5) ? 0 : 7; 
             reward = { type: 'coin', val: 50 };
@@ -85,24 +82,22 @@ export default async function handler(req, res) {
             reward = { type: 'coin', val: 10000 };
         }
 
-        // 3. Berikan Hadiah
+        // 3. APPLY REWARD
         let message = "";
-        const updates = {};
 
         if (reward.type === 'coin') {
-            user.coins = (user.coins || 0) + reward.val;
-            // Statistik
-            if(type === 'free') user.totalFreeEarnings = (user.totalFreeEarnings || 0) + reward.val;
+            const finalCoins = (user.coins || 0) + reward.val;
+            user.coins = finalCoins; // Memory
+            updates['user.coins'] = finalCoins; // DB
             
+            if(type === 'free') {
+                const newFreeEarn = (user.totalFreeEarnings || 0) + reward.val;
+                updates['user.totalFreeEarnings'] = newFreeEarn;
+            }
             message = `${reward.val} PTS`;
-            updates['user'] = user;
         } 
         else if (reward.type === 'herb') {
-            // Pilih tanaman random sesuai rarity
-            // (Sederhana: Kita hardcode listnya atau ambil random dari config)
             const herbList = Object.keys(GameConfig.Crops).filter(k => {
-                // Filter sederhana, idealnya baca rarity dari config tapi di config hanya ada chance
-                // Kita pakai fallback sederhana
                 if(reward.rarity === 'Rare') return ['mint', 'lavender', 'aloeVera'].includes(k);
                 return ['ginger', 'turmeric', 'galangal'].includes(k);
             });
@@ -111,24 +106,20 @@ export default async function handler(req, res) {
             const currentStock = (userData.warehouse && userData.warehouse[wonHerb]) ? userData.warehouse[wonHerb] : 0;
             updates[`warehouse.${wonHerb}`] = currentStock + 1;
             
-            // Update user juga untuk simpan koin/cooldown yg berubah di atas
-            updates['user'] = user;
             message = wonHerb.toUpperCase();
-            
-            // Override reward object untuk dikirim ke frontend
             reward.name = wonHerb;
         }
 
-        // 4. Simpan ke Database
+        // 4. EKSEKUSI UPDATE KE DATABASE
         await userRef.update(updates);
 
         return res.status(200).json({
             success: true,
-            targetIndex: targetIndex, // Penting untuk animasi Frontend
+            targetIndex: targetIndex,
             reward: reward,
             message: message,
-            user: user, // Kirim data user terbaru (coins/cooldown)
-            warehouse: updates['warehouse'] ? { ...userData.warehouse, ...updates['warehouse'] } : userData.warehouse
+            user: user, // User yang dikembalikan sudah punya 'spin_free_cooldown' baru
+            warehouse: updates[`warehouse.${reward.name}`] ? { ...userData.warehouse, [reward.name]: (userData.warehouse[reward.name]||0)+1 } : userData.warehouse
         });
 
     } catch (e) {
