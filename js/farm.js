@@ -215,8 +215,9 @@ renderTaskButtons() {
 // js/farm.js - Revisi Task
      async handleTaskClick(task, btnElement) {
         if (task.action === 'spin') { SpinSystem.show(); return; }
-        
-        // 1. CEK STATUS LOKAL: Jangan putar iklan jika sudah diklaim
+
+        // 1. CEK STATUS LOKAL: Jika sudah diklaim hari ini, berhenti di sini.
+        // Ini mencegah iklan muncul jika task sudah selesai.
         const cooldowns = GameState.user.task_cooldowns || {};
         const lastClaim = cooldowns[task.id] || 0;
         if ((Date.now() - lastClaim) < 86400000) {
@@ -224,10 +225,9 @@ renderTaskButtons() {
             return;
         }
 
-        // 2. DISABLE TOMBOL SEMENTARA (Visual Feedback)
-        const originalContent = btnElement.innerHTML;
+        // 2. MATIKAN TOMBOL: Visual feedback agar tidak diklik ganda
         btnElement.disabled = true;
-        btnElement.innerHTML = `<span class="text-[9px] text-gray-400">LOADING...</span>`;
+        btnElement.style.opacity = "0.5";
 
         AdsManager.showHybridStack(3, async () => {
             try {
@@ -243,24 +243,24 @@ renderTaskButtons() {
 
                 const result = await response.json();
                 if (result.success) {
-                    // 3. SINKRONISASI PENTING
-                    await GameState.load(); // Ambil data terbaru dari server
-                    UIEngine.updateHeader(); // Update koin di layar
+                    // 3. SINKRONISASI TOTAL: Ambil status cooldown terbaru dari server
+                    await GameState.load(); 
+                    UIEngine.updateHeader();
                     
-                    // 4. GAMBAR ULANG LIST TASK (Agar tombol jadi abu-abu/dikunci)
+                    // 4. RE-RENDER: Gambar ulang list task agar tombol berubah jadi abu-abu
                     this.renderTaskButtons(); 
 
-                    UIEngine.showRewardPopup("DONE", `+${result.reward} PTS Added!`, null, "OK");
+                    UIEngine.showRewardPopup("DONE", `+${result.reward} PTS Added!`);
                 } else {
-                    // Jika gagal, kembalikan tombol
-                    UIEngine.showRewardPopup("OOPS", result.error, null, "CLOSE");
+                    // Jika gagal, aktifkan kembali tombolnya
                     btnElement.disabled = false;
-                    btnElement.innerHTML = originalContent;
+                    btnElement.style.opacity = "1";
+                    UIEngine.showRewardPopup("OOPS", result.error);
                 }
             } catch (e) { 
-                console.error(e);
                 btnElement.disabled = false;
-                btnElement.innerHTML = originalContent;
+                btnElement.style.opacity = "1";
+                console.error(e); 
             }
         });
     },
@@ -533,6 +533,7 @@ renderTaskButtons() {
 
 
 window.FarmSystem = FarmSystem;
+
 
 
 
