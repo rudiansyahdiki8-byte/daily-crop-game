@@ -80,26 +80,43 @@ export default async function handler(req, res) {
             // --- [RESTORED] UPDATE SALDO & HISTORY USER ---
             // Ambil 10 riwayat terakhir + yang baru
             const newHistory = [...salesHistoryEntries, ...(userData.user.sales_history || [])].slice(0, 10);
-            
+            const currentTotalSold = (userData.user.totalSold || 0);
+            const newTotalSold = currentTotalSold + totalRevenue;
+
+            // 2. Update Data User (Downline) - Saldo & History
             t.update(userRef, {
                 "user.coins": admin.firestore.FieldValue.increment(totalRevenue),
                 "user.totalSold": admin.firestore.FieldValue.increment(totalRevenue),
                 "user.sales_history": newHistory
             });
 
-            // --- [RESTORED] KOMISI AFILIASI 10% ---
+            // 3. LOGIC AFILIASI (DENGAN TARGET 1000 COIN)
             if (userData.user.upline) {
-                const commission = Math.floor(totalRevenue * 0.10);
                 const uplineRef = db.collection('users').doc(userData.user.upline);
                 
-                // Gunakan ignore error di logic upline kalau dokumen tidak ada (opsional), 
-                // tapi standard-nya update langsung:
-                t.update(uplineRef, {
-                    "user.coins": admin.firestore.FieldValue.increment(commission),
-                    "user.affiliate.total_earnings": admin.firestore.FieldValue.increment(commission)
-                });
-            }
+                // A. Hitung Komisi Standar 10%
+                const commission = Math.floor(totalRevenue * 0.10);
+                let totalBonusToSend = commission;
 
+                // B. Cek Target Bonus 500 Coin
+                // Syarat: Dulu < 1000, Sekarang >= 1000, dan Belum pernah dibayar
+                const isThresholdCrossed = currentTotalSold < 1000 && newTotalSold >= 1000;
+                
+                if (isThresholdCrossed && !userData.user.referral_bonus_paid) {
+                    totalBonusToSend += 500; // Tambah Bonus Spesial
+                    
+                    // Tandai user ini sudah "Lulus" validasi (agar bonus tidak cair 2x)
+                    t.update(userRef, { "user.referral_bonus_paid": true });
+                }
+
+                // C. Kirim Total Bonus ke Upline
+                if (totalBonusToSend > 0) {
+                    t.update(uplineRef, {
+                        "user.coins": admin.firestore.FieldValue.increment(totalBonusToSend),
+                        "user.affiliate.total_earnings": admin.firestore.FieldValue.increment(totalBonusToSend)
+                    });
+                }
+            }
             // Return data lengkap agar Frontend bisa sinkronisasi total
             return { 
                 success: true, 
