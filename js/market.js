@@ -223,7 +223,8 @@ const MarketSystem = {
             if (result.success) {
                 // --- KUNCI PERBAIKAN: SINKRONISASI STATE ---
                 // Mengambil data warehouse dan koin terbaru dari database [cite: 615]
-                await GameState.load(); 
+                await GameState.load();
+                UIEngine.updateHeader();
                 
                 // Render ulang semua komponen UI yang terpengaruh [cite: 196, 212, 657]
                 UIEngine.updateHeader();
@@ -260,7 +261,8 @@ const MarketSystem = {
 
                 if (result.success) {
                     // Paksa GameState mengambil warehouse kosong dari server [cite: 615]
-                    await GameState.load(); 
+                    await GameState.load();
+                    UIEngine.updateHeader();
                     
                     UIEngine.updateHeader(); // [cite: 657]
                     this.renderSellInventory(); // [cite: 196]
@@ -508,5 +510,6 @@ const MarketSystem = {
 };
 
 window.MarketSystem = MarketSystem;
+
 
 
