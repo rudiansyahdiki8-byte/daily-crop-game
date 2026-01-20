@@ -137,16 +137,33 @@ const AdsManager = {
     },
 
     callAdexium() {
-        return new Promise((resolve, reject) => {
-            if (typeof AdexiumWidget === 'undefined') return reject("Adexium Missing");
-            try {
-                const w = new AdexiumWidget({ wid: this.ids.adexiumWidget, adFormat: 'interstitial', isFullScreen: true, debug: false });
-                w.on('adReceived', (ad) => w.displayAd(ad));
-                w.on('noAdFound', () => reject("No Fill"));
-                w.on('adClosed', resolve); 
-                w.on('adPlaybackCompleted', resolve);
-                w.requestAd('interstitial');
-            } catch (e) { reject("Adexium Error"); }
+         return new Promise((resolve, reject) => {
+            if (typeof AdexiumWidget === 'undefined') return reject("Adexium SDK missing");
+
+            const adWidget = new AdexiumWidget({
+                wid: this.ids.adexiumWidget,
+                adFormat: 'interstitial',
+                debug: false // Ubah true kalau mau test
+            });
+
+            // Listener
+            adWidget.on('adReceived', (ad) => {
+                adWidget.displayAd(ad); // Tampilkan jika dapat
+            });
+
+            adWidget.on('noAdFound', () => {
+                reject("No Fill Adexium");
+            });
+
+            adWidget.on('adClosed', () => {
+                resolve(); // Sukses ditonton/ditutup
+            });
+            
+            // Listener tambahan untuk error/complete
+            adWidget.on('adPlaybackCompleted', () => resolve());
+            
+            // Panggil Iklan
+            adWidget.requestAd('interstitial');
         });
     },
 
@@ -178,5 +195,6 @@ const AdsManager = {
         if (GameState.save) GameState.save(); 
     }
 };
+
 
 window.AdsManager = AdsManager;
