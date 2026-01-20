@@ -1,16 +1,16 @@
 // api/game/rewards.js
 import { db } from '../_utils/firebase.js';
 import { verifyTelegramWebAppData } from '../_utils/auth.js';
-import { GameConfig } from '../_utils/config.js'; // Pastikan path ini benar!
+import { GameConfig } from '../_utils/config.js';
 
-// Mapping ID Task (Frontend) ke Key Config (Backend)
+// Mapping ID Task ke Key di GameConfig agar reward tidak rata 100
 const TASK_MAPPING = {
     'daily_login': 'Login',
     'visit_farm': 'Visit',
     'free_reward': 'Gift',
     'clean_farm': 'Clean',
     'water_plants': 'Water',
-    'fertilizer': 'Fertilizer',
+    'fertilizer': 'Fertilize',
     'kill_pests': 'Pest',
     'harvest_once': 'Harvest',
     'sell_item': 'Sell'
@@ -28,26 +28,26 @@ export default async function handler(req, res) {
     const serverNow = Date.now();
 
     try {
-        await db.runTransaction(async (t) => {
+        // KUNCI PERBAIKAN: Simpan hasil transaksi ke variabel, lalu kirim res.json di luar
+        const transactionResult = await db.runTransaction(async (t) => {
             const doc = await t.get(userRef);
             const userData = doc.data();
             
             // --- LOGIKA LUCKY SPIN ---
             if (action === 'SPIN') {
-                const spinType = payload.type; // 'free' atau 'paid'
+                const spinType = payload.type;
                 const lastSpin = userData.user.spin_free_cooldown || 0;
-                const cost = GameConfig.Spin.CostPaid; // 150 PTS [cite: 574]
-                const cooldown = GameConfig.Spin.CooldownFree; // 1 Jam [cite: 575]
+                const cost = GameConfig.Spin.CostPaid;
+                const cooldown = GameConfig.Spin.CooldownFree;
 
                 if (spinType === 'free') {
-                    if (serverNow - lastSpin < cooldown) throw new Error("Free spin still on cooldown");
+                    if (serverNow - lastSpin < cooldown) throw new Error("Spin masih cooldown!");
                     userData.user.spin_free_cooldown = serverNow;
                 } else {
-                    if (userData.user.coins < cost) throw new Error("Insufficient coins for paid spin");
+                    if (userData.user.coins < cost) throw new Error("Koin tidak cukup!");
                     userData.user.coins -= cost;
                 }
 
-                // Kalkulasi Hasil di Server (Gacha Aman)
                 const result = rollSpinServer(); 
                 let rewardMsg = "";
 
@@ -60,7 +60,8 @@ export default async function handler(req, res) {
                 }
 
                 t.update(userRef, userData);
-                return res.json({ success: true, result, rewardMsg, newBalance: userData.user.coins });
+                // Kembalikan data untuk dikirim di luar transaksi
+                return { success: true, result, rewardMsg, newBalance: userData.user.coins };
             }
 
             // --- LOGIKA DAILY TASKS ---
@@ -69,40 +70,42 @@ export default async function handler(req, res) {
                 const cooldowns = userData.user.task_cooldowns || {};
                 const lastClaim = cooldowns[taskId] || 0;
 
-                // 1. Cek Cooldown 24 Jam
-                if (serverNow - lastClaim < 86400000) {
-                    throw new Error("Tugas sudah diklaim hari ini!");
-                }
+                if (serverNow - lastClaim < 86400000) throw new Error("Task sudah diklaim!");
 
-                // 2. Ambil Reward dari Config dengan Mapping yang Jelas
+                // Hubungkan ke Config agar reward tidak rata 100
                 const configKey = TASK_MAPPING[taskId];
-                const reward = (configKey && GameConfig.Tasks[configKey]) 
-                               ? GameConfig.Tasks[configKey] 
-                               : 100; // Fallback jika config tidak ketemu
-
-                // 3. Update Data
+                const reward = (configKey && GameConfig.Tasks[configKey]) ? GameConfig.Tasks[configKey] : 100;
+                
                 userData.user.coins += reward;
                 cooldowns[taskId] = serverNow;
-                userData.user.task_cooldowns = cooldowns;
 
                 t.update(userRef, { 
                     "user.coins": userData.user.coins, 
                     "user.task_cooldowns": cooldowns 
                 });
 
-                return res.json({ success: true, reward, newBalance: userData.user.coins });
+                return { success: true, reward, newBalance: userData.user.coins };
             }
+
+            throw new Error("Action tidak dikenali");
         });
+
+        // Kirim respons di sini (Satu kali saja)
+        return res.json(transactionResult);
+
     } catch (error) {
-        res.status(400).json({ error: error.message });
+        console.error("Reward Error:", error.message);
+        // Cek jika header belum dikirim sebelum mengirim error
+        if (!res.headersSent) {
+            return res.status(400).json({ success: false, error: error.message });
+        }
     }
 }
 
 function rollSpinServer() {
-    // Implementasi ulang weighted random dari spin.js ke server [cite: 379, 380, 381]
     const rand = Math.random() * 100;
-    if (rand < 40) return { type: 'coin', val: 50, index: 0 }; // Coin Low [cite: 379]
+    if (rand < 40) return { type: 'coin', val: 50, index: 0 }; 
     if (rand < 70) return { type: 'herb', key: 'ginger', label: 'Ginger', index: 1 };
-    if (rand < 90) return { type: 'coin', val: 200, index: 2 }; // Coin High [cite: 381]
-    return { type: 'coin', val: 1000, index: 6 }; // Jackpot [cite: 384]
+    if (rand < 90) return { type: 'coin', val: 200, index: 2 }; 
+    return { type: 'coin', val: 1000, index: 6 }; 
 }
