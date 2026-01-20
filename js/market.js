@@ -204,19 +204,15 @@ const MarketSystem = {
     },
 
     // --- LOGIC JUAL (PREMIUM NOTIFICATIONS) ---
-    async processSell(key, qty, displayedPrice) {
-        // Tampilkan Loading
-        UIEngine.showRewardPopup("PROCESSING", "Contacting Global Exchange...", null, "...");
+    async processSell(key, qty, price) {
+        UIEngine.showRewardPopup("PROCESSING", "Executing trade...", null, "...");
 
         try {
-            // Panggil API Backend
             const response = await fetch('/api/market/sell', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    initData: window.Telegram.WebApp.initData, // Kunci Keamanan
+                    initData: window.Telegram.WebApp.initData,
                     itemKey: key,
                     qty: qty
                 })
@@ -225,61 +221,52 @@ const MarketSystem = {
             const result = await response.json();
 
             if (result.success) {
-                // Update State Lokal dengan Data dari Server (Agar Sinkron)
-                GameState.user.coins = result.newBalance;
-                GameState.user.totalSold = (GameState.user.totalSold || 0) + result.earned;
+                // --- KUNCI PERBAIKAN: SINKRONISASI STATE ---
+                // Mengambil data warehouse dan koin terbaru dari database [cite: 615]
+                await GameState.load(); 
                 
-                // Kurangi warehouse lokal (Visual only, data asli di server sudah aman)
-                GameState.warehouse[key] -= qty;
-                if (GameState.warehouse[key] <= 0) delete GameState.warehouse[key];
-
-                // Trigger Save (Opsional, karena Server sudah save, 
-                // tapi ini untuk update lastActive di client)
-                await GameState.save(); 
-
-                // Update UI
+                // Render ulang semua komponen UI yang terpengaruh [cite: 196, 212, 657]
                 UIEngine.updateHeader();
                 this.renderSellInventory();
                 this.calculatePreview();
-
-                // Tampilkan Sukses
-                UIEngine.showRewardPopup("TRANSACTION SUCCESS", result.message, null, "OK");
+                
+                UIEngine.showRewardPopup("TRADE SUCCESS", `Revenue: ${result.earned} PTS Added.`, null, "OK");
             } else {
-                // Error dari Server (Misal: Stok tidak cukup / Cheat detected)
                 UIEngine.showRewardPopup("TRADE FAILED", result.error, null, "CLOSE");
             }
-
-        } catch (error) {
-            console.error(error);
-            UIEngine.showRewardPopup("CONNECTION ERROR", "Failed to reach server.", null, "RETRY");
+        } catch (e) {
+            console.error("Market Error:", e);
         }
     },
+
     async sellAll() {
-        const totalPreview = this.calculatePreview(); // Hanya untuk tampilan [cite: 212]
+        const totalPreview = this.calculatePreview(); // [cite: 212]
         if (totalPreview <= 0) return;
 
-        UIEngine.showRewardPopup("LIQUIDATION", `Liquidate all items for approx ${totalPreview.toLocaleString()} PTS?`, async () => {
-            UIEngine.showRewardPopup("PROCESSING", "Liquidating assets...", null, "...");
-            
+        UIEngine.showRewardPopup("LIQUIDATION", `Sell everything for ~${totalPreview.toLocaleString()} PTS?`, async () => {
+            UIEngine.showRewardPopup("PROCESSING", "Liquidating all assets...", null, "...");
+
             try {
                 const response = await fetch('/api/market/sell', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         initData: window.Telegram.WebApp.initData,
-                        isSellAll: true // Perintah jual semua ke server
+                        isSellAll: true
                     })
                 });
 
                 const result = await response.json();
+
                 if (result.success) {
-                    await GameState.load(); // Refresh data saldo terbaru [cite: 634]
-                    UIEngine.updateHeader();
-                    this.renderSellInventory();
-                    this.calculatePreview();
-                    UIEngine.showRewardPopup("FUNDS ADDED", `Revenue of ${result.earned.toLocaleString()} PTS added! (Bonus: x${result.multiplier})`, null, "EXCELLENT");
-                } else {
-                    UIEngine.showRewardPopup("FAILED", result.error, null, "OK");
+                    // Paksa GameState mengambil warehouse kosong dari server [cite: 615]
+                    await GameState.load(); 
+                    
+                    UIEngine.updateHeader(); // [cite: 657]
+                    this.renderSellInventory(); // [cite: 196]
+                    this.calculatePreview(); // [cite: 212]
+                    
+                    UIEngine.showRewardPopup("ASSETS LIQUIDATED", `Total: ${result.earned.toLocaleString()} PTS Added.`, null, "EXCELLENT");
                 }
             } catch (e) {
                 console.error(e);
@@ -521,4 +508,5 @@ const MarketSystem = {
 };
 
 window.MarketSystem = MarketSystem;
+
 
