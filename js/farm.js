@@ -463,22 +463,28 @@ renderTaskButtons() {
             }   
             
             // 4. READY (TAMPIL BUBBLE HERB BESAR) -> Timer Hilang Disini
-            else if (plot.status === 'ready') {
-                const plantName = plot.plant ? plot.plant.toLowerCase() : 'ginger';
-                const plantSource = `assets_iso/plant_${plantName}.png`;
+                        else if (plot.status === 'ready') {
+                const plantKey = plot.plant ? plot.plant : 'ginger';
                 
-                // LOGIKA:
-                // - stage_growing HILANG -> Diganti plantSource (Tanaman dewasa)
-                // - Timer HILANG -> Diganti Bubble Besar di atasnya
+                // 1. Gambar Tanah (Tetap coba cari aset 3D, kalau gak ada fallback ke growing)
+                const isoImage = `assets_iso/plant_${plantKey}.png`;
                 
+                // 2. Gambar Bubble (AMBIL DARI HERBS.JS) <-- INI KUNCINYA
+                // Default pakai Karung (Sack) biar gak bingung kalau data null
+                let bubbleImage = "https://img.icons8.com/emoji/96/sack.png"; 
+                
+                // Cek apakah data icon ada di HerbData (herbs.js)
+                if (window.HerbData && window.HerbData[plantKey]) {
+                    bubbleImage = window.HerbData[plantKey].img; 
+                }
+
                 contentOverlay = `
-                    <img src="${plantSource}" class="iso-plant drop-shadow-lg" 
+                    <img src="${isoImage}" class="iso-plant drop-shadow-lg" 
                          onerror="this.src='assets_iso/stage_growing.png'"> 
                     
                     <div class="absolute top-[-35px] z-50 bg-white border-4 border-emerald-500 rounded-full w-16 h-16 flex items-center justify-center shadow-2xl animate-bounce cursor-pointer">
                         
-                        <img src="${plantSource}" class="w-10 h-10 object-contain drop-shadow-md"
-                             onerror="this.src='https://img.icons8.com/color/96/ginger.png'">
+                        <img src="${bubbleImage}" class="w-10 h-10 object-contain drop-shadow-md">
                         
                         <div class="absolute -bottom-1 -right-1 bg-emerald-600 text-white rounded-full w-6 h-6 flex items-center justify-center border-2 border-white shadow-sm">
                             <i class="fas fa-sickle text-[10px]"></i>
@@ -546,6 +552,7 @@ renderTaskButtons() {
 
 
 window.FarmSystem = FarmSystem;
+
 
 
 
