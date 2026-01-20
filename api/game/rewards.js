@@ -1,7 +1,20 @@
 // api/game/rewards.js
 import { db } from '../_utils/firebase.js';
 import { verifyTelegramWebAppData } from '../_utils/auth.js';
-import { GameConfig } from '../_utils/config.js';
+import { GameConfig } from '../_utils/config.js'; // Pastikan path ini benar!
+
+// Mapping ID Task (Frontend) ke Key Config (Backend)
+const TASK_MAPPING = {
+    'daily_login': 'Login',
+    'visit_farm': 'Visit',
+    'free_reward': 'Gift',
+    'clean_farm': 'Clean',
+    'water_plants': 'Water',
+    'fertilizer': 'Fertilizer',
+    'kill_pests': 'Pest',
+    'harvest_once': 'Harvest',
+    'sell_item': 'Sell'
+};
 
 export default async function handler(req, res) {
     if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
@@ -56,11 +69,18 @@ export default async function handler(req, res) {
                 const cooldowns = userData.user.task_cooldowns || {};
                 const lastClaim = cooldowns[taskId] || 0;
 
-                // Cek 24 jam cooldown di server
-                if (serverNow - lastClaim < 86400000) throw new Error("Task already claimed today");
+                // 1. Cek Cooldown 24 Jam
+                if (serverNow - lastClaim < 86400000) {
+                    throw new Error("Tugas sudah diklaim hari ini!");
+                }
 
-                const reward = GameConfig.Tasks[taskId.replace('daily_', '').charAt(0).toUpperCase() + taskId.slice(1).replace('daily_', '').substring(1)] || 100;
-                
+                // 2. Ambil Reward dari Config dengan Mapping yang Jelas
+                const configKey = TASK_MAPPING[taskId];
+                const reward = (configKey && GameConfig.Tasks[configKey]) 
+                               ? GameConfig.Tasks[configKey] 
+                               : 100; // Fallback jika config tidak ketemu
+
+                // 3. Update Data
                 userData.user.coins += reward;
                 cooldowns[taskId] = serverNow;
                 userData.user.task_cooldowns = cooldowns;
