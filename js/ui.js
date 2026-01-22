@@ -3,19 +3,6 @@ const UIEngine = {
     pages: ['Dashboard', 'FarmingHouse', 'Shop', 'SubscibePlan', 'Affiliate'],
 
 
-    init() {
-        console.log("[UI] Initializing Navigation...");
-        
-        // Setup Event Listener otomatis untuk tombol navigasi
-        const navButtons = document.querySelectorAll('.nav-btn');
-        navButtons.forEach(btn => {
-            btn.onclick = () => {
-                const target = btn.getAttribute('data-target');
-                if (target) this.navigate(target);
-            };
-        });
-    },
-
     navigate(pageId) {
         if (!window.GameState || !GameState.isLoaded) return;
         
@@ -362,4 +349,5 @@ const UIEngine = {
         `);
     }
 };
+
 window.UIEngine = UIEngine;
