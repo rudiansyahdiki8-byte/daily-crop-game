@@ -1,0 +1,237 @@
+/* src/App.css */
+
+/* SETUP BACKGROUND UTAMA */
+body {
+  margin: 0;
+  /* GANTI URL INI DENGAN GAMBAR BACKGROUND ANDA */
+  background: url('https://img.freepik.com/free-vector/nature-scene-with-river-hills-forest-mountain-landscape-flat-cartoon-style-illustration_1150-37326.jpg?w=360') no-repeat center center fixed;
+  background-size: cover;
+  
+  display: flex; justify-content: center; align-items: center;
+  height: 100vh; width: 100vw; overflow: hidden;
+  font-family: sans-serif;
+}
+
+.game-container {
+  height: 95vh; aspect-ratio: 1/2;
+  /* Container utama juga transparan */
+  background: transparent; 
+  /* Border tipis saja buat batas HP */
+  border: 2px solid rgba(255,255,255,0.2);
+  border-radius: 15px;
+  box-shadow: 0 0 50px rgba(0,0,0,0.5);
+  
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  grid-template-rows: repeat(16, 1fr);
+  gap: 2px; padding: 5px;
+}
+
+/* --- 1. USER INFO (GLASS) --- */
+.zone-user {
+  grid-column: span 8; grid-row: span 3;
+  padding: 5px;
+  background: transparent; /* HAPUS WARNA BIRU */
+  display: flex; align-items: center; justify-content: center;
+}
+
+.glass-card {
+  width: 100%; height: 90%;
+  /* Kaca Sangat Bening */
+  background: rgba(255, 255, 255, 0.1); 
+  backdrop-filter: blur(5px);           
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 15px;
+  padding: 10px;
+  display: flex; flex-direction: column; justify-content: space-between;
+  color: white;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.8); /* Agar teks terbaca di background apapun */
+}
+
+.avatar-section { display: flex; align-items: center; gap: 10px; }
+.avatar-circle { 
+  width: 40px; height: 40px; background: rgba(255,255,255,0.9); 
+  border-radius: 50%; display: flex; align-items: center; justify-content: center;
+}
+.user-name { font-weight: bold; font-size: 14px; }
+.user-lvl { font-size: 10px; color: #eee; }
+
+.stats-row { display: flex; gap: 8px; margin-top: 5px; align-items: center; }
+.stat-pill { 
+  background: rgba(0,0,0,0.4); 
+  padding: 4px 10px; border-radius: 20px; 
+  font-size: 10px; font-weight: bold; 
+  border: 1px solid rgba(255,255,255,0.2);
+}
+
+/* TOMBOL WALLET BARU */
+.wallet-btn-small {
+  width: 25px; height: 25px;
+  border-radius: 50%;
+  background: linear-gradient(to bottom, #f59e0b, #d97706); /* Warna Emas */
+  border: 1px solid white;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+  margin-left: auto; /* Dorong ke kanan mentok */
+}
+.wallet-btn-small:active { transform: scale(0.9); }
+
+/* --- 2. MENU BUTTONS (TRANSPARAN) --- */
+.zone-menu {
+  grid-column: span 8; grid-row: span 1;
+  display: flex; gap: 5px; padding: 0 5px;
+  background: transparent; /* HAPUS WARNA ABU */
+  align-items: center;
+}
+
+.glass-btn {
+  flex: 1;
+  background: rgba(0, 0, 0, 0.3); /* Gelap tipis agar icon terlihat */
+  backdrop-filter: blur(2px);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 10px;
+  color: white;
+  height: 100%;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.glass-btn:hover { background: rgba(255,255,255,0.2); }
+.btn-label { font-size: 8px; margin-top: 2px; text-transform: uppercase; text-shadow: 0 1px 2px black;}
+
+
+/* --- 3. WAREHOUSE (MURNI GAMBAR) --- */
+.zone-warehouse {
+  grid-column: 1 / span 4; 
+  grid-row: 5 / span 4;   
+  background: transparent; /* HAPUS WARNA COKLAT */
+  position: relative;
+  display: flex; align-items: center; justify-content: center;
+  z-index: 10;
+}
+.warehouse-img {
+  width: 100%; height: 100%; object-fit: contain; 
+  filter: drop-shadow(0 5px 5px rgba(0,0,0,0.8));
+  transform: scale(1.1);
+}
+
+/* --- 4. AREA FARM (TRANSPARAN) --- */
+.zone-farm-area {
+  grid-row: 9 / span 8; 
+  grid-column: 1 / span 8;
+  
+  background: transparent; /* HAPUS WARNA HIJAU */
+  border: none; /* Hapus garis batas */
+  
+  position: relative; 
+  padding: 10px; 
+  display: flex; flex-direction: column;
+}
+
+/* Grid Lahan tetap punya style biar kelihatan */
+.farm-grid-2x2 {
+  width: 100%; height: 100%;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  grid-template-rows: repeat(2, 1fr);
+  gap: 8px;
+}
+
+.farm-plot-card {
+  position: relative;
+  width: 100%; height: 100%;
+  border-radius: 12px;
+  overflow: hidden;
+  /* Beri sedikit shadow agar lahan terpisah dari background utama */
+  box-shadow: 0 10px 15px rgba(0,0,0,0.5);
+  border: 1px solid rgba(255,255,255,0.2);
+  cursor: pointer;
+}
+.farm-plot-card:active { transform: scale(0.96); }
+
+.land-img-bg { width: 100%; height: 100%; object-fit: cover; }
+
+.plot-overlay {
+  position: absolute; top: 5px; left: 5px;
+  font-size: 16px; font-weight: bold;
+  text-shadow: 0 0 4px black; color: white;
+}
+
+/* Tombol Floating Nav */
+.floating-garden-nav {
+  position: absolute; top: 10px; right: 10px;
+  display: flex; flex-direction: column; gap: 8px; z-index: 100;
+}
+.garden-btn {
+  width: 32px; height: 32px; 
+  background: rgba(255, 255, 255, 0.3); backdrop-filter: blur(4px);
+  border: 1px solid white; border-radius: 50%;
+  font-weight: bold; font-size: 12px; cursor: pointer; color: white;
+  box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+}
+.garden-btn.active {
+  background: #FCD34D; color: #5d4037; transform: scale(1.1); box-shadow: 0 0 10px #FCD34D;
+}
+
+/* src/App.css - Tambahkan di Paling Bawah */
+
+/* --- SISTEM MODAL / POP-UP --- */
+
+/* 1. Layar Hitam Transparan (Overlay) */
+.modal-overlay {
+  position: fixed;
+  top: 0; left: 0;
+  width: 100vw; height: 100vh;
+  background: rgba(0, 0, 0, 0.6); /* Latar Gelap */
+  backdrop-filter: blur(5px);      /* Blur Background */
+  z-index: 999; /* Paling Depan */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: fadeIn 0.2s ease-out;
+}
+
+/* 2. Kotak Pop-Up (Glass Style) */
+.modal-content {
+  width: 85%;
+  max-width: 350px;
+  background: rgba(25, 25, 25, 0.9); /* Hitam Elegan Transparan */
+  border: 1px solid rgba(255,255,255,0.2);
+  border-radius: 20px;
+  padding: 20px;
+  color: white;
+  box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+  position: relative;
+  animation: scaleUp 0.2s ease-out;
+}
+
+/* Header Pop-Up */
+.modal-header {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-bottom: 15px; border-bottom: 1px solid rgba(255,255,255,0.1);
+  padding-bottom: 10px;
+}
+.modal-title { font-size: 18px; font-weight: bold; color: #FCD34D; }
+
+/* Tombol Close (X) */
+.close-btn {
+  background: none; border: none; color: #aaa;
+  font-size: 24px; cursor: pointer;
+}
+.close-btn:hover { color: white; }
+
+/* Animasi */
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes scaleUp { from { transform: scale(0.8); } to { transform: scale(1); } }
+
+/* ISI KONTEN (Contoh Style Umum) */
+.modal-body p { font-size: 12px; color: #ccc; line-height: 1.5; }
+
+/* Tombol Aksi di dalam Modal */
+.action-btn {
+  width: 100%; padding: 10px; margin-top: 10px;
+  border-radius: 10px; border: none; font-weight: bold; cursor: pointer;
+}
+.btn-primary { background: #22c55e; color: white; }
+.btn-danger { background: #ef4444; color: white; }
