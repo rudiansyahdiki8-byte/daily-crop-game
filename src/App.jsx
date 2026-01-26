@@ -24,7 +24,7 @@ import EncyclopediaModal from './components/EncyclopediaModal';
 function App() {
   const [user, setUser] = useState(null);
   const [currentUserId, setCurrentUserId] = useState(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(false); // State untuk Loading Spinner
   const [activeModal, setActiveModal] = useState(null); 
   const [activePage, setActivePage] = useState(0);
 
@@ -52,65 +52,78 @@ function App() {
       }
     };
     initApp();
-  }, []); // <--- INI PERBAIKANNYA (Sebelumnya error di sini)
+  }, []);
 
   const fetchUserData = async () => {
     if (!currentUserId) return;
     try {
+      // Kita tidak pakai setLoading di sini agar refresh background tidak mengganggu
       const data = await loginUser(currentUserId, null);
       setUser(data);
     } catch (err) { console.error("Refresh Error:", err); }
   };
 
-  // --- HANDLERS ---
+  // --- HANDLERS DENGAN LOADING STATE ---
 
-  // 1. DAILY TASK (3 IKLAN)
+  // 1. DAILY TASK
   const handleTaskClick = async (taskId) => {
      setActiveModal(null); 
      
-     // PANGGIL 3 IKLAN
-     const success = await showAdStack(3);
+     // A. NYALAKAN LOADING SEBELUM IKLAN
+     setLoading(true); 
 
-     if (success) {
-         try {
-             setLoading(true);
+     try {
+         // PANGGIL 3 IKLAN
+         const success = await showAdStack(3);
+
+         if (success) {
+             // Lanjut Klaim (Loading tetap nyala)
              await claimDailyTask(currentUserId, taskId);
              alert("Tugas Selesai! Reward Masuk.");
-             await fetchUserData();
-         } catch(e) {
-             alert(e.response?.data?.message || "Gagal klaim task");
-         } finally {
-             setLoading(false);
+             await fetchUserData(); // Refresh saldo
+         } else {
+             alert("Gagal memuat iklan atau iklan di-skip.");
          }
-     } else {
-         alert("Gagal memuat iklan. Harap tonton sampai selesai untuk klaim.");
+     } catch(e) {
+         alert(e.response?.data?.message || "Gagal klaim task");
+     } finally {
+         // B. MATIKAN LOADING SETELAH SEMUA SELESAI
+         setLoading(false);
      }
   };
 
-  // 2. FARMING / PANEN (1 IKLAN)
+  // 2. FARMING / PANEN
   const handleSlotClick = async (slotId) => {
     if (!currentUserId) return;
     const slotData = user?.farm?.[slotId];
     
-    // A. JIKA SIAP PANEN -> NONTON 1 IKLAN
+    // A. LOGIKA PANEN (PAKAI IKLAN)
     if (slotData && Date.now() >= slotData.harvestAt) {
-      const success = await showAdStack(1); 
+      
+      // Nyalakan Loading
+      setLoading(true);
 
-      if (success) {
-          try {
-              setLoading(true);
+      try {
+          const success = await showAdStack(1); 
+
+          if (success) {
               await harvestCrop(currentUserId, slotId);
               await fetchUserData();
-          } catch(e) {
-              alert(e.response?.data?.message || "Gagal panen");
-          } finally {
-              setLoading(false);
+          } else {
+              // Jika iklan gagal, matikan loading agar user bisa coba lagi
+              setLoading(false); 
           }
+      } catch(e) {
+          alert(e.response?.data?.message || "Gagal panen");
+          setLoading(false);
+      } finally {
+          // Matikan loading kalau sukses panen
+          setLoading(false);
       }
       return; 
     }
 
-    // B. LOGIKA TANAM
+    // B. LOGIKA TANAM (TANPA IKLAN)
     try {
       setLoading(true);
       if (!slotData) {
@@ -118,10 +131,12 @@ function App() {
         const userSlots = user.slots || [];
         
         if (!userSlots.includes(slotNum)) { 
+          // Matikan loading dulu sebelum muncul confirm dialog
+          setLoading(false); 
           if (slotNum === 2 || slotNum === 3) {
-             if(confirm(`Slot ${slotNum} is locked! Buy Land in Market?`)) setActiveModal('MARKET'); 
+             if(confirm(`Slot ${slotNum} terkunci! Beli Lahan?`)) setActiveModal('MARKET'); 
           } else {
-             if(confirm(`Slot ${slotNum} is locked! Upgrade Membership to unlock?`)) setActiveModal('MEMBER');
+             if(confirm(`Slot ${slotNum} terkunci! Upgrade Member?`)) setActiveModal('MEMBER');
           }
           return; 
         }
@@ -135,101 +150,118 @@ function App() {
     }
   };
 
-  // 3. SPIN WHEEL (2 IKLAN)
+  // 3. SPIN WHEEL (FIX BOOSTER HILANG)
   const handleSpin = async (mode) => {
     if (!currentUserId) return;
 
+    // Jika Free Spin, Nonton Iklan dulu
     if (mode === 'FREE') {
+        setLoading(true); // Loading ON pas cari iklan
         try {
             const success = await showAdStack(2); 
             if (!success) {
-                alert("Iklan tidak tersedia atau gagal dimuat. Silakan coba lagi.");
+                setLoading(false);
+                alert("Iklan gagal. Coba lagi.");
                 return; 
             }
-        } catch (e) {
-            console.error("Ad Error:", e);
+        } catch (e) { 
+            setLoading(false); 
+            return; 
+        }
+        // Jangan matikan loading dulu, lanjut ke API spin...
+    } else {
+        setLoading(true); // Loading ON pas bayar spin
+    }
+
+    try {
+      const data = await spinWheel(currentUserId, mode);
+      
+      // --- FIX ITEM HILANG ---
+      // Kita paksa refresh data user SETELAH spin sukses
+      // Agar item booster yang didapat langsung masuk inventory frontend
+      await fetchUserData(); 
+      
+      return data; 
+    } catch (err) { 
+        throw err; 
+    } finally {
+        setLoading(false); // Loading OFF setelah roda berhenti/error
+    }
+  };
+
+  // 4. JUAL ITEM
+  const handleSell = async (useAdBooster, itemName = null, qty = null) => {
+    if (!currentUserId) return;
+    
+    if (useAdBooster) {
+        setLoading(true);
+        const success = await showAdStack(2);
+        if (!success) {
+            setLoading(false);
             return;
         }
     }
 
     try {
-      const data = await spinWheel(currentUserId, mode);
-      await fetchUserData(); 
-      return data; 
-    } catch (err) { throw err; }
-  };
-
-  // --- FUNGSI LAINNYA ---
-  const handleSell = async (useAdBooster, itemName = null, qty = null) => {
-    if (!currentUserId) return;
-    
-    if (useAdBooster) {
-        const success = await showAdStack(2);
-        if (!success) return;
-    }
-
-    try {
       setLoading(true);
       const res = await sellAllItems(currentUserId, useAdBooster, itemName, qty);
-      alert(`Berhasil Terjual!\n+${res.totalReceived} PTS\n(Bonus: ${res.bonusPct}%)`);
+      alert(`Terjual! +${res.totalReceived} PTS\n(Bonus: ${res.bonusPct}%)`);
       await fetchUserData();
     } catch (e) { 
-        alert(e.response?.data?.message || "Gagal Menjual"); 
+        alert(e.response?.data?.message || "Gagal Jual"); 
     } finally { 
         setLoading(false); 
     }
   };
 
+  // --- FUNGSI LAINNYA (Standard) ---
   const handleBuyItem = async (itemId) => {
     if (!currentUserId) return;
-    if(!confirm(`Buy this item?`)) return;
+    if(!confirm(`Beli item?`)) return;
     try {
       setLoading(true);
       await buyItem(currentUserId, itemId);
-      alert("Purchase Successful!");
+      alert("Berhasil Beli!");
       await fetchUserData(); 
-    } catch (err) { alert(err.response?.data?.message || "Purchase Failed"); } 
+    } catch (err) { alert("Gagal Beli"); } 
     finally { setLoading(false); }
   };
 
   const handleUseItem = async (itemId) => {
     if (!currentUserId) return;
-    if(!confirm("Aktifkan item ini selama 24 Jam?")) return;
+    if(!confirm("Pakai item?")) return;
     try {
       setLoading(true);
       await useItem(currentUserId, itemId);
-      alert("Item BERHASIL Diaktifkan! Efek berlaku 24 Jam.");
+      alert("Item Aktif!");
       await fetchUserData(); 
-    } catch (err) {
-      alert(err.response?.data?.message || "Gagal menggunakan item");
-    } finally {
-      setLoading(false);
-    }
+    } catch (err) { alert("Gagal Pakai"); } 
+    finally { setLoading(false); }
   };
 
   const handleUpgrade = async (planId) => {
     if (!currentUserId) return;
-    if (!confirm(`Upgrade to ${planId}?`)) return;
+    if (!confirm(`Upgrade ke ${planId}?`)) return;
     try {
       setLoading(true);
       await upgradePlan(currentUserId, planId);
-      alert("Upgrade Successful!");
+      alert("Upgrade Berhasil!");
       setActiveModal(null);
       await fetchUserData();
-    } catch (err) { alert(err.response?.data?.message || "Upgrade Failed"); } 
+    } catch (err) { alert("Gagal Upgrade"); } 
     finally { setLoading(false); }
   };
 
   const handleWithdraw = async (amount, address, method) => {
     if (!currentUserId) return;
-    if(!confirm(`Withdraw ${amount} PTS via ${method}?`)) return;
+    if(!confirm(`Withdraw ${amount}?`)) return;
     try {
       setLoading(true);
       await requestWithdraw(currentUserId, amount, address, method);
-      alert("Withdrawal request sent.");
+      alert("Request Terkirim.");
       setActiveModal(null);
       await fetchUserData();
-    } catch (err) { alert(err.response?.data?.message || "Withdraw Failed"); } 
+    } catch (err) { alert("Gagal WD"); } 
     finally { setLoading(false); }
   };
 
@@ -237,7 +269,7 @@ function App() {
   const renderGridItems = () => {
     const items = [];
     
-    // Header User
+    // Header
     items.push(
       <div key="header-user" className="header-user">
         <div className="glass-panel" onClick={() => setActiveModal('PROFILE')}>
@@ -249,8 +281,6 @@ function App() {
         </div>
       </div>
     );
-
-    // Header Wallet
     items.push(
       <div key="header-wallet" className="header-wallet">
         <div className="glass-panel" onClick={() => setActiveModal('WITHDRAW')} style={{justifyContent:'center'}}>
@@ -282,7 +312,7 @@ function App() {
       </div>
     );
 
-    // Navigasi
+    // Nav
     items.push(
       <div key="zone-nav" className="zone-nav">
           <div className="nav-buttons-row">
@@ -300,7 +330,7 @@ function App() {
       </div>
     );
 
-    // Farm Slots
+    // Slots
     const startSlot = (activePage * 4) + 1;
     const currentSlots = [0, 1, 2, 3].map(offset => `slot${startSlot + offset}`);
 
@@ -394,13 +424,29 @@ function App() {
     return items;
   };
 
-  if (!currentUserId) return <div style={{width:'100vw', height:'100dvh', background:'#000', color:'#0f0', display:'flex', justifyContent:'center', alignItems:'center'}}>LOADING...</div>;
+  // --- LOADING OVERLAY COMPONENT ---
+  // Agar loadingnya kelihatan keren
+  if (loading) {
+      return (
+          <div style={{
+              position:'fixed', top:0, left:0, width:'100%', height:'100%', 
+              background:'rgba(0,0,0,0.8)', zIndex:999999, 
+              display:'flex', flexDirection:'column', justifyContent:'center', alignItems:'center', color:'#00E5FF'
+          }}>
+              <i className="fa-solid fa-circle-notch fa-spin fa-3x" style={{marginBottom:15}}></i>
+              <div style={{fontWeight:'bold'}}>LOADING...</div>
+              <div style={{fontSize:'0.8rem', color:'#aaa', marginTop:5}}>Memuat Data / Iklan</div>
+          </div>
+      );
+  }
+
+  if (!currentUserId) return <div style={{width:'100vw', height:'100dvh', background:'#000', color:'#0f0', display:'flex', justifyContent:'center', alignItems:'center'}}>INITIALIZING...</div>;
 
   return (
     <div className="game-container">
       {renderGridItems()}
       
-      {/* --- WADAH IKLAN ADEXTRA (WAJIB ADA) --- */}
+      {/* Container Adextra */}
       <div id="adextra-overlay" style={{display:'none', position:'fixed', top:0, left:0, width:'100%', height:'100%', background:'rgba(0,0,0,0.95)', zIndex:99999, flexDirection:'column', alignItems:'center', justifyContent:'center'}}>
           <div style={{color:'white', marginBottom:10, fontSize:'0.8rem'}}>Sponsored Ad</div>
           <div id="25e584f1c176cb01a08f07b23eca5b3053fc55b8"></div>
@@ -431,7 +477,6 @@ function App() {
           onSellAll={(itemName) => handleSell(false, itemName)} 
           onBuyItem={handleBuyItem} 
           loading={loading}
-          // Iklan Booster sudah dihandle di handleSell
           onWatchAd={() => handleSell(true)} 
       />
 
