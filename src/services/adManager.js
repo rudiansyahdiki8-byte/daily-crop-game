@@ -1,117 +1,83 @@
 /**
- * FINAL AD MANAGER (PRODUCTION READY)
- * * Fitur Utama:
- * 1. Native Timer Only: Tidak ada timer manual. Mengandalkan timer dari Ads Network.
- * 2. Strict Separation: Adsgram Inters & Reward dipisah agar tidak bentrok.
- * 3. Native Validation: Mengecek status 'done' (Adsgram) dan 'completed' (Adexium).
- * 4. Waterfall & Cooldown: Sistem prioritas dengan jeda 15 menit untuk iklan mahal.
- * 5. Flexible Stacking: Bisa memanggil 1, 2, atau 3 iklan beruntun.
+ * REVISI AD MANAGER (STABILITY FIX)
+ * 1. Adexium: HANYA Interstitial (No Push/Auto).
+ * 2. Anti-Freeze: Jika iklan error/lama, otomatis dianggap gagal (skip) agar game tidak macet.
+ * 3. Adsgram: Dipisah Interstitial & Reward.
  */
 
-// --- 1. KONFIGURASI ID (Pastikan ID ini benar sesuai catatan) ---
 const IDS = {
-    // --- GRUP ELITE (Cooldown 15 Menit) ---
-    //
-    ADSGRAM_INT: "int-21085",     // Khusus Interstitial
-    ADSGRAM_REWARD: "21143",      // Khusus Reward Video
-    
-    ADEXIUM: "33e68c72-2781-4120-a64d-3db4fb973c2d", //
-    // Adextra menggunakan ID Div di index.html (25e584f1c176cb01a08f07b23eca5b3053fc55b8)
-
-    // --- GRUP RUSHER (Tanpa Cooldown / Spam Friendly) ---
-    GIGAPUB_ID: 5436,             //
-    MONETAG_ZONE: 10457329,       //
-    RICHADS_PUB: "1000251",       //
+    ADSGRAM_INT: "int-21085",     
+    ADSGRAM_REWARD: "21143",      
+    ADEXIUM: "33e68c72-2781-4120-a64d-3db4fb973c2d", 
+    // ID Rusher
+    GIGAPUB_ID: 5436,             
+    MONETAG_ZONE: 10457329,       
+    RICHADS_PUB: "1000251",       
     RICHADS_APP: "5869"
 };
 
-// --- 2. STATE COOLDOWN ---
-const COOLDOWN_MS = 15 * 60 * 1000; // 15 Menit
-const state = {
-    adsgramInt: 0,
-    adexium: 0,
-    adextra: 0,
-    adsgramRew: 0
-};
-
-// Helper: Cek apakah iklan boleh muncul (sudah lewat 15 menit?)
+const COOLDOWN_MS = 15 * 60 * 1000; 
+const state = { adsgramInt: 0, adexium: 0, adextra: 0, adsgramRew: 0 };
 const isReady = (lastTime) => (Date.now() - lastTime) > COOLDOWN_MS;
 
-
-// --- 3. FUNGSI PENCARI IKLAN (SINGLE) ---
+// --- FUNGSI CARI 1 IKLAN ---
 const getSingleAd = async () => {
     
-    // === PRIORITAS 1: ADSGRAM INTERSTITIAL (ID: int-21085) ===
+    // 1. ADSGRAM INTERSTITIAL
     if (isReady(state.adsgramInt) && window.Adsgram) {
         try {
-            console.log("🔹 [1] Memanggil Adsgram Interstitial...");
-            const controller = window.Adsgram.init({ 
-                blockId: IDS.ADSGRAM_INT, 
-                debug: false // <--- WAJIB FALSE: PRODUCTION MODE
-            });
+            const controller = window.Adsgram.init({ blockId: IDS.ADSGRAM_INT, debug: false });
             await controller.show();
-            // Adsgram Interstitial jarang return 'done', kita anggap sukses jika tampil
             state.adsgramInt = Date.now(); 
             return true;
-        } catch(e) { console.warn("Pass 1 (Adsgram Int):", e); }
+        } catch(e) { console.log("Skip Adsgram Int"); }
     }
 
-    // === PRIORITAS 2: ADEXIUM (Strict Native Check) ===
+    // 2. ADEXIUM (STRICT INTERSTITIAL)
+    // Perbaikan: Cek widget ada dulu & pastikan config benar
     if (isReady(state.adexium) && window.AdexiumWidget) {
         try {
-            console.log("🔹 [2] Memanggil Adexium...");
             const adexium = new window.AdexiumWidget({
                 wid: IDS.ADEXIUM,
-                adFormat: 'interstitial',
+                adFormat: 'interstitial', // <--- WAJIB INTERSTITIAL
                 isFullScreen: true,
-                debug: false // <--- WAJIB FALSE
+                debug: false
             });
             
-            // Bungkus Event Listener jadi Promise agar Game MENUNGGU user selesai
-            const adResult = await new Promise((resolve) => {
-                let isSuccess = false;
-
-                // Skenario Sukses: Nonton sampai habis ATAU Klik Iklan
-                const onSuccess = () => { isSuccess = true; };
+            // Promise wrapper agar game menunggu
+            const result = await new Promise((resolve) => {
+                let responded = false;
                 
-                adexium.on('adPlaybackCompleted', onSuccess); // Nonton tuntas
-                adexium.on('adRedirected', onSuccess);        // Klik iklan
+                // Handler Sukses
+                const onSuccess = () => { if(!responded) { responded=true; resolve(true); } };
+                // Handler Gagal/Tutup
+                const onFail = () => { if(!responded) { responded=true; resolve(false); } };
 
-                // Skenario Selesai (Apapun hasilnya)
-                adexium.on('adClosed', () => {
-                    resolve(isSuccess); // Return true jika sukses, false jika skip
-                });
-                
-                // Skenario Gagal Load
-                adexium.on('noAdFound', () => resolve(false));
+                adexium.on('adPlaybackCompleted', onSuccess);
+                adexium.on('adRedirected', onSuccess);
+                adexium.on('adClosed', onFail); // Kalau diclose paksa dianggap fail (sesuai request)
+                adexium.on('noAdFound', onFail);
 
-                // Eksekusi Request
+                // Timeout 5 detik: Kalau adexium macet loading, anggap gagal biar game jalan terus
+                setTimeout(() => { onFail(); }, 5000);
+
                 adexium.requestAd('interstitial');
             });
 
-            if (adResult) {
+            if (result) {
                 state.adexium = Date.now();
                 return true;
-            } else {
-                console.warn("⚠️ Adexium di-skip user atau belum selesai.");
-                // Jangan return false, lanjut cari iklan lain
             }
-
-        } catch(e) { console.warn("Pass 2 (Adexium):", e); }
+        } catch(e) { console.log("Skip Adexium"); }
     }
 
-    // === PRIORITAS 3: ADEXTRA (Fake Interstitial via Overlay) ===
+    // 3. ADEXTRA (Banner Overlay)
     if (isReady(state.adextra)) {
         const overlay = document.getElementById('adextra-overlay');
         const container = document.getElementById('25e584f1c176cb01a08f07b23eca5b3053fc55b8');
-        
-        // Cek apakah banner Adextra sudah termuat di dalam div
-        if (overlay && container && container.innerHTML.length > 20) {
-            console.log("🔹 [3] Memanggil Adextra...");
-            overlay.style.display = 'flex'; // Munculkan Overlay
+        if (overlay && container && container.innerHTML.length > 10) {
+            overlay.style.display = 'flex';
             state.adextra = Date.now();
-            
-            // Tunggu user klik tombol tutup manual
             return new Promise((resolve) => {
                 const btn = document.getElementById('adextra-close-btn');
                 const closeHandler = () => {
@@ -124,94 +90,51 @@ const getSingleAd = async () => {
         }
     }
 
-    // === PRIORITAS 4: ADSGRAM REWARD (ID: 21143) ===
-    // [PENTING] Ini blok terpisah dari Interstitial di atas
+    // 4. ADSGRAM REWARD
     if (isReady(state.adsgramRew) && window.Adsgram) {
         try {
-            console.log("🔹 [4] Memanggil Adsgram Reward...");
-            const controller = window.Adsgram.init({ 
-                blockId: IDS.ADSGRAM_REWARD,
-                debug: false // <--- WAJIB FALSE
-            });
+            const controller = window.Adsgram.init({ blockId: IDS.ADSGRAM_REWARD, debug: false });
             const res = await controller.show();
-            
-            // Cek status resmi dari SDK
             if (res.done) {
                 state.adsgramRew = Date.now();
                 return true;
-            } else {
-                console.warn("⚠️ Adsgram Reward tidak tuntas.");
             }
-        } catch(e) { console.warn("Pass 4 (Adsgram Rew):", e); }
+        } catch(e) { console.log("Skip Adsgram Rew"); }
     }
 
-    // --- MASUK ZONA RUSHER (SPAM FRIENDLY - NO COOLDOWN) ---
+    // --- RUSHER (BACKUP) ---
+    // Dipanggil kalau yang atas cooldown atau error
     
-    // === PRIORITAS 5: GIGAPUB ===
+    // 5. GIGAPUB
     if (window.showGiga) {
-        try {
-            console.log("🔸 [5] Memanggil GigaPub...");
-            await window.showGiga(); // GigaPub punya timer internal sendiri
-            return true;
-        } catch(e) {}
+        try { await window.showGiga(); return true; } catch(e) {}
     }
 
-    // === PRIORITAS 6: MONETAG ===
-    // Nama fungsi dinamis sesuai Zone ID
+    // 6. MONETAG
     const monetagFunc = window[`show_${IDS.MONETAG_ZONE}`];
     if (typeof monetagFunc === 'function') {
-        try {
-            console.log("🔸 [6] Memanggil Monetag...");
-            await monetagFunc(); // Monetag punya timer internal sendiri
-            return true;
-        } catch(e) {}
+        try { await monetagFunc(); return true; } catch(e) {}
     }
 
-    // === PRIORITAS 7: RICHADS ===
-    if (window.TelegramAdsController) {
-        try {
-            window.TelegramAdsController.initialize({ 
-                pubId: IDS.RICHADS_PUB, 
-                appId: IDS.RICHADS_APP,
-                debug: false // <--- WAJIB FALSE
-            });
-            // RichAds jalan di background, kita anggap triggered
-            return true;
-        } catch(e) {}
-    }
-
-    return false; // Gagal total (No Fill semua network)
+    return false; // Gagal semua
 };
 
-
-// --- 4. FUNGSI UTAMA: CUSTOM STACK (PANGGIL INI DI TOMBOL) ---
-/**
- * @param {number} count - Jumlah iklan yang harus ditonton (1, 2, atau 3)
- */
+// --- FUNGSI UTAMA ---
 export const showAdStack = async (count = 1) => {
-    console.log(`🚀 START ADS STACK: ${count} Iklan`);
     let successCount = 0;
-
+    
     for (let i = 0; i < count; i++) {
-        // Panggil 1 iklan dari waterfall
         const success = await getSingleAd();
-        
         if (success) {
             successCount++;
-            // Jeda 1 detik antar iklan agar UI tidak nge-freeze
-            if (i < count - 1) await new Promise(r => setTimeout(r, 1000));
+            if (i < count - 1) await new Promise(r => setTimeout(r, 800));
+        } else {
+            // Jika 1 iklan gagal, jangan macet, coba lanjut loop berikutnya (opsional)
+            // Atau break loop jika Bapak ingin strict.
+            // Di sini kita lanjut agar user punya kesempatan dapat reward dari backup.
         }
     }
 
-    // LOGIKA REWARD:
-    // Asal ada 1 saja iklan yang sukses ditonton, kita cairkan reward.
-    // Ini menjaga user tidak kabur jika ada 1 iklan yang error di tengah jalan.
-    if (successCount > 0) {
-        console.log("✅ Stack Selesai. Reward Cair.");
-        return true; 
-    } else {
-        console.error("❌ Gagal. Tidak ada iklan yang sukses ditonton.");
-        alert("Gagal memuat iklan. Silakan coba lagi nanti.");
-        return false;
-    }
+    // VALIDASI AKHIR: Minimal 1 iklan sukses
+    return successCount > 0;
 };
