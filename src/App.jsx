@@ -2,6 +2,9 @@ import { useState, useEffect } from 'react';
 import './App.css'; 
 import { ITEM_DETAILS } from './config/gameConstants';
 
+// --- IMPORT MANAGER IKLAN BARU ---
+import { showAdStack } from './services/adManager'; 
+
 import { 
   loginUser, startFarming, harvestCrop, sellAllItems, upgradePlan, 
   requestWithdraw, buyItem, spinWheel, claimDailyTask, useItem 
@@ -25,20 +28,22 @@ function App() {
   const [activeModal, setActiveModal] = useState(null); 
   const [activePage, setActivePage] = useState(0);
 
-  // --- STATE UNTUK IKLAN & REWARD ---
-  const [adState, setAdState] = useState({
-    show: false,
-    step: 'IDLE', // IDLE, WATCHING, REWARD
-    timer: 3,
-    context: null, 
-    slotId: null,   // Untuk Panen
-    cropName: '',   // Untuk Panen
-    taskId: null,   // Untuk Task
-    rewardAmount: 0 // Untuk Task/Spin
-  });
-
   // --- INIT APP ---
   useEffect(() => {
+    // 1. INIT ADEXIUM PASSIVE (AUTO NOTIF)
+    if (window.AdexiumWidget) {
+        try {
+           const adexium = new window.AdexiumWidget({
+             wid: '33e68c72-2781-4120-a64d-3db4fb973c2d', // ID Bapak
+             adFormat: 'push-like', 
+             isFullScreen: false,
+             debug: false
+           });
+           adexium.autoMode();
+        } catch(e) {}
+    }
+
+    // 2. INIT USER
     const initApp = async () => {
       const tg = window.Telegram?.WebApp;
       if (tg && tg.initDataUnsafe?.user) {
@@ -63,23 +68,6 @@ function App() {
     initApp();
   }, []);
 
-  // --- LOGIKA TIMER IKLAN ---
-  useEffect(() => {
-    let adInterval;
-    if (adState.show && adState.step === 'WATCHING') {
-      adInterval = setInterval(() => {
-        setAdState((prev) => {
-          if (prev.timer <= 1) {
-            clearInterval(adInterval);
-            return { ...prev, step: 'REWARD', timer: 0 }; // Selesai nonton -> Pindah ke Reward
-          }
-          return { ...prev, timer: prev.timer - 1 };
-        });
-      }, 1000);
-    }
-    return () => clearInterval(adInterval);
-  }, [adState.show, adState.step]);
-
   const fetchUserData = async () => {
     if (!currentUserId) return;
     try {
@@ -88,32 +76,56 @@ function App() {
     } catch (err) { console.error("Refresh Error:", err); }
   };
 
-  // --- HANDLERS ---
+  // --- HANDLERS (UPDATED WITH REAL ADS) ---
 
-  const handleTaskClick = (taskId) => {
-     // Simulasi acak reward task
-     const randomReward = Math.floor(Math.random() * (200 - 80 + 1)) + 80;
+  // 1. DAILY TASK (3 IKLAN)
+  const handleTaskClick = async (taskId) => {
      setActiveModal(null); 
-     setAdState({
-        show: true, step: 'WATCHING', timer: 3,
-        context: 'TASK', taskId: taskId, rewardAmount: randomReward
-     });
+     
+     // STACK 3 IKLAN
+     const success = await showAdStack(3);
+
+     if (success) {
+         try {
+             setLoading(true);
+             await claimDailyTask(currentUserId, taskId);
+             alert("Tugas Selesai! Reward Masuk.");
+             await fetchUserData();
+         } catch(e) {
+             alert(e.response?.data?.message || "Gagal klaim task");
+         } finally {
+             setLoading(false);
+         }
+     }
   };
 
+  // 2. FARMING / PANEN (1 IKLAN)
   const handleSlotClick = async (slotId) => {
     if (!currentUserId) return;
     const slotData = user?.farm?.[slotId];
     
-    // A. CEK APAKAH SIAP PANEN?
+    // A. JIKA SIAP PANEN -> NONTON 1 IKLAN
     if (slotData && Date.now() >= slotData.harvestAt) {
-      setAdState({
-        show: true, step: 'WATCHING', timer: 3, 
-        context: 'FARM', slotId: slotId, cropName: slotData.cropName
-      });
+      
+      const success = await showAdStack(1); // Stack 1 Iklan
+
+      if (success) {
+          try {
+              setLoading(true);
+              await harvestCrop(currentUserId, slotId);
+              // Tidak perlu alert biar cepat, atau boleh di-uncomment:
+              // alert(`Panen ${slotData.cropName} Berhasil!`);
+              await fetchUserData();
+          } catch(e) {
+              alert(e.response?.data?.message || "Gagal panen");
+          } finally {
+              setLoading(false);
+          }
+      }
       return; 
     }
 
-    // B. LOGIKA TANAM / BELI LAHAN
+    // B. LOGIKA TANAM / BELI LAHAN (ASLI, TIDAK DIUBAH)
     try {
       setLoading(true);
       if (!slotData) {
@@ -138,36 +150,35 @@ function App() {
     }
   };
 
-  const handleClaimReward = async () => {
-    try {
-      setLoading(true);
 
-      if (adState.context === 'FARM') {
-          await harvestCrop(currentUserId, adState.slotId);
-      } else if (adState.context === 'TASK') {
-          try { await claimDailyTask(currentUserId, adState.taskId); } catch(e){}
-          setUser(prev => ({...prev, balance: prev.balance + adState.rewardAmount}));
-      } else if (adState.context === 'SPIN_CLAIM') {
-          // Spin reward logic handled by spin.js backend
-      } else if (adState.context === 'MARKET_BOOST') {
-           // Logic Market Boost (misal panggil API boost)
-           // Untuk sekarang visual saja atau implementasi API boost
-           alert("Market Boost Activated!");
-      }
-      
-      setAdState({ show: false, step: 'IDLE', timer: 3, context: null, slotId:null, cropName:'', taskId:null, rewardAmount:0 });
-      await fetchUserData();
+  // 3. SPIN WHEEL (2 IKLAN)
+  const handleSpin = async (mode) => {
+    if (!currentUserId) return;
 
-    } catch (err) {
-      alert("Gagal klaim: " + err.message);
-      setAdState({ show: false, step: 'IDLE', timer: 3, context: null });
-    } finally {
-      setLoading(false);
+    // Jika mode FREE, wajib nonton 2 IKLAN
+    if (mode === 'FREE') {
+        const success = await showAdStack(2); 
+        if (!success) return; 
     }
+
+    try {
+      const data = await spinWheel(currentUserId, mode);
+      await fetchUserData(); 
+      return data; 
+    } catch (err) { throw err; }
   };
+
+  // --- FUNGSI LAINNYA ---
 
   const handleSell = async (useAdBooster, itemName = null, qty = null) => {
     if (!currentUserId) return;
+    
+    // Jika Booster Iklan dipilih -> Nonton 2 Iklan
+    if (useAdBooster) {
+        const success = await showAdStack(2);
+        if (!success) return;
+    }
+
     try {
       setLoading(true);
       const res = await sellAllItems(currentUserId, useAdBooster, itemName, qty);
@@ -233,16 +244,7 @@ function App() {
     finally { setLoading(false); }
   };
 
-  const handleSpin = async (mode) => {
-    if (!currentUserId) return;
-    try {
-      const data = await spinWheel(currentUserId, mode);
-      await fetchUserData(); 
-      return data; 
-    } catch (err) { throw err; }
-  };
-
-  // --- RENDERERS ---
+  // --- RENDERERS (FULL ORIGINAL COPY) ---
   const renderGridItems = () => {
     const items = [];
     
@@ -370,7 +372,7 @@ function App() {
                       {showBubble && (
                          <div className="harvest-bubble" style={{zIndex: 20}}>
                             <div style={{fontSize:'2.8rem'}}>
-                               {ITEM_DETAILS[s.cropName]?.icon || '🌱'} 
+                               {ITEM_DETAILS[s.cropName]?.icon || '験'} 
                             </div>
                          </div>
                        )}
@@ -403,77 +405,19 @@ function App() {
     return items;
   };
 
-  const renderAdOverlay = () => {
-    if (!adState.show) return null;
-    return (
-      <div className="ad-overlay">
-        {adState.step === 'WATCHING' && (
-          <div className="ad-watching-container">
-            <div className="ad-timer-circle">{adState.timer}</div>
-            <div className="ad-text">MEMUTAR IKLAN...</div>
-            <div style={{fontSize:'0.8rem', color:'#aaa', marginTop:10}}>Harap tunggu sampai selesai</div>
-          </div>
-        )}
-
-        {adState.step === 'REWARD' && (
-          <div className="reward-container">
-             <div className="reward-title">
-                {adState.context === 'SPIN_CLAIM' ? 'SPIN REWARD!' : 'CONGRATULATIONS!'}
-             </div>
-             
-             {adState.context === 'FARM' && (
-                 <>
-                   <div style={{color:'white'}}>Anda panen tanaman:</div>
-                   <div className="reward-icon-wrapper">
-                      <div style={{fontSize:'3rem'}}>{ITEM_DETAILS[adState.cropName]?.icon || '🌱'}</div>
-                   </div>
-                   <div style={{color:'#FFD700', fontWeight:'bold', fontSize:'1.2rem', marginBottom:20}}>
-                     {adState.cropName}
-                   </div>
-                 </>
-             )}
-
-             {adState.context === 'TASK' && (
-                 <>
-                   <div style={{color:'white'}}>Daily Task Reward:</div>
-                   <div className="reward-icon-wrapper" style={{borderColor:'#FFD700', boxShadow:'inset 0 0 20px rgba(255, 215, 0, 0.5)'}}>
-                      <div style={{fontSize:'3rem'}}>💰</div>
-                   </div>
-                   <div style={{color:'#FFD700', fontWeight:'bold', fontSize:'2rem', marginBottom:20, textShadow:'0 0 10px gold'}}>
-                     +{adState.rewardAmount} PTS
-                   </div>
-                 </>
-             )}
-
-             {(adState.context === 'SPIN_CLAIM' || adState.context === 'MARKET_BOOST') && (
-                 <>
-                   <div style={{color:'white'}}>Reward Diterima:</div>
-                   <div className="reward-icon-wrapper" style={{borderColor:'#E040FB', boxShadow:'inset 0 0 20px rgba(224, 64, 251, 0.5)'}}>
-                      <div style={{fontSize:'3rem'}}>
-                         {adState.cropName || '🎁'} 
-                      </div>
-                   </div>
-                   <div style={{color:'#E040FB', fontWeight:'bold', fontSize:'1.5rem', marginBottom:20, textShadow:'0 0 10px #E040FB'}}>
-                     {adState.rewardAmount}
-                   </div>
-                 </>
-             )}
-
-             <button className="btn-claim" onClick={handleClaimReward} disabled={loading}>
-                {loading ? 'Processing...' : 'OK, TERIMA'}
-             </button>
-          </div>
-        )}
-      </div>
-    );
-  };
-
   if (!currentUserId) return <div style={{width:'100vw', height:'100dvh', background:'#000', color:'#0f0', display:'flex', justifyContent:'center', alignItems:'center'}}>LOADING...</div>;
 
   return (
     <div className="game-container">
       {renderGridItems()}
-      {renderAdOverlay()}
+      
+      {/* WADAH IKLAN ADEXTRA (BANNER) - Hidden Default */}
+      <div id="adextra-overlay" style={{display:'none', position:'fixed', top:0, left:0, width:'100%', height:'100%', background:'rgba(0,0,0,0.95)', zIndex:99999, flexDirection:'column', alignItems:'center', justifyContent:'center'}}>
+          <div style={{color:'white', marginBottom:10, fontSize:'0.8rem'}}>Sponsored Ad</div>
+          {/* Target Div sesuai ID Adextra Bapak */}
+          <div id="25e584f1c176cb01a08f07b23eca5b3053fc55b8"></div>
+          <button id="adextra-close-btn" style={{marginTop:20, padding:'10px 20px', background:'red', color:'white', border:'none', borderRadius:5, cursor:'pointer'}}>TUTUP IKLAN</button>
+      </div>
 
       <MemberModal isOpen={activeModal === 'MEMBER'} onClose={() => setActiveModal(null)} currentPlan={user?.plan} onUpgrade={handleUpgrade} loading={loading} />
       <WithdrawModal isOpen={activeModal === 'WITHDRAW'} onClose={() => setActiveModal(null)} userBalance={user?.balance || 0} onWithdraw={handleWithdraw} loading={loading} userId={currentUserId} />
@@ -499,10 +443,8 @@ function App() {
           onSellAll={(itemName) => handleSell(false, itemName)} 
           onBuyItem={handleBuyItem} 
           loading={loading}
-          // PERBAIKAN: Menggunakan setAdState langsung, bukan triggerAdSequence yang belum ada
-          onWatchAd={(adData) => setAdState({ 
-              show: true, step: 'WATCHING', timer: 3, ...adData 
-          })} 
+          // Iklan Booster sudah dihandle di handleSell
+          onWatchAd={() => handleSell(true)} 
       />
 
       <SpinModal 
@@ -511,9 +453,8 @@ function App() {
           onSpin={handleSpin} 
           userBalance={user?.balance || 0} 
           lastFreeSpin={user?.lastFreeSpin} 
-          onWatchAd={(adData) => setAdState({ 
-              show: true, step: 'WATCHING', timer: 3, ...adData 
-          })}
+          // Callback visual dummy dinonaktifkan
+          onWatchAd={() => {}} 
       />
 
       <DailyTaskModal 
