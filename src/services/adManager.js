@@ -1,12 +1,12 @@
 /**
- * AD MANAGER DENGAN VISUAL LOADING
- * Fitur:
- * 1. Otomatis memunculkan layar "MENCARI IKLAN..." saat dipanggil.
- * 2. Memblokir klik user agar tidak bisa klik sembarangan.
- * 3. Menghilangkan layar loading saat iklan muncul atau error.
+ * AD MANAGER (ENGLISH VERSION)
+ * Features:
+ * 1. Auto overlay "SEARCHING FOR ADS..."
+ * 2. Blocks user clicks during loading.
+ * 3. Hides overlay on success/error.
  */
 
-// --- KONFIGURASI ID ---
+// --- CONFIGURATION ---
 const IDS = {
     ADSGRAM_INT: "int-21085",     
     ADSGRAM_REWARD: "21143",      
@@ -21,7 +21,7 @@ const COOLDOWN_MS = 15 * 60 * 1000;
 const state = { adsgramInt: 0, adexium: 0, adextra: 0, adsgramRew: 0 };
 const isReady = (lastTime) => (Date.now() - lastTime) > COOLDOWN_MS;
 
-// --- VISUAL LOADING HELPER ---
+// --- VISUAL LOADING HELPER (ENGLISH) ---
 const showLoadingOverlay = () => {
     let overlay = document.getElementById('ad-loading-overlay');
     if (!overlay) {
@@ -33,10 +33,11 @@ const showLoadingOverlay = () => {
             display: flex; flex-direction: column; align-items: center; justify-content: center;
             color: #00E5FF; font-family: sans-serif;
         `;
+        // TERJEMAHAN DI SINI
         overlay.innerHTML = `
             <div style="font-size: 3rem; margin-bottom: 20px;"><i class="fa-solid fa-satellite-dish fa-beat"></i></div>
-            <div style="font-size: 1.2rem; font-weight: bold;">MENCARI IKLAN...</div>
-            <div style="font-size: 0.8rem; color: #aaa; margin-top: 5px;">Mohon tunggu sebentar</div>
+            <div style="font-size: 1.2rem; font-weight: bold;">SEARCHING FOR ADS...</div>
+            <div style="font-size: 0.8rem; color: #aaa; margin-top: 5px;">Please wait a moment</div>
         `;
         document.body.appendChild(overlay);
     }
@@ -48,7 +49,7 @@ const hideLoadingOverlay = () => {
     if (overlay) overlay.style.display = 'none';
 };
 
-// --- FUNGSI CARI 1 IKLAN ---
+// --- SINGLE AD FINDER ---
 const getSingleAd = async () => {
     // 1. ADSGRAM INTERSTITIAL
     if (isReady(state.adsgramInt) && window.Adsgram) {
@@ -118,22 +119,16 @@ const getSingleAd = async () => {
     return false; 
 };
 
-// --- FUNGSI UTAMA (SHOW STACK) ---
+// --- MAIN STACK FUNCTION ---
 export const showAdStack = async (count = 1) => {
-    // 1. TAMPILKAN LOADING
     showLoadingOverlay();
-    
     let successCount = 0;
-    
     try {
         for (let i = 0; i < count; i++) {
-            // Sembunyikan loading SEJENAK agar iklan bisa render di atasnya (terutama Adsgram)
             const success = await getSingleAd();
-            
             if (success) {
                 successCount++;
                 if (i < count - 1) {
-                    // Jeda antar iklan, munculkan loading lagi
                     showLoadingOverlay();
                     await new Promise(r => setTimeout(r, 1000));
                 }
@@ -142,9 +137,7 @@ export const showAdStack = async (count = 1) => {
     } catch (e) {
         console.error(e);
     } finally {
-        // 2. PASTIKAN LOADING HILANG SETELAH SELESAI
         hideLoadingOverlay();
     }
-
     return successCount > 0;
 };
