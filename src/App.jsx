@@ -52,7 +52,7 @@ function App() {
       }
     };
     initApp();
-  }, []); // <--- PERBAIKAN SYNTAX DI SINI (Sebelumnya } []; )
+  }, []); // <--- INI PERBAIKANNYA (Sebelumnya error di sini)
 
   const fetchUserData = async () => {
     if (!currentUserId) return;
@@ -453,7 +453,7 @@ function App() {
       />
     </div>
   );
-} // <--- KURUNG TUTUP APP YANG TADI HILANG
+}
 
 const MenuBtn = ({icon, txt, onClick}) => (
   <button onClick={onClick} className="menu-btn-style">
