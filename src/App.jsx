@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import './App.css'; 
 import { ITEM_DETAILS } from './config/gameConstants';
 
-// --- IMPORT MANAGER IKLAN ---
+// --- IMPORT MANAGER ---
 import { showAdStack } from './services/adManager'; 
 
 import { 
@@ -24,7 +24,7 @@ import EncyclopediaModal from './components/EncyclopediaModal';
 function App() {
   const [user, setUser] = useState(null);
   const [currentUserId, setCurrentUserId] = useState(null);
-  const [loading, setLoading] = useState(false); // Loading Server (bukan iklan)
+  const [loading, setLoading] = useState(false); 
   const [activeModal, setActiveModal] = useState(null); 
   const [activePage, setActivePage] = useState(0);
 
@@ -62,39 +62,38 @@ function App() {
     } catch (err) { console.error("Refresh Error:", err); }
   };
 
-  // --- HANDLERS DENGAN POP-UP HADIAH ---
+  // --- HANDLERS (ENGLISH) ---
 
   // 1. DAILY TASK
   const handleTaskClick = async (taskId) => {
      setActiveModal(null); 
      
-     // Iklan Loading dihandle otomatis oleh adManager (Layar Hitam "MENCARI IKLAN")
      const success = await showAdStack(3);
 
      if (success) {
          try {
-             setLoading(true); // Loading Server
+             setLoading(true); 
              const res = await claimDailyTask(currentUserId, taskId);
              await fetchUserData();
              setLoading(false);
              
-             // POP UP HADIAH (KEMBALI MUNCUL)
-             alert(`Tugas Selesai!\nReward: +${res.reward || 'Bonus'} Coin`);
+             // ENGLISH POP UP
+             alert(`Task Completed!\nReward: +${res.reward || 'Bonus'} Coin`);
          } catch(e) {
              setLoading(false);
-             alert(e.response?.data?.message || "Gagal klaim task");
+             alert(e.response?.data?.message || "Failed to claim task");
          }
      } else {
-         alert("Iklan dibatalkan/gagal. Reward tidak masuk.");
+         alert("Ad cancelled or failed. No reward given.");
      }
   };
 
-  // 2. FARMING / PANEN
+  // 2. FARMING / HARVEST
   const handleSlotClick = async (slotId) => {
     if (!currentUserId) return;
     const slotData = user?.farm?.[slotId];
     
-    // PANEN
+    // HARVEST
     if (slotData && Date.now() >= slotData.harvestAt) {
       const success = await showAdStack(1); 
 
@@ -104,18 +103,16 @@ function App() {
               const res = await harvestCrop(currentUserId, slotId);
               await fetchUserData();
               setLoading(false);
-              
-              // POP UP HADIAH PANEN (Opsional, aktifkan jika mau)
-              // alert(`Panen Sukses! Hasil masuk gudang.`); 
+              // alert(`Harvest Successful!`); // Optional
           } catch(e) {
               setLoading(false);
-              alert(e.response?.data?.message || "Gagal panen");
+              alert(e.response?.data?.message || "Harvest Failed");
           }
       }
       return; 
     }
 
-    // TANAM
+    // PLANT
     try {
       setLoading(true);
       if (!slotData) {
@@ -123,10 +120,11 @@ function App() {
         const userSlots = user.slots || [];
         if (!userSlots.includes(slotNum)) { 
           setLoading(false);
+          // ENGLISH CONFIRM
           if (slotNum === 2 || slotNum === 3) {
-             if(confirm(`Slot ${slotNum} terkunci! Beli Lahan?`)) setActiveModal('MARKET'); 
+             if(confirm(`Slot ${slotNum} is locked! Buy Land in Market?`)) setActiveModal('MARKET'); 
           } else {
-             if(confirm(`Slot ${slotNum} terkunci! Upgrade Member?`)) setActiveModal('MEMBER');
+             if(confirm(`Slot ${slotNum} is locked! Upgrade Member to unlock?`)) setActiveModal('MEMBER');
           }
           return; 
         }
@@ -140,7 +138,7 @@ function App() {
     }
   };
 
-  // 3. SPIN WHEEL (FIX ITEM BOOSTER HILANG)
+  // 3. SPIN WHEEL
   const handleSpin = async (mode) => {
     if (!currentUserId) return;
 
@@ -150,18 +148,13 @@ function App() {
     }
 
     try {
-      // API Spin
       const data = await spinWheel(currentUserId, mode);
-      
-      // Refresh user data AGAR ITEM BOOSTER MUNCUL DI GUDANG
       await fetchUserData(); 
-
-      // Return data agar SpinModal bisa menampilkan animasi hadiah
       return data; 
     } catch (err) { throw err; }
   };
 
-  // 4. JUAL
+  // 4. SELL
   const handleSell = async (useAdBooster, itemName = null, qty = null) => {
     if (!currentUserId) return;
     
@@ -176,74 +169,74 @@ function App() {
       await fetchUserData();
       setLoading(false);
       
-      // POP UP HASIL JUAL
-      alert(`Terjual!\nTotal: ${res.totalReceived} PTS\n(Bonus Iklan: ${res.bonusPct}%)`);
+      // ENGLISH POP UP
+      alert(`Sold Successfully!\nTotal: ${res.totalReceived} PTS\n(Ad Bonus: ${res.bonusPct}%)`);
     } catch (e) { 
         setLoading(false);
-        alert(e.response?.data?.message || "Gagal Menjual"); 
+        alert(e.response?.data?.message || "Failed to Sell"); 
     }
   };
 
-  // --- FUNGSI STANDARD ---
+  // --- STANDARD FUNCTIONS (ENGLISH) ---
   const handleBuyItem = async (itemId) => {
     if (!currentUserId) return;
-    if(!confirm(`Beli item?`)) return;
+    if(!confirm(`Buy this item?`)) return;
     try {
       setLoading(true);
       await buyItem(currentUserId, itemId);
       await fetchUserData();
       setLoading(false);
-      alert("Pembelian Berhasil!"); // POP UP BELI
+      alert("Purchase Successful!"); 
     } catch (err) { 
         setLoading(false);
-        alert("Gagal Beli"); 
+        alert("Purchase Failed"); 
     } 
   };
 
   const handleUseItem = async (itemId) => {
     if (!currentUserId) return;
-    if(!confirm("Pakai item?")) return;
+    if(!confirm("Use this item? Effect lasts 24 Hours.")) return;
     try {
       setLoading(true);
       await useItem(currentUserId, itemId);
       await fetchUserData();
       setLoading(false);
-      alert("Item Aktif!"); // POP UP PAKAI
+      alert("Item Activated!"); 
     } catch (err) { 
         setLoading(false);
-        alert("Gagal Pakai"); 
+        alert("Failed to Use Item"); 
     } 
   };
 
   const handleUpgrade = async (planId) => {
     if (!currentUserId) return;
-    if (!confirm(`Upgrade ke ${planId}?`)) return;
+    if (!confirm(`Upgrade to ${planId}?`)) return;
     try {
       setLoading(true);
       await upgradePlan(currentUserId, planId);
       setActiveModal(null);
       await fetchUserData();
       setLoading(false);
-      alert("Upgrade Berhasil!"); // POP UP UPGRADE
+      alert("Upgrade Successful!"); 
     } catch (err) { 
         setLoading(false);
-        alert("Gagal Upgrade"); 
+        alert("Upgrade Failed"); 
     } 
   };
 
   const handleWithdraw = async (amount, address, method) => {
     if (!currentUserId) return;
-    if(!confirm(`Withdraw ${amount}?`)) return;
+    if(!confirm(`Withdraw ${amount} PTS via ${method}?`)) return;
     try {
       setLoading(true);
       await requestWithdraw(currentUserId, amount, address, method);
       setActiveModal(null);
       await fetchUserData();
       setLoading(false);
-      alert("Request Terkirim."); // POP UP WD
+      alert("Withdrawal Request Sent."); 
     } catch (err) { 
         setLoading(false);
-        alert("Gagal WD"); 
+        alert("Withdraw Failed"); 
     } 
   };
 
@@ -377,7 +370,8 @@ function App() {
                             </div>
                          </div>
                        )}
-                       <div className="harvest-label" style={{zIndex: 20}}>PANEN!</div>
+                       {/* ENGLISH LABEL */}
+                       <div className="harvest-label" style={{zIndex: 20}}>HARVEST!</div>
                      </>
                   ) : s ? (
                      <div className="custom-progress-container" style={{top: '10%', width: '70%'}}>
@@ -385,7 +379,8 @@ function App() {
                         <span className="progress-text">{timeText}</span>
                      </div>
                   ) : (
-                     <div style={{marginTop:'20%', border:'1px dashed #aaa', color:'#aaa', padding:'2px 8px', borderRadius:5, fontSize:'0.6rem', zIndex:15}}>TANAM</div>
+                     // ENGLISH LABEL
+                     <div style={{marginTop:'20%', border:'1px dashed #aaa', color:'#aaa', padding:'2px 8px', borderRadius:5, fontSize:'0.6rem', zIndex:15}}>PLANT</div>
                   )}
                </div>
              )
@@ -406,7 +401,7 @@ function App() {
     return items;
   };
 
-  // Loading Indicator (SERVER ONLY)
+  // ENGLISH LOADING SCREEN
   if (loading) {
       return (
           <div style={{
@@ -415,7 +410,7 @@ function App() {
               display:'flex', flexDirection:'column', justifyContent:'center', alignItems:'center', color:'#00E5FF'
           }}>
               <i className="fa-solid fa-circle-notch fa-spin fa-3x" style={{marginBottom:15}}></i>
-              <div style={{fontWeight:'bold'}}>MENGHUBUNGI SERVER...</div>
+              <div style={{fontWeight:'bold'}}>CONNECTING TO SERVER...</div>
           </div>
       );
   }
@@ -430,7 +425,8 @@ function App() {
       <div id="adextra-overlay" style={{display:'none', position:'fixed', top:0, left:0, width:'100%', height:'100%', background:'rgba(0,0,0,0.95)', zIndex:99999, flexDirection:'column', alignItems:'center', justifyContent:'center'}}>
           <div style={{color:'white', marginBottom:10, fontSize:'0.8rem'}}>Sponsored Ad</div>
           <div id="25e584f1c176cb01a08f07b23eca5b3053fc55b8"></div>
-          <button id="adextra-close-btn" style={{marginTop:20, padding:'10px 20px', background:'red', color:'white', border:'none', borderRadius:5, cursor:'pointer'}}>TUTUP IKLAN</button>
+          {/* ENGLISH BUTTON */}
+          <button id="adextra-close-btn" style={{marginTop:20, padding:'10px 20px', background:'red', color:'white', border:'none', borderRadius:5, cursor:'pointer'}}>CLOSE AD</button>
       </div>
 
       <MemberModal isOpen={activeModal === 'MEMBER'} onClose={() => setActiveModal(null)} currentPlan={user?.plan} onUpgrade={handleUpgrade} loading={loading} />
