@@ -24,7 +24,7 @@ import EncyclopediaModal from './components/EncyclopediaModal';
 function App() {
   const [user, setUser] = useState(null);
   const [currentUserId, setCurrentUserId] = useState(null);
-  const [loading, setLoading] = useState(false); // State untuk Loading Spinner
+  const [loading, setLoading] = useState(false); // Loading Server (bukan iklan)
   const [activeModal, setActiveModal] = useState(null); 
   const [activePage, setActivePage] = useState(0);
 
@@ -57,38 +57,35 @@ function App() {
   const fetchUserData = async () => {
     if (!currentUserId) return;
     try {
-      // Kita tidak pakai setLoading di sini agar refresh background tidak mengganggu
       const data = await loginUser(currentUserId, null);
       setUser(data);
     } catch (err) { console.error("Refresh Error:", err); }
   };
 
-  // --- HANDLERS DENGAN LOADING STATE ---
+  // --- HANDLERS DENGAN POP-UP HADIAH ---
 
   // 1. DAILY TASK
   const handleTaskClick = async (taskId) => {
      setActiveModal(null); 
      
-     // A. NYALAKAN LOADING SEBELUM IKLAN
-     setLoading(true); 
+     // Iklan Loading dihandle otomatis oleh adManager (Layar Hitam "MENCARI IKLAN")
+     const success = await showAdStack(3);
 
-     try {
-         // PANGGIL 3 IKLAN
-         const success = await showAdStack(3);
-
-         if (success) {
-             // Lanjut Klaim (Loading tetap nyala)
-             await claimDailyTask(currentUserId, taskId);
-             alert("Tugas Selesai! Reward Masuk.");
-             await fetchUserData(); // Refresh saldo
-         } else {
-             alert("Gagal memuat iklan atau iklan di-skip.");
+     if (success) {
+         try {
+             setLoading(true); // Loading Server
+             const res = await claimDailyTask(currentUserId, taskId);
+             await fetchUserData();
+             setLoading(false);
+             
+             // POP UP HADIAH (KEMBALI MUNCUL)
+             alert(`Tugas Selesai!\nReward: +${res.reward || 'Bonus'} Coin`);
+         } catch(e) {
+             setLoading(false);
+             alert(e.response?.data?.message || "Gagal klaim task");
          }
-     } catch(e) {
-         alert(e.response?.data?.message || "Gagal klaim task");
-     } finally {
-         // B. MATIKAN LOADING SETELAH SEMUA SELESAI
-         setLoading(false);
+     } else {
+         alert("Iklan dibatalkan/gagal. Reward tidak masuk.");
      }
   };
 
@@ -97,42 +94,35 @@ function App() {
     if (!currentUserId) return;
     const slotData = user?.farm?.[slotId];
     
-    // A. LOGIKA PANEN (PAKAI IKLAN)
+    // PANEN
     if (slotData && Date.now() >= slotData.harvestAt) {
-      
-      // Nyalakan Loading
-      setLoading(true);
+      const success = await showAdStack(1); 
 
-      try {
-          const success = await showAdStack(1); 
-
-          if (success) {
-              await harvestCrop(currentUserId, slotId);
+      if (success) {
+          try {
+              setLoading(true); 
+              const res = await harvestCrop(currentUserId, slotId);
               await fetchUserData();
-          } else {
-              // Jika iklan gagal, matikan loading agar user bisa coba lagi
-              setLoading(false); 
+              setLoading(false);
+              
+              // POP UP HADIAH PANEN (Opsional, aktifkan jika mau)
+              // alert(`Panen Sukses! Hasil masuk gudang.`); 
+          } catch(e) {
+              setLoading(false);
+              alert(e.response?.data?.message || "Gagal panen");
           }
-      } catch(e) {
-          alert(e.response?.data?.message || "Gagal panen");
-          setLoading(false);
-      } finally {
-          // Matikan loading kalau sukses panen
-          setLoading(false);
       }
       return; 
     }
 
-    // B. LOGIKA TANAM (TANPA IKLAN)
+    // TANAM
     try {
       setLoading(true);
       if (!slotData) {
         const slotNum = parseInt(slotId.replace('slot', ''));
         const userSlots = user.slots || [];
-        
         if (!userSlots.includes(slotNum)) { 
-          // Matikan loading dulu sebelum muncul confirm dialog
-          setLoading(false); 
+          setLoading(false);
           if (slotNum === 2 || slotNum === 3) {
              if(confirm(`Slot ${slotNum} terkunci! Beli Lahan?`)) setActiveModal('MARKET'); 
           } else {
@@ -143,88 +133,71 @@ function App() {
         await startFarming(currentUserId, slotId);
       }
       await fetchUserData();
+      setLoading(false);
     } catch (err) { 
-      alert(err.response?.data?.message || "Farm Error"); 
-    } finally { 
-      setLoading(false); 
+        setLoading(false);
+        alert(err.response?.data?.message || "Farm Error"); 
     }
   };
 
-  // 3. SPIN WHEEL (FIX BOOSTER HILANG)
+  // 3. SPIN WHEEL (FIX ITEM BOOSTER HILANG)
   const handleSpin = async (mode) => {
     if (!currentUserId) return;
 
-    // Jika Free Spin, Nonton Iklan dulu
     if (mode === 'FREE') {
-        setLoading(true); // Loading ON pas cari iklan
-        try {
-            const success = await showAdStack(2); 
-            if (!success) {
-                setLoading(false);
-                alert("Iklan gagal. Coba lagi.");
-                return; 
-            }
-        } catch (e) { 
-            setLoading(false); 
-            return; 
-        }
-        // Jangan matikan loading dulu, lanjut ke API spin...
-    } else {
-        setLoading(true); // Loading ON pas bayar spin
+        const success = await showAdStack(2); 
+        if (!success) return; 
     }
 
     try {
+      // API Spin
       const data = await spinWheel(currentUserId, mode);
       
-      // --- FIX ITEM HILANG ---
-      // Kita paksa refresh data user SETELAH spin sukses
-      // Agar item booster yang didapat langsung masuk inventory frontend
+      // Refresh user data AGAR ITEM BOOSTER MUNCUL DI GUDANG
       await fetchUserData(); 
-      
+
+      // Return data agar SpinModal bisa menampilkan animasi hadiah
       return data; 
-    } catch (err) { 
-        throw err; 
-    } finally {
-        setLoading(false); // Loading OFF setelah roda berhenti/error
-    }
+    } catch (err) { throw err; }
   };
 
-  // 4. JUAL ITEM
+  // 4. JUAL
   const handleSell = async (useAdBooster, itemName = null, qty = null) => {
     if (!currentUserId) return;
     
     if (useAdBooster) {
-        setLoading(true);
         const success = await showAdStack(2);
-        if (!success) {
-            setLoading(false);
-            return;
-        }
+        if (!success) return;
     }
 
     try {
       setLoading(true);
       const res = await sellAllItems(currentUserId, useAdBooster, itemName, qty);
-      alert(`Terjual! +${res.totalReceived} PTS\n(Bonus: ${res.bonusPct}%)`);
       await fetchUserData();
+      setLoading(false);
+      
+      // POP UP HASIL JUAL
+      alert(`Terjual!\nTotal: ${res.totalReceived} PTS\n(Bonus Iklan: ${res.bonusPct}%)`);
     } catch (e) { 
-        alert(e.response?.data?.message || "Gagal Jual"); 
-    } finally { 
-        setLoading(false); 
+        setLoading(false);
+        alert(e.response?.data?.message || "Gagal Menjual"); 
     }
   };
 
-  // --- FUNGSI LAINNYA (Standard) ---
+  // --- FUNGSI STANDARD ---
   const handleBuyItem = async (itemId) => {
     if (!currentUserId) return;
     if(!confirm(`Beli item?`)) return;
     try {
       setLoading(true);
       await buyItem(currentUserId, itemId);
-      alert("Berhasil Beli!");
-      await fetchUserData(); 
-    } catch (err) { alert("Gagal Beli"); } 
-    finally { setLoading(false); }
+      await fetchUserData();
+      setLoading(false);
+      alert("Pembelian Berhasil!"); // POP UP BELI
+    } catch (err) { 
+        setLoading(false);
+        alert("Gagal Beli"); 
+    } 
   };
 
   const handleUseItem = async (itemId) => {
@@ -233,10 +206,13 @@ function App() {
     try {
       setLoading(true);
       await useItem(currentUserId, itemId);
-      alert("Item Aktif!");
-      await fetchUserData(); 
-    } catch (err) { alert("Gagal Pakai"); } 
-    finally { setLoading(false); }
+      await fetchUserData();
+      setLoading(false);
+      alert("Item Aktif!"); // POP UP PAKAI
+    } catch (err) { 
+        setLoading(false);
+        alert("Gagal Pakai"); 
+    } 
   };
 
   const handleUpgrade = async (planId) => {
@@ -245,11 +221,14 @@ function App() {
     try {
       setLoading(true);
       await upgradePlan(currentUserId, planId);
-      alert("Upgrade Berhasil!");
       setActiveModal(null);
       await fetchUserData();
-    } catch (err) { alert("Gagal Upgrade"); } 
-    finally { setLoading(false); }
+      setLoading(false);
+      alert("Upgrade Berhasil!"); // POP UP UPGRADE
+    } catch (err) { 
+        setLoading(false);
+        alert("Gagal Upgrade"); 
+    } 
   };
 
   const handleWithdraw = async (amount, address, method) => {
@@ -258,11 +237,14 @@ function App() {
     try {
       setLoading(true);
       await requestWithdraw(currentUserId, amount, address, method);
-      alert("Request Terkirim.");
       setActiveModal(null);
       await fetchUserData();
-    } catch (err) { alert("Gagal WD"); } 
-    finally { setLoading(false); }
+      setLoading(false);
+      alert("Request Terkirim."); // POP UP WD
+    } catch (err) { 
+        setLoading(false);
+        alert("Gagal WD"); 
+    } 
   };
 
   // --- RENDERERS ---
@@ -424,8 +406,7 @@ function App() {
     return items;
   };
 
-  // --- LOADING OVERLAY COMPONENT ---
-  // Agar loadingnya kelihatan keren
+  // Loading Indicator (SERVER ONLY)
   if (loading) {
       return (
           <div style={{
@@ -434,8 +415,7 @@ function App() {
               display:'flex', flexDirection:'column', justifyContent:'center', alignItems:'center', color:'#00E5FF'
           }}>
               <i className="fa-solid fa-circle-notch fa-spin fa-3x" style={{marginBottom:15}}></i>
-              <div style={{fontWeight:'bold'}}>LOADING...</div>
-              <div style={{fontSize:'0.8rem', color:'#aaa', marginTop:5}}>Memuat Data / Iklan</div>
+              <div style={{fontWeight:'bold'}}>MENGHUBUNGI SERVER...</div>
           </div>
       );
   }
