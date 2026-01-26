@@ -28,20 +28,6 @@ function App() {
   const [activeModal, setActiveModal] = useState(null); 
   const [activePage, setActivePage] = useState(0);
 
-  // --- INIT APP ---
-  useEffect(() => {
-    // 1. INIT ADEXIUM PASSIVE (AUTO NOTIF)
-    if (window.AdexiumWidget) {
-        try {
-           const adexium = new window.AdexiumWidget({
-             wid: '33e68c72-2781-4120-a64d-3db4fb973c2d', // ID Bapak
-             adFormat: 'push-like', 
-             isFullScreen: false,
-             debug: false
-           });
-           adexium.autoMode();
-        } catch(e) {}
-    }
 
     // 2. INIT USER
     const initApp = async () => {
@@ -66,7 +52,7 @@ function App() {
       }
     };
     initApp();
-  }, []);
+  } [];
 
   const fetchUserData = async () => {
     if (!currentUserId) return;
@@ -79,10 +65,10 @@ function App() {
   // --- HANDLERS (UPDATED WITH REAL ADS) ---
 
   // 1. DAILY TASK (3 IKLAN)
-  const handleTaskClick = async (taskId) => {
+const handleTaskClick = async (taskId) => {
      setActiveModal(null); 
      
-     // STACK 3 IKLAN
+     // PANGGIL 3 IKLAN
      const success = await showAdStack(3);
 
      if (success) {
@@ -96,6 +82,9 @@ function App() {
          } finally {
              setLoading(false);
          }
+     } else {
+         // TAMBAHAN: Beri tahu user jika iklan gagal
+         alert("Gagal memuat iklan. Harap tonton sampai selesai untuk klaim.");
      }
   };
 
@@ -152,22 +141,33 @@ function App() {
 
 
   // 3. SPIN WHEEL (2 IKLAN)
-  const handleSpin = async (mode) => {
+const handleSpin = async (mode) => {
     if (!currentUserId) return;
 
-    // Jika mode FREE, wajib nonton 2 IKLAN
+    // Jika mode FREE, wajib nonton iklan
     if (mode === 'FREE') {
-        const success = await showAdStack(2); 
-        if (!success) return; 
+        // Coba panggil iklan
+        try {
+            const success = await showAdStack(2); 
+            // Jika iklan gagal/dicancel, STOP dan beri info
+            if (!success) {
+                alert("Iklan tidak tersedia atau gagal dimuat. Silakan coba lagi.");
+                return; 
+            }
+        } catch (e) {
+            // Jika script error, tetap izinkan main (opsional) atau stop
+            console.error("Ad Error:", e);
+            return;
+        }
     }
 
+    // Lanjut logika spin (Hanya jalan jika iklan sukses)
     try {
       const data = await spinWheel(currentUserId, mode);
       await fetchUserData(); 
       return data; 
     } catch (err) { throw err; }
   };
-
   // --- FUNGSI LAINNYA ---
 
   const handleSell = async (useAdBooster, itemName = null, qty = null) => {
@@ -411,13 +411,6 @@ function App() {
     <div className="game-container">
       {renderGridItems()}
       
-      {/* WADAH IKLAN ADEXTRA (BANNER) - Hidden Default */}
-      <div id="adextra-overlay" style={{display:'none', position:'fixed', top:0, left:0, width:'100%', height:'100%', background:'rgba(0,0,0,0.95)', zIndex:99999, flexDirection:'column', alignItems:'center', justifyContent:'center'}}>
-          <div style={{color:'white', marginBottom:10, fontSize:'0.8rem'}}>Sponsored Ad</div>
-          {/* Target Div sesuai ID Adextra Bapak */}
-          <div id="25e584f1c176cb01a08f07b23eca5b3053fc55b8"></div>
-          <button id="adextra-close-btn" style={{marginTop:20, padding:'10px 20px', background:'red', color:'white', border:'none', borderRadius:5, cursor:'pointer'}}>TUTUP IKLAN</button>
-      </div>
 
       <MemberModal isOpen={activeModal === 'MEMBER'} onClose={() => setActiveModal(null)} currentPlan={user?.plan} onUpgrade={handleUpgrade} loading={loading} />
       <WithdrawModal isOpen={activeModal === 'WITHDRAW'} onClose={() => setActiveModal(null)} userBalance={user?.balance || 0} onWithdraw={handleWithdraw} loading={loading} userId={currentUserId} />
@@ -466,7 +459,7 @@ function App() {
       />
     </div>
   );
-}
+
 
 const MenuBtn = ({icon, txt, onClick}) => (
   <button onClick={onClick} className="menu-btn-style">
