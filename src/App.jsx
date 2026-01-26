@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import './App.css'; 
 import { ITEM_DETAILS } from './config/gameConstants';
 
-// --- IMPORT MANAGER IKLAN BARU ---
+// --- IMPORT MANAGER IKLAN ---
 import { showAdStack } from './services/adManager'; 
 
 import { 
@@ -28,8 +28,8 @@ function App() {
   const [activeModal, setActiveModal] = useState(null); 
   const [activePage, setActivePage] = useState(0);
 
-
-    // 2. INIT USER
+  // --- INIT APP ---
+  useEffect(() => {
     const initApp = async () => {
       const tg = window.Telegram?.WebApp;
       if (tg && tg.initDataUnsafe?.user) {
@@ -52,7 +52,7 @@ function App() {
       }
     };
     initApp();
-  } [];
+  }, []); // <--- PERBAIKAN SYNTAX DI SINI (Sebelumnya } []; )
 
   const fetchUserData = async () => {
     if (!currentUserId) return;
@@ -62,10 +62,10 @@ function App() {
     } catch (err) { console.error("Refresh Error:", err); }
   };
 
-  // --- HANDLERS (UPDATED WITH REAL ADS) ---
+  // --- HANDLERS ---
 
   // 1. DAILY TASK (3 IKLAN)
-const handleTaskClick = async (taskId) => {
+  const handleTaskClick = async (taskId) => {
      setActiveModal(null); 
      
      // PANGGIL 3 IKLAN
@@ -83,7 +83,6 @@ const handleTaskClick = async (taskId) => {
              setLoading(false);
          }
      } else {
-         // TAMBAHAN: Beri tahu user jika iklan gagal
          alert("Gagal memuat iklan. Harap tonton sampai selesai untuk klaim.");
      }
   };
@@ -95,15 +94,12 @@ const handleTaskClick = async (taskId) => {
     
     // A. JIKA SIAP PANEN -> NONTON 1 IKLAN
     if (slotData && Date.now() >= slotData.harvestAt) {
-      
-      const success = await showAdStack(1); // Stack 1 Iklan
+      const success = await showAdStack(1); 
 
       if (success) {
           try {
               setLoading(true);
               await harvestCrop(currentUserId, slotId);
-              // Tidak perlu alert biar cepat, atau boleh di-uncomment:
-              // alert(`Panen ${slotData.cropName} Berhasil!`);
               await fetchUserData();
           } catch(e) {
               alert(e.response?.data?.message || "Gagal panen");
@@ -114,7 +110,7 @@ const handleTaskClick = async (taskId) => {
       return; 
     }
 
-    // B. LOGIKA TANAM / BELI LAHAN (ASLI, TIDAK DIUBAH)
+    // B. LOGIKA TANAM
     try {
       setLoading(true);
       if (!slotData) {
@@ -139,41 +135,34 @@ const handleTaskClick = async (taskId) => {
     }
   };
 
-
   // 3. SPIN WHEEL (2 IKLAN)
-const handleSpin = async (mode) => {
+  const handleSpin = async (mode) => {
     if (!currentUserId) return;
 
-    // Jika mode FREE, wajib nonton iklan
     if (mode === 'FREE') {
-        // Coba panggil iklan
         try {
             const success = await showAdStack(2); 
-            // Jika iklan gagal/dicancel, STOP dan beri info
             if (!success) {
                 alert("Iklan tidak tersedia atau gagal dimuat. Silakan coba lagi.");
                 return; 
             }
         } catch (e) {
-            // Jika script error, tetap izinkan main (opsional) atau stop
             console.error("Ad Error:", e);
             return;
         }
     }
 
-    // Lanjut logika spin (Hanya jalan jika iklan sukses)
     try {
       const data = await spinWheel(currentUserId, mode);
       await fetchUserData(); 
       return data; 
     } catch (err) { throw err; }
   };
-  // --- FUNGSI LAINNYA ---
 
+  // --- FUNGSI LAINNYA ---
   const handleSell = async (useAdBooster, itemName = null, qty = null) => {
     if (!currentUserId) return;
     
-    // Jika Booster Iklan dipilih -> Nonton 2 Iklan
     if (useAdBooster) {
         const success = await showAdStack(2);
         if (!success) return;
@@ -244,7 +233,7 @@ const handleSpin = async (mode) => {
     finally { setLoading(false); }
   };
 
-  // --- RENDERERS (FULL ORIGINAL COPY) ---
+  // --- RENDERERS ---
   const renderGridItems = () => {
     const items = [];
     
@@ -411,6 +400,12 @@ const handleSpin = async (mode) => {
     <div className="game-container">
       {renderGridItems()}
       
+      {/* --- WADAH IKLAN ADEXTRA (WAJIB ADA) --- */}
+      <div id="adextra-overlay" style={{display:'none', position:'fixed', top:0, left:0, width:'100%', height:'100%', background:'rgba(0,0,0,0.95)', zIndex:99999, flexDirection:'column', alignItems:'center', justifyContent:'center'}}>
+          <div style={{color:'white', marginBottom:10, fontSize:'0.8rem'}}>Sponsored Ad</div>
+          <div id="25e584f1c176cb01a08f07b23eca5b3053fc55b8"></div>
+          <button id="adextra-close-btn" style={{marginTop:20, padding:'10px 20px', background:'red', color:'white', border:'none', borderRadius:5, cursor:'pointer'}}>TUTUP IKLAN</button>
+      </div>
 
       <MemberModal isOpen={activeModal === 'MEMBER'} onClose={() => setActiveModal(null)} currentPlan={user?.plan} onUpgrade={handleUpgrade} loading={loading} />
       <WithdrawModal isOpen={activeModal === 'WITHDRAW'} onClose={() => setActiveModal(null)} userBalance={user?.balance || 0} onWithdraw={handleWithdraw} loading={loading} userId={currentUserId} />
@@ -446,7 +441,6 @@ const handleSpin = async (mode) => {
           onSpin={handleSpin} 
           userBalance={user?.balance || 0} 
           lastFreeSpin={user?.lastFreeSpin} 
-          // Callback visual dummy dinonaktifkan
           onWatchAd={() => {}} 
       />
 
@@ -459,7 +453,7 @@ const handleSpin = async (mode) => {
       />
     </div>
   );
-
+} // <--- KURUNG TUTUP APP YANG TADI HILANG
 
 const MenuBtn = ({icon, txt, onClick}) => (
   <button onClick={onClick} className="menu-btn-style">
