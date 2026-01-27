@@ -215,13 +215,23 @@ const getSingleAd = async () => {
         try {
             console.log("➡️ Step 4: Monetag");
             const funcName = `show_${IDS.MONETAG_ZONE}`;
+            
             if (typeof window[funcName] === 'function') {
-                await withTimeout(window[funcName](), 5000);
+                // Trik: Kita coba panggil yang biasa dulu (Interstitial)
+                try {
+                    console.log("   👉 Coba Monetag Video...");
+                    await withTimeout(window[funcName](), 6000); // Tunggu 6 detik
+                } catch (errVideo) {
+                    console.warn("   ⚠️ Monetag Video Kosong, ganti ke Popup...", errVideo);
+                    // Jika Video gagal, kita paksa pakai mode 'pop' (Popup)
+                    // Mode 'pop' biasanya fill ratenya tinggi
+                    await withTimeout(window[funcName]('pop'), 6000);
+                }
+                
                 setCooldown('last_monetag');
                 return true;
             }
         } catch (e) { console.log("⚠️ Step 4 Skip:", e); }
-    }
 
     // 5. SMARTLINK (PENGGANTI GIGAPUB)
     // Syarat: URL harus diisi dan valid
