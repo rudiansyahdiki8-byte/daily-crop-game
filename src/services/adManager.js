@@ -1,10 +1,11 @@
 /**
- * AD MANAGER - FINAL COMPLETE (ANTI-STACKING + USER POPUPS)
- * Fitur:
- * 1. USER POPUPS RESTORED: Popup Reward & Confirm asli Anda kembali.
- * 2. GLOBAL LOCK: Mencegah iklan muncul bertumpuk.
- * 3. HYBRID MONETAG: Video dulu, kalau timeout baru Popup.
- * 4. SMARTLINK: Fallback terakhir.
+ * AD MANAGER - FINAL STRATEGY (6 TIERS)
+ * * ATURAN MAIN:
+ * 1. TIER 1-3 (Adsgram/Adexium): Pakai Cooldown 3 Menit (Safety First).
+ * 2. TIER 4 (Monetag Video): UNLIMITED.
+ * 3. TIER 5 (Monetag Popup): UNLIMITED (Tambahan sebelum Smartlink).
+ * 4. TIER 6 (Smartlink): UNLIMITED (Jaring terakhir).
+ * 5. Adexium: Mode DEBUG aktif (True).
  */
 
 const IDS = {
@@ -13,27 +14,21 @@ const IDS = {
     ADEXIUM: "33e68c72-2781-4120-a64d-3db4fb973c2d", 
     MONETAG_ZONE: 10457329,
     
-    // GANTI DENGAN URL SMARTLINK ANDA
-    SMARTLINK_URL: "YOUR_SMARTLINK_URL_HERE" 
+    // GANTI DENGAN URL SMARTLINK ANDA (Wajib diisi)
+    SMARTLINK_URL: "https://t.me/CyberFarmerBot" 
 };
 
-// ATURAN COOLDOWN: 3 MENIT
+// ATURAN COOLDOWN: 3 MENIT (Hanya untuk Tier 1, 2, 3)
 const COOLDOWN_MS = 180 * 1000; 
 
-// --- VARIABLE PENGUNCI (PENTING!) ---
-// Ini mencegah tombol dipencet 2x atau iklan jalan 2x
-let isAdProcessing = false;
+let isAdProcessing = false; 
 
-// --- HELPER: LOCAL STORAGE ---
+// --- HELPER FUNCTIONS ---
 const checkCooldown = (key) => {
     try {
         const lastTime = parseInt(localStorage.getItem(key) || '0');
-        const remaining = COOLDOWN_MS - (Date.now() - lastTime);
-        if (remaining > 0) {
-            console.log(`⏳ ${key} Cooldown: Tunggu ${Math.ceil(remaining/1000)} detik`);
-            return false; 
-        }
-        return true; 
+        // Return false jika masih dalam masa cooldown
+        return (COOLDOWN_MS - (Date.now() - lastTime)) <= 0; 
     } catch (e) { return true; }
 };
 
@@ -41,67 +36,34 @@ const setCooldown = (key) => {
     try { localStorage.setItem(key, Date.now().toString()); } catch (e) {}
 };
 
-// --- HELPER: TIMEOUT ---
-const withTimeout = (promise, ms = 15000) => { 
-    return Promise.race([
-        promise,
-        new Promise((_, reject) => setTimeout(() => reject(new Error("TIMEOUT")), ms))
-    ]);
-};
-
-// --- UI HELPERS: LOADING ---
+// UI Loading
 const showLoadingOverlay = () => {
     let overlay = document.getElementById('ad-loading-overlay');
     if (!overlay) {
         overlay = document.createElement('div');
         overlay.id = 'ad-loading-overlay';
-        overlay.style.cssText = `
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.92); z-index: 9999999;
-            display: flex; align-items: center; justify-content: center;
-        `;
-        overlay.innerHTML = `
-            <div class="ad-watching-container">
-                <div class="ad-timer-circle"></div>
-                <div class="ad-text">MEMUAT IKLAN...</div>
-                <div style="font-size: 0.8rem; color: #aaa; margin-top:5px;">Jangan tutup iklan sebelum selesai</div>
-            </div>
-        `;
+        overlay.style.cssText = `position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.92); z-index: 9999999; display: flex; flex-direction: column; align-items: center; justify-content: center; color: white; font-family: sans-serif;`;
+        overlay.innerHTML = `<div style="width: 40px; height: 40px; border: 4px solid #333; border-top: 4px solid #00E5FF; border-radius: 50%; animation: spin 1s linear infinite;"></div><div style="margin-top: 15px; font-weight: bold;">MENCARI SPONSOR...</div><style>@keyframes spin {0%{transform:rotate(0deg);}100%{transform:rotate(360deg);}}</style>`;
         document.body.appendChild(overlay);
     }
     overlay.style.display = 'flex';
 };
-
 const hideLoadingOverlay = () => {
     const overlay = document.getElementById('ad-loading-overlay');
     if (overlay) overlay.style.display = 'none';
 };
 
-// --- UI HELPERS: POPUPS ASLI ANDA (RESTORED) ---
+// Popup Reward (Asli)
 export const showRewardPopup = (title, message, iconClass = 'fa-coins') => {
     return new Promise((resolve) => {
         let popup = document.getElementById('ad-reward-popup');
         if (!popup) {
             popup = document.createElement('div');
             popup.id = 'ad-reward-popup';
-            popup.style.cssText = `
-                position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-                background: rgba(0,0,0,0.85); z-index: 100000;
-                display: flex; align-items: center; justify-content: center;
-                backdrop-filter: blur(5px);
-            `;
+            popup.style.cssText = `position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 100000; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(5px);`;
             document.body.appendChild(popup);
         }
-        popup.innerHTML = `
-            <div class="reward-container">
-                <div class="reward-title">${title}</div>
-                <div class="reward-icon-wrapper">
-                    <i class="fa-solid ${iconClass} fa-3x" style="color: #FFD700;"></i>
-                </div>
-                <div class="reward-amount">${message}</div>
-                <button id="btn-claim-reward" class="btn-claim">KLAIM</button>
-            </div>
-        `;
+        popup.innerHTML = `<div class="reward-container" style="background: #1a1a1a; padding: 20px; border-radius: 15px; border: 1px solid #333; text-align: center; color: white; min-width: 280px;"><div style="font-size: 1.2rem; font-weight: bold; margin-bottom: 15px; color: #00E5FF;">${title}</div><i class="fa-solid ${iconClass} fa-3x" style="color: #FFD700; margin-bottom: 15px;"></i><div style="margin-bottom: 20px;">${message}</div><button id="btn-claim-reward" style="background: #00E5FF; color: black; border: none; padding: 10px 30px; border-radius: 20px; font-weight: bold; cursor: pointer;">KLAIM</button></div>`;
         popup.style.display = 'flex';
         setTimeout(() => {
             const btn = document.getElementById('btn-claim-reward');
@@ -116,25 +78,8 @@ export const showConfirmPopup = (title, message, iconClass = 'fa-question-circle
         if (old) old.remove();
         const popup = document.createElement('div');
         popup.id = 'ad-confirm-popup';
-        popup.style.cssText = `
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.9); z-index: 2147483647 !important;
-            display: flex; align-items: center; justify-content: center;
-            backdrop-filter: blur(10px);
-        `;
-        popup.innerHTML = `
-            <div class="reward-container" style="border-color: #00E5FF;">
-                <div class="reward-title" style="color: #00E5FF;">${title}</div>
-                <div class="reward-icon-wrapper">
-                    <i class="fa-solid ${iconClass} fa-3x" style="color: #00E5FF;"></i>
-                </div>
-                <p style="color: #E0E0E0; margin: 15px 0; font-size: 1rem; white-space: pre-line;">${message}</p>
-                <div style="display: flex; gap: 15px; justify-content: center; width: 100%;">
-                    <button id="btn-cancel" style="padding: 10px 20px; background: #333; color: #ccc; border: 1px solid #555; border-radius: 20px; cursor: pointer;">CANCEL</button>
-                    <button id="btn-confirm" style="padding: 10px 30px; background: linear-gradient(90deg, #00E5FF, #2979FF); color: white; border: none; border-radius: 20px; cursor: pointer; font-weight: bold;">CONFIRM</button>
-                </div>
-            </div>
-        `;
+        popup.style.cssText = `position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 2147483647 !important; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(10px);`;
+        popup.innerHTML = `<div class="reward-container" style="background: #1a1a1a; padding: 20px; border-radius: 15px; border: 1px solid #333; text-align: center; color: white; min-width: 280px;"><div style="font-size: 1.2rem; font-weight: bold; margin-bottom: 15px; color: #00E5FF;">${title}</div><i class="fa-solid ${iconClass} fa-3x" style="color: #00E5FF; margin-bottom: 15px;"></i><p style="color: #E0E0E0; margin: 15px 0; font-size: 1rem; white-space: pre-line;">${message}</p><div style="display: flex; gap: 15px; justify-content: center; width: 100%;"><button id="btn-cancel" style="padding: 10px 20px; background: #333; color: #ccc; border: 1px solid #555; border-radius: 20px; cursor: pointer;">CANCEL</button><button id="btn-confirm" style="padding: 10px 30px; background: linear-gradient(90deg, #00E5FF, #2979FF); color: white; border: none; border-radius: 20px; cursor: pointer; font-weight: bold;">CONFIRM</button></div></div>`;
         document.body.appendChild(popup);
         setTimeout(() => {
             const btnYes = document.getElementById('btn-confirm');
@@ -145,152 +90,129 @@ export const showConfirmPopup = (title, message, iconClass = 'fa-question-circle
     });
 };
 
-// --- CORE WATERFALL LOGIC ---
+// --- LOGIKA WATERFALL UTAMA ---
 const getSingleAd = async () => {
     console.log("🌊 Memulai Waterfall Iklan...");
 
-    // 1. ADSGRAM INTERSTITIAL
-    if (checkCooldown('last_adsgram_int')) {
+    // 1. ADSGRAM INTERSTITIAL (Ada Cooldown)
+    if (checkCooldown('last_adsgram_int') && window.Adsgram) {
         try {
-            if (window.Adsgram) {
-                console.log("➡️ Step 1: Adsgram Int");
-                const AdController = window.Adsgram.init({ blockId: IDS.ADSGRAM_INT, debug: false });
-                await AdController.show();
-                setCooldown('last_adsgram_int');
-                return true;
-            }
-        } catch (e) { console.warn("⚠️ Step 1 Skip:", e); }
+            console.log("➡️ Step 1: Adsgram Int");
+            await window.Adsgram.init({ blockId: IDS.ADSGRAM_INT, debug: false }).show();
+            setCooldown('last_adsgram_int');
+            return true;
+        } catch (e) { console.warn("⚠️ Step 1 Lewat:", e); }
     }
 
-    // 2. ADEXIUM (Code Valid)
-if (checkCooldown('last_adexium')) {
+    // 2. ADEXIUM (Ada Cooldown + DEBUG TRUE)
+    if (checkCooldown('last_adexium')) {
         try {
-            if (window.AdexiumWidget) {
-                console.log("➡️ Step 2: Adexium (Advanced Mode)");
-                
+            if (typeof window.AdexiumWidget !== 'undefined') {
+                console.log("➡️ Step 2: Adexium (DEBUG MODE)");
                 await new Promise((resolve, reject) => {
-                    // A. INISIALISASI (Sesuai Doc)
                     const adexium = new window.AdexiumWidget({
                         wid: IDS.ADEXIUM,
                         adFormat: 'interstitial',
-                        
-                        debug: false       // Ubah true jika mau tes dummy
-                       
+                        isFullScreen: true, 
+                        debug: true,        // DEBUG ON
+                        zIndex: 2147483647 
                     });
 
-                    // B. SUBSCRIBE EVENT 'adReceived' (Sesuai Doc)
                     adexium.on('adReceived', (ad) => {
-                        console.log("✅ Adexium: Iklan Diterima. Displaying...");
-                        // INI BARIS KRUSIAL DARI DOKUMENTASI:
+                        console.log("✅ Adexium Received");
                         adexium.displayAd(ad); 
                     });
 
-                    // C. SUBSCRIBE EVENT 'noAdFound' (Sesuai Doc)
-                    adexium.on('noAdFound', () => {
-                        cleanup();
-                        reject('No Fill');
-                    });
-
-                    // D. HANDLING SELESAI (Untuk Game)
-                    const onFinish = () => { cleanup(); resolve(); };
+                    adexium.on('noAdFound', () => reject('No Fill'));
+                    
+                    const onFinish = () => { 
+                        try { adexium.destroy?.(); } catch(e){} 
+                        resolve(); 
+                    };
                     adexium.on('adPlaybackCompleted', onFinish);
                     adexium.on('adClosed', onFinish);
 
-                    // E. CLEANUP (Agar HP tidak berat)
-                    const cleanup = () => { try { adexium.destroy?.(); } catch(e){} };
-
-                    // F. REQUEST AD (Sesuai Doc: requestAd)
                     adexium.requestAd('interstitial');
-
-                    // G. SAFETY TIMEOUT (Agar tidak stuck loading selamanya)
-                    setTimeout(() => { cleanup(); reject('Timeout'); }, 15000);
+                    setTimeout(() => { 
+                        try { adexium.destroy?.(); } catch(e){}
+                        reject('Timeout'); 
+                    }, 10000);
                 });
-
                 setCooldown('last_adexium');
                 return true;
-            } else {
-                console.error("❌ Script Adexium belum dimuat di index.html");
             }
-        } catch (e) { console.warn("⚠️ Step 2 Skip:", e); }
+        } catch (e) { console.warn("⚠️ Step 2 Error:", e); }
     }
 
-    // 3. ADSGRAM REWARD
-    if (checkCooldown('last_adsgram_rew')) {
+    // 3. ADSGRAM REWARD (Ada Cooldown)
+    if (checkCooldown('last_adsgram_rew') && window.Adsgram) {
         try {
-            if (window.Adsgram) {
-                console.log("➡️ Step 3: Adsgram Reward");
-                const AdController = window.Adsgram.init({ blockId: IDS.ADSGRAM_REWARD, debug: false });
-                const res = await AdController.show();
-                if (res.done) {
-                    setCooldown('last_adsgram_rew');
-                    return true;
-                }
+            console.log("➡️ Step 3: Adsgram Reward");
+            const res = await window.Adsgram.init({ blockId: IDS.ADSGRAM_REWARD, debug: false }).show();
+            if (res.done) { 
+                setCooldown('last_adsgram_rew'); 
+                return true; 
             }
-        } catch (e) { console.warn("⚠️ Step 3 Skip:", e); }
+        } catch (e) { console.warn("⚠️ Step 3 Lewat:", e); }
     }
 
-    // 4. MONETAG (HYBRID LEBIH AMAN)
-    if (checkCooldown('last_monetag')) {
-        try {
-            console.log("➡️ Step 4: Monetag");
-            const funcName = `show_${IDS.MONETAG_ZONE}`;
-            
-            if (typeof window[funcName] === 'function') {
-                try {
-                    // Coba Video dulu (Kasih waktu 10 detik)
-                    console.log("   👉 Coba Monetag Video...");
-                    await withTimeout(window[funcName](), 10000); 
-                } catch (errVideo) {
-                    console.warn("   ⚠️ Video Timeout/Error. Switch ke Popup.");
-                    // Kalau Video gagal/kelamaan, baru Popup
-                    await withTimeout(window[funcName]('pop'), 5000);
-                }
-                
-                setCooldown('last_monetag');
-                return true;
-            }
-        } catch (e) { console.log("⚠️ Step 4 Skip:", e); }
-    }
+    // 4. MONETAG VIDEO/INTERSTITIAL (UNLIMITED - Tanpa Cooldown)
+    // Mencoba format Interstitial standar dulu
+    try {
+        console.log("➡️ Step 4: Monetag Video (UNLIMITED)");
+        const f = window[`show_${IDS.MONETAG_ZONE}`];
+        if (typeof f === 'function') {
+            await f(); // Panggil Video standar
+            // Sukses? Return true.
+            return true;
+        }
+    } catch (e) { console.warn("⚠️ Step 4 Lewat:", e); }
 
-    // 5. SMARTLINK (FALLBACK TERAKHIR)
-    if (checkCooldown('last_smartlink') && IDS.SMARTLINK_URL.startsWith('http')) {
+    // 5. MONETAG POPUP (UNLIMITED - Tanpa Cooldown)
+    // Jika Step 4 gagal/kosong, coba paksa Popup sebelum Smartlink
+    try {
+        console.log("➡️ Step 5: Monetag Popup (UNLIMITED)");
+        const f = window[`show_${IDS.MONETAG_ZONE}`];
+        if (typeof f === 'function') {
+            await f('pop'); // Panggil format Popup
+            // Sukses? Return true.
+            return true;
+        }
+    } catch (e) { console.warn("⚠️ Step 5 Lewat:", e); }
+
+    // 6. SMARTLINK (UNLIMITED - JARING TERAKHIR)
+    // Pasti jalan jika semua di atas gagal/habis/error
+    if (IDS.SMARTLINK_URL && IDS.SMARTLINK_URL.startsWith('http')) {
         try {
-            console.log("➡️ Step 5: Smartlink");
+            console.log("➡️ Step 6: Smartlink (UNLIMITED)");
             if (window.Telegram?.WebApp) {
                 window.Telegram.WebApp.openLink(IDS.SMARTLINK_URL);
             } else {
                 window.open(IDS.SMARTLINK_URL, '_blank');
             }
-            setCooldown('last_smartlink');
+            await new Promise(r => setTimeout(r, 1000));
             return true;
-        } catch (e) { console.warn("⚠️ Step 5 Skip:", e); }
+        } catch (e) { console.warn("⚠️ Step 6 Error:", e); }
     }
 
+    console.error("❌ SEMUA IKLAN GAGAL");
     return false;
 };
 
-// --- FUNGSI UTAMA (YANG DIPANGGIL TOMBOL) ---
+// --- EKSEKUSI ---
 export const showAdStack = async (count = 1) => {
-    // 🛑 CEK KUNCI: Jika sedang proses, tolak permintaan baru!
-    if (isAdProcessing) {
-        console.log("⛔ Iklan sedang berjalan, klik diabaikan.");
-        return false;
-    }
-
-    // 🔒 KUNCI PINTU
+    if (isAdProcessing) return false;
     isAdProcessing = true;
     showLoadingOverlay();
-    
+
     let successCount = 0;
     try {
         for (let i = 0; i < count; i++) {
             const success = await getSingleAd();
             if (success) {
                 successCount++;
-                // Jika user minta 2 iklan, beri jeda loading antar iklan
                 if (i < count - 1) {
-                    showLoadingOverlay(); 
-                    await new Promise(r => setTimeout(r, 1500));
+                    await new Promise(r => setTimeout(r, 2000));
                 }
             } else {
                 break; 
@@ -300,7 +222,6 @@ export const showAdStack = async (count = 1) => {
         console.error("Ad Stack Error:", e);
     } finally {
         hideLoadingOverlay();
-        // 🔓 BUKA KUNCI (Apapun yang terjadi, sukses/gagal, kunci dibuka)
         isAdProcessing = false;
     }
     return successCount > 0;
