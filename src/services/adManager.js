@@ -166,7 +166,7 @@ const getSingleAd = async () => {
                         wid: IDS.ADEXIUM,
                         adFormat: 'interstitial',
                         isFullScreen: true,
-                        debug: false // Ubah true jika ingin tes
+                        debug: true // Ubah true jika ingin tes
                     });
 
                     // 2. LISTENER: Saat iklan diterima (Sama seperti handleAdReceived)
