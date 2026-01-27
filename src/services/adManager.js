@@ -232,6 +232,7 @@ const getSingleAd = async () => {
                 return true;
             }
         } catch (e) { console.log("⚠️ Step 4 Skip:", e); }
+    }
 
     // 5. SMARTLINK (PENGGANTI GIGAPUB)
     // Syarat: URL harus diisi dan valid
