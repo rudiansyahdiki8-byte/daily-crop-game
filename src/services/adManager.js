@@ -1,10 +1,9 @@
 /**
- * AD MANAGER - NO ADEXTRA VERSION
+ * AD MANAGER - COMPLETE FINAL
  * Fitur:
- * 1. Waterfall 5-Lapis (Adsgram Int -> Adexium -> Reward -> GigaPub -> Monetag)
- * 2. Auto Script Injector (Tanpa edit HTML)
- * 3. COOLDOWN PROTECTION: Adsgram & Adexium
- * 4. UI: Pesan "Jangan tutup iklan" tetap ada
+ * 1. Waterfall 5-Lapis (Adsgram -> Adexium -> Reward -> GigaPub -> Monetag)
+ * 2. Cooldown Anti-Refresh (LocalStorage)
+ * 3. UI POPUP LENGKAP (Reward, Confirm, Loading) - Tidak ada yang dibuang
  */
 
 // 1. CONFIG ID
@@ -16,12 +15,35 @@ const IDS = {
     MONETAG_ZONE: 10457329
 };
 
-// ATURAN COOLDOWN (1 Menit)
+// ATURAN COOLDOWN (60 Detik)
 const COOLDOWN_MS = 15 * 60 * 1000; 
-const state = { adsgramInt: 0, adexium: 0, adsgramRew: 0 };
 
-// Helper: Cek waktu
-const isReady = (lastTime) => (Date.now() - lastTime) > COOLDOWN_MS;
+// --- HELPER: LOCAL STORAGE (Anti Reset) ---
+const checkCooldown = (key) => {
+    try {
+        const lastTime = parseInt(localStorage.getItem(key) || '0');
+        const remaining = COOLDOWN_MS - (Date.now() - lastTime);
+        if (remaining > 0) {
+            console.log(`⏳ ${key} Cooldown: Tunggu ${Math.ceil(remaining/1000)} detik`);
+            return false; // Masih Cooldown
+        }
+        return true; // Siap Tayang
+    } catch (e) { return true; }
+};
+
+const setCooldown = (key) => {
+    try {
+        localStorage.setItem(key, Date.now().toString());
+    } catch (e) {}
+};
+
+// --- HELPER: TIMEOUT ---
+const withTimeout = (promise, ms = 8000) => {
+    return Promise.race([
+        promise,
+        new Promise((_, reject) => setTimeout(() => reject(new Error("TIMEOUT")), ms))
+    ]);
+};
 
 // --- 0. SCRIPT INJECTOR (AUTO LOAD) ---
 (function initAdScripts() {
@@ -41,7 +63,7 @@ const isReady = (lastTime) => (Date.now() - lastTime) > COOLDOWN_MS;
         sc.async = true;
         document.head.appendChild(sc);
     }
-    // C. GigaPub (Failover Logic)
+    // C. GigaPub
     if (!document.getElementById('gigapub-loader')) {
         const p = IDS.GIGAPUB_ID;
         const d = ['https://ad.gigapub.tech','https://ru-ad.gigapub.tech'];
@@ -72,14 +94,6 @@ const isReady = (lastTime) => (Date.now() - lastTime) > COOLDOWN_MS;
     }
 })();
 
-// --- HELPER: TIMEOUT ---
-const withTimeout = (promise, ms = 5000) => {
-    return Promise.race([
-        promise,
-        new Promise((_, reject) => setTimeout(() => reject(new Error("TIMEOUT")), ms))
-    ]);
-};
-
 // --- A. VISUAL LOADING ---
 const showLoadingOverlay = () => {
     let overlay = document.getElementById('ad-loading-overlay');
@@ -108,7 +122,7 @@ const hideLoadingOverlay = () => {
     if (overlay) overlay.style.display = 'none';
 };
 
-// --- B. POPUP HELPERS ---
+// --- B. POPUP HELPERS (INI YANG TADI HILANG, SUDAH KEMBALI) ---
 export const showRewardPopup = (title, message, iconClass = 'fa-coins') => {
     return new Promise((resolve) => {
         let popup = document.getElementById('ad-reward-popup');
@@ -123,6 +137,7 @@ export const showRewardPopup = (title, message, iconClass = 'fa-coins') => {
             `;
             document.body.appendChild(popup);
         }
+
         popup.innerHTML = `
             <div class="reward-container">
                 <div class="reward-title">${title}</div>
@@ -133,10 +148,17 @@ export const showRewardPopup = (title, message, iconClass = 'fa-coins') => {
                 <button id="btn-claim-reward" class="btn-claim">KLAIM</button>
             </div>
         `;
+        
         popup.style.display = 'flex';
+
         setTimeout(() => {
             const btn = document.getElementById('btn-claim-reward');
-            if (btn) btn.onclick = () => { popup.style.display = 'none'; resolve(true); };
+            if (btn) {
+                btn.onclick = () => {
+                    popup.style.display = 'none';
+                    resolve(true); 
+                };
+            }
         }, 50);
     });
 };
@@ -145,6 +167,7 @@ export const showConfirmPopup = (title, message, iconClass = 'fa-question-circle
     return new Promise((resolve) => {
         const old = document.getElementById('ad-confirm-popup');
         if (old) old.remove();
+
         const popup = document.createElement('div');
         popup.id = 'ad-confirm-popup';
         popup.style.cssText = `
@@ -153,6 +176,7 @@ export const showConfirmPopup = (title, message, iconClass = 'fa-question-circle
             display: flex; align-items: center; justify-content: center;
             backdrop-filter: blur(10px);
         `;
+
         popup.innerHTML = `
             <div class="reward-container" style="border-color: #00E5FF;">
                 <div class="reward-title" style="color: #00E5FF;">${title}</div>
@@ -167,6 +191,7 @@ export const showConfirmPopup = (title, message, iconClass = 'fa-question-circle
             </div>
         `;
         document.body.appendChild(popup);
+
         setTimeout(() => {
             const btnYes = document.getElementById('btn-confirm');
             const btnNo = document.getElementById('btn-cancel');
@@ -176,27 +201,25 @@ export const showConfirmPopup = (title, message, iconClass = 'fa-question-circle
     });
 };
 
-// --- D. CORE LOGIC: WATERFALL SEQUENCE (1-5) ---
+// --- D. CORE LOGIC: WATERFALL SEQUENCE ---
 const getSingleAd = async () => {
     console.log("🌊 Memulai Waterfall Iklan...");
 
     // 1. ADSGRAM INTERSTITIAL (TON)
-    if (isReady(state.adsgramInt)) {
+    if (checkCooldown('last_adsgram_int')) {
         try {
             if (window.Adsgram) {
                 console.log("➡️ Step 1: Adsgram Interstitial");
                 const AdController = window.Adsgram.init({ blockId: IDS.ADSGRAM_INT, debug: false });
                 await AdController.show();
-                state.adsgramInt = Date.now(); // Update Cooldown
+                setCooldown('last_adsgram_int');
                 return true;
             }
         } catch (e) { console.warn("⚠️ Skip Step 1:", e); }
-    } else {
-        console.log("⏳ Adsgram Int sedang Cooldown...");
     }
 
     // 2. ADEXIUM INTERSTITIAL (USD)
-    if (isReady(state.adexium)) {
+    if (checkCooldown('last_adexium')) {
         try {
             if (window.AdexiumWidget) {
                 console.log("➡️ Step 2: Adexium Interstitial");
@@ -204,12 +227,10 @@ const getSingleAd = async () => {
                     const adexium = new window.AdexiumWidget({
                         wid: IDS.ADEXIUM,
                         adFormat: 'interstitial',
-                               adFormat: 'interstitial',
-                debug: false // Ubah true kalau mau test
-            });
-
-            // Listener
-            adWidget.on('adReceived', (ad) => {
+                        debug: false
+                    });
+                    const cleanup = () => { adexium.destroy?.(); };
+                            adWidget.on('adReceived', (ad) => {
                 adWidget.displayAd(ad); // Tampilkan jika dapat
             });
 
@@ -227,32 +248,34 @@ const getSingleAd = async () => {
             // Panggil Iklan
             adWidget.requestAd('interstitial');
         });
-                state.adexium = Date.now(); // Update Cooldown
+                    setTimeout(() => { cleanup(); reject('Adexium Load Timeout'); }, 8000);
+                });
+                setCooldown('last_adexium');
                 return true;
             }
         } catch (e) { console.warn("⚠️ Skip Step 2:", e); }
-    } else {
-        console.log("⏳ Adexium sedang Cooldown...");
     }
 
     // 3. ADSGRAM REWARD (TON)
-    try {
-        if (window.Adsgram) {
-            console.log("➡️ Step 3: Adsgram Reward");
-            const AdControllerRew = window.Adsgram.init({ blockId: IDS.ADSGRAM_REWARD, debug: false });
-            const result = await AdControllerRew.show();
-            if (result.done === true) {
-                state.adsgramRew = Date.now();
-                return true;
-            } else throw new Error("Reward Skipped");
-        }
-    } catch (e) { console.warn("⚠️ Skip Step 3:", e); }
+    if (checkCooldown('last_adsgram_rew')) {
+        try {
+            if (window.Adsgram) {
+                console.log("➡️ Step 3: Adsgram Reward");
+                const AdControllerRew = window.Adsgram.init({ blockId: IDS.ADSGRAM_REWARD, debug: false });
+                const result = await AdControllerRew.show();
+                if (result.done === true) {
+                    setCooldown('last_adsgram_rew');
+                    return true;
+                } else throw new Error("Reward Skipped");
+            }
+        } catch (e) { console.warn("⚠️ Skip Step 3:", e); }
+    }
 
     // 4. GIGAPUB (TON/USDT)
     try {
         if (typeof window.showGiga === 'function') {
             console.log("➡️ Step 4: GigaPub");
-            await window.showGiga();
+            await withTimeout(window.showGiga(), 8000);
             return true;
         }
     } catch (e) { console.warn("⚠️ Skip Step 4:", e); }
@@ -262,11 +285,10 @@ const getSingleAd = async () => {
         console.log("➡️ Step 5: Monetag (Safety Net)");
         const monetagFunc = window[`show_${IDS.MONETAG_ZONE}`];
         if (typeof monetagFunc === 'function') {
-            await withTimeout(monetagFunc(), 8000);
+            await withTimeout(monetagFunc(), 5000);
             return true; 
         }
     } catch (e) { 
-        console.log("⚠️ Monetag Status:", e.message);
         return true; 
     }
 
@@ -275,7 +297,7 @@ const getSingleAd = async () => {
 };
 
 export const showAdStack = async (count = 1) => {
-    showLoadingOverlay(); // Munculkan "MEMUAT IKLAN..."
+    showLoadingOverlay();
     let successCount = 0;
     try {
         for (let i = 0; i < count; i++) {
@@ -294,7 +316,7 @@ export const showAdStack = async (count = 1) => {
     } catch (e) {
         console.error("Ad Stack Error:", e);
     } finally {
-        hideLoadingOverlay(); // Hilang setelah selesai semua
+        hideLoadingOverlay();
     }
     return successCount > 0;
 };
