@@ -173,9 +173,9 @@ if (checkCooldown('last_adexium')) {
                     const adexium = new window.AdexiumWidget({
                         wid: IDS.ADEXIUM,
                         adFormat: 'interstitial',
-                        isFullScreen: true, 
+                        
                         debug: false,       // Ubah true jika mau tes dummy
-                        zIndex: 2147483647  // TAMBAHAN: Agar tidak tertutup game
+                       
                     });
 
                     // B. SUBSCRIBE EVENT 'adReceived' (Sesuai Doc)
