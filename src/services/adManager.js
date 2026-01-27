@@ -1,9 +1,9 @@
 /**
- * AD MANAGER - COMPLETE FINAL
+ * AD MANAGER - ADEXIUM ADVANCED INTEGRATION FIXED
  * Fitur:
- * 1. Waterfall 5-Lapis (Adsgram -> Adexium -> Reward -> GigaPub -> Monetag)
- * 2. Cooldown Anti-Refresh (LocalStorage)
- * 3. UI POPUP LENGKAP (Reward, Confirm, Loading) - Tidak ada yang dibuang
+ * 1. Adexium Fix: Menggunakan URL 'techtg.space' & pola request -> received -> display.
+ * 2. Cooldown 3 Menit (180 Detik) untuk semua iklan.
+ * 3. Urutan: Adsgram Int -> Adexium -> Reward -> Monetag -> GigaPub.
  */
 
 // 1. CONFIG ID
@@ -15,19 +15,19 @@ const IDS = {
     MONETAG_ZONE: 10457329
 };
 
-// ATURAN COOLDOWN (60 Detik)
-const COOLDOWN_MS =15 * 60 * 1000; 
+// ATURAN COOLDOWN: 3 MENIT
+const COOLDOWN_MS = 180 * 1000; 
 
-// --- HELPER: LOCAL STORAGE (Anti Reset) ---
+// --- HELPER: LOCAL STORAGE ---
 const checkCooldown = (key) => {
     try {
         const lastTime = parseInt(localStorage.getItem(key) || '0');
         const remaining = COOLDOWN_MS - (Date.now() - lastTime);
         if (remaining > 0) {
             console.log(`⏳ ${key} Cooldown: Tunggu ${Math.ceil(remaining/1000)} detik`);
-            return false; // Masih Cooldown
+            return false; 
         }
-        return true; // Siap Tayang
+        return true; 
     } catch (e) { return true; }
 };
 
@@ -45,7 +45,7 @@ const withTimeout = (promise, ms = 10000) => {
     ]);
 };
 
-// --- 0. SCRIPT INJECTOR (AUTO LOAD) ---
+// --- 0. SCRIPT INJECTOR (UPDATED URL) ---
 (function initAdScripts() {
     if (typeof window === 'undefined') return;
 
@@ -56,14 +56,16 @@ const withTimeout = (promise, ms = 10000) => {
         sc.async = true;
         document.head.appendChild(sc);
     }
-    // B. Adexium
-if (!document.querySelector('script[src*="adexium-widget"]')) { // Ubah detektor nama
+    
+    // B. ADEXIUM (UPDATED URL SESUAI DOKUMENTASI ANDA)
+    // Menggunakan cdn.techtg.space
+    if (!document.querySelector('script[src*="techtg.space"]')) {
         const sc = document.createElement('script');
-        // GANTI URL INI:
-        sc.src = "https://cdn.tgads.space/assets/js/adexium-widget.min.js"; 
+        sc.src = "https://cdn.techtg.space/assets/js/tg-ads-co-widget.min.js";
         sc.async = true;
         document.head.appendChild(sc);
     }
+    
     // C. GigaPub
     if (!document.getElementById('gigapub-loader')) {
         const p = IDS.GIGAPUB_ID;
@@ -123,7 +125,7 @@ const hideLoadingOverlay = () => {
     if (overlay) overlay.style.display = 'none';
 };
 
-// --- B. POPUP HELPERS (INI YANG TADI HILANG, SUDAH KEMBALI) ---
+// --- B. POPUP HELPERS ---
 export const showRewardPopup = (title, message, iconClass = 'fa-coins') => {
     return new Promise((resolve) => {
         let popup = document.getElementById('ad-reward-popup');
@@ -149,17 +151,10 @@ export const showRewardPopup = (title, message, iconClass = 'fa-coins') => {
                 <button id="btn-claim-reward" class="btn-claim">KLAIM</button>
             </div>
         `;
-        
         popup.style.display = 'flex';
-
         setTimeout(() => {
             const btn = document.getElementById('btn-claim-reward');
-            if (btn) {
-                btn.onclick = () => {
-                    popup.style.display = 'none';
-                    resolve(true); 
-                };
-            }
+            if (btn) btn.onclick = () => { popup.style.display = 'none'; resolve(true); };
         }, 50);
     });
 };
@@ -168,7 +163,6 @@ export const showConfirmPopup = (title, message, iconClass = 'fa-question-circle
     return new Promise((resolve) => {
         const old = document.getElementById('ad-confirm-popup');
         if (old) old.remove();
-
         const popup = document.createElement('div');
         popup.id = 'ad-confirm-popup';
         popup.style.cssText = `
@@ -177,7 +171,6 @@ export const showConfirmPopup = (title, message, iconClass = 'fa-question-circle
             display: flex; align-items: center; justify-content: center;
             backdrop-filter: blur(10px);
         `;
-
         popup.innerHTML = `
             <div class="reward-container" style="border-color: #00E5FF;">
                 <div class="reward-title" style="color: #00E5FF;">${title}</div>
@@ -192,7 +185,6 @@ export const showConfirmPopup = (title, message, iconClass = 'fa-question-circle
             </div>
         `;
         document.body.appendChild(popup);
-
         setTimeout(() => {
             const btnYes = document.getElementById('btn-confirm');
             const btnNo = document.getElementById('btn-cancel');
@@ -219,7 +211,7 @@ const getSingleAd = async () => {
         } catch (e) { console.warn("⚠️ Skip Step 1:", e); }
     }
 
-    // 2. ADEXIUM INTERSTITIAL (USD)
+    // 2. ADEXIUM INTERSTITIAL (USD) - UPDATED LOGIC "ADVANCED"
     if (checkCooldown('last_adexium')) {
         try {
             if (window.AdexiumWidget) {
@@ -229,15 +221,37 @@ const getSingleAd = async () => {
                         wid: IDS.ADEXIUM,
                         adFormat: 'interstitial',
                         isFullScreen: true,
-                        debug: false
+                        debug: false // Gunakan True hanya jika ingin test mode
                     });
-                    const cleanup = () => { adexium.destroy?.(); };
-                    adexium.on('adPlaybackCompleted', () => { cleanup(); resolve(); });
-                    adexium.on('noAdFound', () => { cleanup(); reject('No Fill'); });
-                    adexium.on('adClosed', () => { cleanup(); reject('Closed'); });
+
+                    // PENTING: Sesuai dokumentasi Advanced Integration
+                    // 1. Listen kalau iklan diterima
+                    adexium.on('adReceived', (ad) => {
+                        console.log("✅ Adexium Received, Displaying...");
+                        adexium.displayAd(ad); // <--- WAJIB DIPANGGIL
+                    });
+
+                    // 2. Listen kalau tidak ada iklan
+                    adexium.on('noAdFound', () => {
+                        cleanup();
+                        reject('No Fill');
+                    });
+
+                    // 3. Listen kalau iklan selesai/ditutup (Untuk resume game)
+                    const onFinish = () => { cleanup(); resolve(); };
+                    adexium.on('adPlaybackCompleted', onFinish);
+                    adexium.on('adClosed', onFinish);
+
+                    // 4. Request Iklan
                     adexium.requestAd('interstitial');
-                    setTimeout(() => { cleanup(); reject('Adexium Load Timeout'); }, 8000);
+
+                    // Cleanup function
+                    const cleanup = () => { adexium.destroy?.(); };
+                    
+                    // Safety Timeout 10 detik
+                    setTimeout(() => { cleanup(); reject('Adexium Timeout'); }, 10000);
                 });
+
                 setCooldown('last_adexium');
                 return true;
             }
@@ -259,28 +273,32 @@ const getSingleAd = async () => {
         } catch (e) { console.warn("⚠️ Skip Step 3:", e); }
     }
 
-    // 4. GIGAPUB (TON/USDT)
-    try {
-        if (typeof window.showGiga === 'function') {
-            console.log("➡️ Step 4: GigaPub");
-            await withTimeout(window.showGiga(), 8000);
-            return true;
-        }
-    } catch (e) { console.warn("⚠️ Skip Step 4:", e); }
-
-    // 5. MONETAG (SAFETY NET)
-    try {
-        console.log("➡️ Step 5: Monetag (Safety Net)");
-        const monetagFunc = window[`show_${IDS.MONETAG_ZONE}`];
-        if (typeof monetagFunc === 'function') {
-            await withTimeout(monetagFunc(), 5000);
-            return true; 
-        }
-    } catch (e) { 
-        return true; 
+    // 4. MONETAG (USD - RINGAN)
+    if (checkCooldown('last_monetag')) {
+        try {
+            console.log("➡️ Step 4: Monetag");
+            const monetagFunc = window[`show_${IDS.MONETAG_ZONE}`];
+            if (typeof monetagFunc === 'function') {
+                await withTimeout(monetagFunc(), 5000);
+                setCooldown('last_monetag'); 
+                return true; 
+            }
+        } catch (e) { console.log("⚠️ Monetag Lewat:", e); }
     }
 
-    console.error("❌ ALL ADS FAILED");
+    // 5. GIGAPUB (TON/USDT - VIDEO BERAT)
+    if (checkCooldown('last_gigapub')) {
+        try {
+            if (typeof window.showGiga === 'function') {
+                console.log("➡️ Step 5: GigaPub");
+                await withTimeout(window.showGiga(), 8000);
+                setCooldown('last_gigapub'); 
+                return true;
+            }
+        } catch (e) { console.warn("⚠️ Skip Step 5:", e); }
+    }
+
+    console.error("❌ ALL ADS FAILED / COOLDOWN");
     return false;
 };
 
@@ -297,7 +315,7 @@ export const showAdStack = async (count = 1) => {
                     await new Promise(r => setTimeout(r, 1000));
                 }
             } else {
-                console.log("Gagal memuat iklan, menghentikan stack.");
+                console.log("Gagal memuat iklan atau sedang Cooldown.");
                 break; 
             }
         }
