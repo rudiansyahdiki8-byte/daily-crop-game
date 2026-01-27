@@ -181,7 +181,7 @@ const FarmGrid = ({ user, activePage, currentUserId, onRefreshUser, onOpenMember
                       <>
                         {overlayImage && (
                             <img src={overlayImage} alt="Crop" style={{
-                                position: 'absolute', top:-17, width: '75%', height: 'auto', zIndex: 5, pointerEvents: 'none', 
+                                position: 'absolute', top:0, width: '75%', height: 'auto', zIndex: 5, pointerEvents: 'none', 
                                 filter: isReady ? 'drop-shadow(0 0 5px #39FF14)' : 'none'
                             }} />
                         )}
