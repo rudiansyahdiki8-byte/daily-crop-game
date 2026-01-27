@@ -1,8 +1,7 @@
 /**
- * AD MANAGER - REWARD GUARANTEE VERSION
- * - Memperbaiki masalah "Spin Failed" atau "No Reward".
- * - Logic: Jika iklan Monetag muncul, anggap SUKSES (True),
- * meskipun loading lama atau user nontonnya lama.
+ * AD MANAGER - FULL WATERFALL + AUTO SCRIPT LOADER
+ * Order: Adsgram Int -> Adexium -> AdExtra -> Adsgram Reward -> GigaPub -> Monetag
+ * Includes: UI Original, Stack Logic, & Automatic Script Injection
  */
 
 // 1. CONFIG ID
@@ -10,7 +9,7 @@ const IDS = {
     ADSGRAM_INT: "int-21085",     
     ADSGRAM_REWARD: "21143",      
     ADEXIUM: "33e68c72-2781-4120-a64d-3db4fb973c2d", 
-    // Backup
+    ADEXTRA: "25e584f1c176cb01a08f07b23eca5b3053fc55b8",
     GIGAPUB_ID: 5436,             
     MONETAG_ZONE: 10457329,       
     RICHADS_PUB: "1000251",       
@@ -21,15 +20,80 @@ const COOLDOWN_MS = 60 * 1000;
 const state = { adsgramInt: 0, adexium: 0, adextra: 0, adsgramRew: 0 };
 const isReady = (lastTime) => (Date.now() - lastTime) > COOLDOWN_MS;
 
+// --- 0. SCRIPT INJECTOR (AUTO LOAD) ---
+// Bagian ini otomatis berjalan untuk memasang script iklan ke <head>
+(function initAdScripts() {
+    if (typeof window === 'undefined') return;
+
+    // A. ADSGRAM LOADER
+    if (!document.querySelector('script[src*="adsgram.ai"]')) {
+        const sc = document.createElement('script');
+        sc.src = "https://sad.adsgram.ai/js/sad.min.js";
+        sc.async = true;
+        document.head.appendChild(sc);
+    }
+
+    // B. ADEXIUM LOADER
+    if (!document.querySelector('script[src*="tg-ads-co-widget"]')) {
+        const sc = document.createElement('script');
+        sc.src = "https://cdn.techtg.space/assets/js/tg-ads-co-widget.min.js";
+        sc.async = true;
+        document.head.appendChild(sc);
+    }
+
+    // C. GIGAPUB LOADER (ADVANCED FAILOVER)
+    // Sesuai snippet: Coba server utama, kalau gagal pindah ke mirror (ru-ad)
+    if (!document.getElementById('gigapub-loader')) {
+        const p = IDS.GIGAPUB_ID;
+        const d = ['https://ad.gigapub.tech','https://ru-ad.gigapub.tech'];
+        let i = 0, t, sc;
+        
+        function l(){
+             sc = document.createElement('script');
+             sc.id = 'gigapub-loader';
+             sc.async = true;
+             sc.src = d[i] + '/script?id=' + p;
+             
+             t = setTimeout(function(){
+                 sc.onload = sc.onerror = null;
+                 sc.remove();
+                 if(++i < d.length) l(); // Coba mirror
+             }, 15000);
+             
+             sc.onload = function(){ clearTimeout(t); };
+             sc.onerror = function(){ clearTimeout(t); if(++i < d.length) l(); };
+             document.head.appendChild(sc);
+        }
+        l();
+    }
+
+    // D. ADEXTRA LOADER
+    if (!document.querySelector(`script[src*="${IDS.ADEXTRA}"]`)) {
+        const sc = document.createElement('script');
+        sc.src = `https://partner.adextra.io/jt/${IDS.ADEXTRA}.js`;
+        sc.async = true;
+        document.head.appendChild(sc);
+    }
+
+    // E. MONETAG LOADER
+    if (!document.querySelector('script[src*="libtl.com"]')) {
+        const sc = document.createElement('script');
+        sc.src = "//libtl.com/sdk.js"; 
+        sc.dataset.zone = IDS.MONETAG_ZONE;
+        sc.dataset.sdk = `show_${IDS.MONETAG_ZONE}`;
+        document.head.appendChild(sc);
+    }
+})();
+
 // --- HELPER: TIMEOUT ---
-const withTimeout = (promise, ms = 8000) => {
+const withTimeout = (promise, ms = 15000) => {
     return Promise.race([
         promise,
         new Promise((_, reject) => setTimeout(() => reject(new Error("TIMEOUT")), ms))
     ]);
 };
 
-// --- A. VISUAL LOADING ---
+// --- A. VISUAL LOADING (ORIGINAL) ---
 const showLoadingOverlay = () => {
     let overlay = document.getElementById('ad-loading-overlay');
     if (!overlay) {
@@ -57,7 +121,7 @@ const hideLoadingOverlay = () => {
     if (overlay) overlay.style.display = 'none';
 };
 
-// --- B. VISUAL REWARD POPUP ---
+// --- B. VISUAL REWARD POPUP (ORIGINAL) ---
 export const showRewardPopup = (title, message, iconClass = 'fa-coins') => {
     return new Promise((resolve) => {
         let popup = document.getElementById('ad-reward-popup');
@@ -83,22 +147,15 @@ export const showRewardPopup = (title, message, iconClass = 'fa-coins') => {
                 <button id="btn-claim-reward" class="btn-claim">KLAIM</button>
             </div>
         `;
-        
         popup.style.display = 'flex';
-
         setTimeout(() => {
             const btn = document.getElementById('btn-claim-reward');
-            if (btn) {
-                btn.onclick = () => {
-                    popup.style.display = 'none';
-                    resolve(true); 
-                };
-            }
+            if (btn) btn.onclick = () => { popup.style.display = 'none'; resolve(true); };
         }, 50);
     });
 };
 
-// --- C. CONFIRM POPUP ---
+// --- C. CONFIRM POPUP (ORIGINAL) ---
 export const showConfirmPopup = (title, message, iconClass = 'fa-question-circle') => {
     return new Promise((resolve) => {
         const old = document.getElementById('ad-confirm-popup');
@@ -137,35 +194,97 @@ export const showConfirmPopup = (title, message, iconClass = 'fa-question-circle
     });
 };
 
-// --- D. LOGIKA CARI IKLAN (MONETAG ONLY + AUTO SUCCESS) ---
+// --- D. CORE LOGIC: WATERFALL SEQUENCE (1-6) ---
 const getSingleAd = async () => {
-    console.log("Meminta Iklan... (Mode: Monetag Only)");
+    console.log("🌊 Memulai Waterfall Iklan...");
 
-    // 4. MONETAG (Direct Call)
-    const monetagFunc = window[`show_${IDS.MONETAG_ZONE}`];
-    
-    if (typeof monetagFunc === 'function') { 
-        try { 
-            console.log("Menjalankan Monetag...");
-            // Kita tunggu max 8 detik.
-            await withTimeout(monetagFunc(), 8000); 
-            
-            // Jika selesai sebelum 8 detik (iklan diclose cepat), SUKSES.
+    // 1. ADSGRAM INTERSTITIAL
+    try {
+        if (window.Adsgram) {
+            console.log("➡️ Step 1: Adsgram Interstitial");
+            const AdController = window.Adsgram.init({ blockId: IDS.ADSGRAM_INT, debug: false });
+            await AdController.show();
+            return true;
+        }
+    } catch (e) { console.warn("⚠️ Skip Step 1:", e); }
+
+    // 2. ADEXIUM INTERSTITIAL
+    try {
+        if (window.AdexiumWidget) {
+            console.log("➡️ Step 2: Adexium Interstitial");
+            await new Promise((resolve, reject) => {
+                const adexium = new window.AdexiumWidget({
+                    wid: IDS.ADEXIUM,
+                    adFormat: 'interstitial',
+                    isFullScreen: true,
+                    debug: false
+                });
+                const cleanup = () => { adexium.destroy?.(); };
+                adexium.on('adPlaybackCompleted', () => { cleanup(); resolve(); });
+                adexium.on('noAdFound', () => { cleanup(); reject('No Fill'); });
+                adexium.on('adClosed', () => { cleanup(); reject('Closed'); });
+                adexium.requestAd('interstitial');
+            });
+            return true;
+        }
+    } catch (e) { console.warn("⚠️ Skip Step 2:", e); }
+
+    // 3. ADEXTRA INTERSTITIAL
+    try {
+        console.log("➡️ Step 3: AdExtra Interstitial");
+        let adDiv = document.getElementById(IDS.ADEXTRA);
+        if (!adDiv) {
+            adDiv = document.createElement('div');
+            adDiv.id = IDS.ADEXTRA;
+            adDiv.style.display = 'none';
+            document.body.appendChild(adDiv);
+        }
+        if (typeof window.p_adextra === 'function') {
+            await new Promise((resolve, reject) => {
+                window.p_adextra(() => resolve(), () => reject('AdExtra Error'));
+            });
+            return true;
+        }
+    } catch (e) { console.warn("⚠️ Skip Step 3:", e); }
+
+    // 4. ADSGRAM REWARD
+    try {
+        if (window.Adsgram) {
+            console.log("➡️ Step 4: Adsgram Reward");
+            const AdControllerRew = window.Adsgram.init({ blockId: IDS.ADSGRAM_REWARD, debug: false });
+            const result = await AdControllerRew.show();
+            if (result.done === true) return true;
+            else throw new Error("Reward Skipped");
+        }
+    } catch (e) { console.warn("⚠️ Skip Step 4:", e); }
+
+    // 5. GIGAPUB
+    try {
+        if (typeof window.showGiga === 'function') {
+            console.log("➡️ Step 5: GigaPub");
+            await window.showGiga();
+            return true;
+        }
+    } catch (e) { console.warn("⚠️ Skip Step 5:", e); }
+
+    // 6. MONETAG (SAFETY NET)
+    try {
+        console.log("➡️ Step 6: Monetag (Safety Net)");
+        const monetagFunc = window[`show_${IDS.MONETAG_ZONE}`];
+        if (typeof monetagFunc === 'function') {
+            await withTimeout(monetagFunc(), 8000);
             return true; 
-        } catch(e) { 
-            console.log("Monetag Status:", e.message); 
-            // Apapun errornya (Timeout / Script Error), kita ANGGAP SUKSES.
-            // Agar user yang sudah nonton iklan tetap dapat reward.
-            return true; 
-        } 
-    } else {
-        console.log("Script Monetag belum terload di window/index.html");
-        // Jika script tidak ada, kita return false agar user tau ada masalah sistem
-        return false;
+        }
+    } catch (e) { 
+        console.log("⚠️ Monetag Status:", e.message);
+        return true; 
     }
+
+    console.error("❌ ALL ADS FAILED");
+    return false;
 };
 
-// --- E. FUNGSI UTAMA ---
+// --- E. FUNGSI UTAMA (ORIGINAL) ---
 export const showAdStack = async (count = 1) => {
     showLoadingOverlay();
     
@@ -187,7 +306,7 @@ export const showAdStack = async (count = 1) => {
     } catch (e) {
         console.error("Ad Stack Error:", e);
     } finally {
-        hideLoadingOverlay(); // Pastikan loading hilang!
+        hideLoadingOverlay();
     }
     
     return successCount > 0;
