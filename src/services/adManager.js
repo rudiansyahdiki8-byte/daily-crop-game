@@ -227,8 +227,9 @@ const getSingleAd = async () => {
         try {
             if (typeof window.showGiga === 'function') {
                 console.log("➡️ Step 5: GigaPub");
-                await withTimeout(window.showGiga(), 8000);
-                setCooldown('last_gigapub');
+                // Gunakan "main" sesuai request Anda
+                await withTimeout(window.showGiga("main"), 8000);
+                setCooldown('last_gigapub'); 
                 return true;
             }
         } catch (e) { console.warn("⚠️ Step 5 Skip:", e); }
