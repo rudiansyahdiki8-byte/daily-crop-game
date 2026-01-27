@@ -57,9 +57,10 @@ const withTimeout = (promise, ms = 10000) => {
         document.head.appendChild(sc);
     }
     // B. Adexium
-    if (!document.querySelector('script[src*="tg-ads-co-widget"]')) {
+if (!document.querySelector('script[src*="adexium-widget"]')) { // Ubah detektor nama
         const sc = document.createElement('script');
-        sc.src = "https://cdn.techtg.space/assets/js/tg-ads-co-widget.min.js";
+        // GANTI URL INI:
+        sc.src = "https://cdn.tgads.space/assets/js/adexium-widget.min.js"; 
         sc.async = true;
         document.head.appendChild(sc);
     }
