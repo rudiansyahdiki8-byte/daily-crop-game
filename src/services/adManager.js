@@ -204,15 +204,29 @@ const getSingleAd = async () => {
                     const adexium = new window.AdexiumWidget({
                         wid: IDS.ADEXIUM,
                         adFormat: 'interstitial',
-                        isFullScreen: true,
-                        debug: false
-                    });
-                    const cleanup = () => { adexium.destroy?.(); };
-                    adexium.on('adPlaybackCompleted', () => { cleanup(); resolve(); });
-                    adexium.on('noAdFound', () => { cleanup(); reject('No Fill'); });
-                    adexium.on('adClosed', () => { cleanup(); reject('Closed'); });
-                    adexium.requestAd('interstitial');
-                });
+                               adFormat: 'interstitial',
+                debug: false // Ubah true kalau mau test
+            });
+
+            // Listener
+            adWidget.on('adReceived', (ad) => {
+                adWidget.displayAd(ad); // Tampilkan jika dapat
+            });
+
+            adWidget.on('noAdFound', () => {
+                reject("No Fill Adexium");
+            });
+
+            adWidget.on('adClosed', () => {
+                resolve(); // Sukses ditonton/ditutup
+            });
+            
+            // Listener tambahan untuk error/complete
+            adWidget.on('adPlaybackCompleted', () => resolve());
+            
+            // Panggil Iklan
+            adWidget.requestAd('interstitial');
+        });
                 state.adexium = Date.now(); // Update Cooldown
                 return true;
             }
