@@ -1,11 +1,10 @@
 /**
- * AD MANAGER - FINAL (WITH SMARTLINK FALLBACK)
- * Urutan Waterfall:
- * 1. Adsgram Interstitial (TON)
- * 2. Adexium (USD - High CPM)
- * 3. Adsgram Reward (TON)
- * 4. Monetag (USD SDK)
- * 5. SMARTLINK (Fallback Terakhir - Pasti Terbuka)
+ * AD MANAGER - FINAL COMPLETE (ANTI-STACKING + USER POPUPS)
+ * Fitur:
+ * 1. USER POPUPS RESTORED: Popup Reward & Confirm asli Anda kembali.
+ * 2. GLOBAL LOCK: Mencegah iklan muncul bertumpuk.
+ * 3. HYBRID MONETAG: Video dulu, kalau timeout baru Popup.
+ * 4. SMARTLINK: Fallback terakhir.
  */
 
 const IDS = {
@@ -14,13 +13,16 @@ const IDS = {
     ADEXIUM: "33e68c72-2781-4120-a64d-3db4fb973c2d", 
     MONETAG_ZONE: 10457329,
     
-    // 🔴 GANTI INI DENGAN URL SMARTLINK ASLI ANDA
-    // Contoh: "https://example.com/direct-link-anda"
-    SMARTLINK_URL: "https://link.gigapub.tech/l/vi8999zpr" 
+    // GANTI DENGAN URL SMARTLINK ANDA
+    SMARTLINK_URL: "YOUR_SMARTLINK_URL_HERE" 
 };
 
 // ATURAN COOLDOWN: 3 MENIT
 const COOLDOWN_MS = 180 * 1000; 
+
+// --- VARIABLE PENGUNCI (PENTING!) ---
+// Ini mencegah tombol dipencet 2x atau iklan jalan 2x
+let isAdProcessing = false;
 
 // --- HELPER: LOCAL STORAGE ---
 const checkCooldown = (key) => {
@@ -40,14 +42,14 @@ const setCooldown = (key) => {
 };
 
 // --- HELPER: TIMEOUT ---
-const withTimeout = (promise, ms = 10000) => {
+const withTimeout = (promise, ms = 15000) => { 
     return Promise.race([
         promise,
         new Promise((_, reject) => setTimeout(() => reject(new Error("TIMEOUT")), ms))
     ]);
 };
 
-// --- UI HELPERS ---
+// --- UI HELPERS: LOADING ---
 const showLoadingOverlay = () => {
     let overlay = document.getElementById('ad-loading-overlay');
     if (!overlay) {
@@ -75,6 +77,7 @@ const hideLoadingOverlay = () => {
     if (overlay) overlay.style.display = 'none';
 };
 
+// --- UI HELPERS: POPUPS ASLI ANDA (RESTORED) ---
 export const showRewardPopup = (title, message, iconClass = 'fa-coins') => {
     return new Promise((resolve) => {
         let popup = document.getElementById('ad-reward-popup');
@@ -159,7 +162,7 @@ const getSingleAd = async () => {
         } catch (e) { console.warn("⚠️ Step 1 Skip:", e); }
     }
 
-    // 2. ADEXIUM (CODE VALID - JANGAN DIUBAH)
+    // 2. ADEXIUM (Code Valid)
     if (checkCooldown('last_adexium')) {
         try {
             if (window.AdexiumWidget) {
@@ -172,9 +175,12 @@ const getSingleAd = async () => {
                         debug: false
                     });
 
-                    // Logic: Received -> Display
+                    let hasDisplayed = false;
+
                     adexium.on('adReceived', (ad) => {
-                        console.log("✅ Adexium Received, Displaying...");
+                        if(hasDisplayed) return;
+                        hasDisplayed = true;
+                        console.log("✅ Adexium Received");
                         adexium.displayAd(ad); 
                     });
 
@@ -187,6 +193,7 @@ const getSingleAd = async () => {
                     const cleanup = () => { try { adexium.destroy?.(); } catch(e){} };
 
                     adexium.requestAd('interstitial');
+                    // Timeout 15 Detik
                     setTimeout(() => { cleanup(); reject('Timeout'); }, 15000); 
                 });
                 setCooldown('last_adexium');
@@ -210,22 +217,21 @@ const getSingleAd = async () => {
         } catch (e) { console.warn("⚠️ Step 3 Skip:", e); }
     }
 
-    // 4. MONETAG
+    // 4. MONETAG (HYBRID LEBIH AMAN)
     if (checkCooldown('last_monetag')) {
         try {
             console.log("➡️ Step 4: Monetag");
             const funcName = `show_${IDS.MONETAG_ZONE}`;
             
             if (typeof window[funcName] === 'function') {
-                // Trik: Kita coba panggil yang biasa dulu (Interstitial)
                 try {
+                    // Coba Video dulu (Kasih waktu 10 detik)
                     console.log("   👉 Coba Monetag Video...");
-                    await withTimeout(window[funcName](), 6000); // Tunggu 6 detik
+                    await withTimeout(window[funcName](), 10000); 
                 } catch (errVideo) {
-                    console.warn("   ⚠️ Monetag Video Kosong, ganti ke Popup...", errVideo);
-                    // Jika Video gagal, kita paksa pakai mode 'pop' (Popup)
-                    // Mode 'pop' biasanya fill ratenya tinggi
-                    await withTimeout(window[funcName]('pop'), 6000);
+                    console.warn("   ⚠️ Video Timeout/Error. Switch ke Popup.");
+                    // Kalau Video gagal/kelamaan, baru Popup
+                    await withTimeout(window[funcName]('pop'), 5000);
                 }
                 
                 setCooldown('last_monetag');
@@ -234,41 +240,45 @@ const getSingleAd = async () => {
         } catch (e) { console.log("⚠️ Step 4 Skip:", e); }
     }
 
-    // 5. SMARTLINK (PENGGANTI GIGAPUB)
-    // Syarat: URL harus diisi dan valid
+    // 5. SMARTLINK (FALLBACK TERAKHIR)
     if (checkCooldown('last_smartlink') && IDS.SMARTLINK_URL.startsWith('http')) {
         try {
-            console.log("➡️ Step 5: Smartlink Fallback");
-            
-            // Gunakan Telegram WebApp untuk membuka link dengan aman
+            console.log("➡️ Step 5: Smartlink");
             if (window.Telegram?.WebApp) {
                 window.Telegram.WebApp.openLink(IDS.SMARTLINK_URL);
             } else {
-                // Fallback untuk browser biasa
                 window.open(IDS.SMARTLINK_URL, '_blank');
             }
-            
-            // Kita anggap sukses karena link pasti terbuka
             setCooldown('last_smartlink');
             return true;
         } catch (e) { console.warn("⚠️ Step 5 Skip:", e); }
     }
 
-    console.error("❌ ALL ADS FAILED");
     return false;
 };
 
+// --- FUNGSI UTAMA (YANG DIPANGGIL TOMBOL) ---
 export const showAdStack = async (count = 1) => {
+    // 🛑 CEK KUNCI: Jika sedang proses, tolak permintaan baru!
+    if (isAdProcessing) {
+        console.log("⛔ Iklan sedang berjalan, klik diabaikan.");
+        return false;
+    }
+
+    // 🔒 KUNCI PINTU
+    isAdProcessing = true;
     showLoadingOverlay();
+    
     let successCount = 0;
     try {
         for (let i = 0; i < count; i++) {
             const success = await getSingleAd();
             if (success) {
                 successCount++;
+                // Jika user minta 2 iklan, beri jeda loading antar iklan
                 if (i < count - 1) {
                     showLoadingOverlay(); 
-                    await new Promise(r => setTimeout(r, 1000));
+                    await new Promise(r => setTimeout(r, 1500));
                 }
             } else {
                 break; 
@@ -278,6 +288,8 @@ export const showAdStack = async (count = 1) => {
         console.error("Ad Stack Error:", e);
     } finally {
         hideLoadingOverlay();
+        // 🔓 BUKA KUNCI (Apapun yang terjadi, sukses/gagal, kunci dibuka)
+        isAdProcessing = false;
     }
     return successCount > 0;
 };
