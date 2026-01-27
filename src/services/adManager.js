@@ -156,44 +156,67 @@ const getSingleAd = async () => {
     // 2. ADEXIUM (MANUAL MODE - TAPI PAKE LIBRARY DARI HTML)
     if (checkCooldown('last_adexium')) {
         try {
+            // Cek apakah script sudah ada (Sama seperti React: if !window.AdexiumWidget return)
             if (window.AdexiumWidget) {
                 console.log("➡️ Step 2: Adexium");
+
                 await new Promise((resolve, reject) => {
-                    // Kita inisialisasi Manual di sini agar bisa dikontrol tombol
+                    // 1. Inisialisasi (Sama seperti useEffect)
                     const adexium = new window.AdexiumWidget({
                         wid: IDS.ADEXIUM,
                         adFormat: 'interstitial',
                         isFullScreen: true,
-                        debug: false
+                        debug: false // Ubah true jika ingin tes
                     });
 
-                    // Logika Advanced: Request -> Tunggu Received -> Display
+                    // 2. LISTENER: Saat iklan diterima (Sama seperti handleAdReceived)
                     adexium.on('adReceived', (ad) => {
-                        console.log("✅ Adexium Received, Displaying...");
+                        console.log("✅ Adexium: Iklan Diterima. Menampilkan...");
+                        // INI KUNCI DARI CODE REACT TADI:
                         adexium.displayAd(ad); 
                     });
 
-                    adexium.on('noAdFound', () => { cleanup(); reject('No Fill'); });
-                    
-                    const onFinish = () => { cleanup(); resolve(); };
+                    // 3. LISTENER: Saat Stok Kosong (Sama seperti handleNoAdFound)
+                    adexium.on('noAdFound', () => {
+                        console.warn("⚠️ Adexium: No Fill");
+                        cleanup(); // Bersihkan memori
+                        reject('No Fill');
+                    });
+
+                    // 4. LISTENER: Saat Selesai/Tutup (Sama seperti handleAdPlaybackCompleted)
+                    const onFinish = () => { 
+                        console.log("✅ Adexium: Selesai");
+                        cleanup(); 
+                        resolve(true); // Sukses!
+                    };
                     adexium.on('adPlaybackCompleted', onFinish);
                     adexium.on('adClosed', onFinish);
 
-                    const cleanup = () => { try { adexium.destroy?.(); } catch(e){} };
+                    // Fungsi bersih-bersih (Sama seperti return () => { ... destroy })
+                    const cleanup = () => { 
+                        try { adexium.destroy?.(); } catch(e){} 
+                    };
 
-                    // Trigger Manual
+                    // 5. EKSEKUSI (Sama seperti return callback requestAd)
+                    console.log("⏳ Adexium: Requesting...");
                     adexium.requestAd('interstitial');
                     
-                    setTimeout(() => { cleanup(); reject('Timeout'); }, 12000); 
+                    // Safety Timeout (Jaga-jaga kalau server macet)
+                    setTimeout(() => { 
+                        cleanup(); 
+                        reject('Timeout'); 
+                    }, 15000); 
                 });
+
                 setCooldown('last_adexium');
                 return true;
             } else {
-                console.warn("⚠️ Script Adexium belum ready di window");
+                console.warn("⚠️ Script Adexium belum terload di index.html");
             }
-        } catch (e) { console.warn("⚠️ Step 2 Skip:", e); }
+        } catch (e) { 
+            console.warn("⚠️ Step 2 Skip:", e); 
+        }
     }
-
     // 3. ADSGRAM REWARD
     if (checkCooldown('last_adsgram_rew')) {
         try {
