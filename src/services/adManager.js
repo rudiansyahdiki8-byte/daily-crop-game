@@ -17,7 +17,7 @@ const IDS = {
 };
 
 // ATURAN COOLDOWN (Dalam Milidetik)
-const COOLDOWN_MS = 60 * 1000; // 60 Detik (1 Menit)
+const COOLDOWN_MS = 15 * 60 * 1000; // 60 Detik (1 Menit)
 // State untuk menyimpan waktu terakhir iklan tayang
 const state = { 
     adsgramInt: 0, 
