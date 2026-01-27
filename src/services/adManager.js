@@ -16,7 +16,7 @@ const IDS = {
 };
 
 // ATURAN COOLDOWN (60 Detik)
-const COOLDOWN_MS = 15 * 60 * 1000; 
+const COOLDOWN_MS =15 * 60 * 1000; 
 
 // --- HELPER: LOCAL STORAGE (Anti Reset) ---
 const checkCooldown = (key) => {
@@ -38,7 +38,7 @@ const setCooldown = (key) => {
 };
 
 // --- HELPER: TIMEOUT ---
-const withTimeout = (promise, ms = 8000) => {
+const withTimeout = (promise, ms = 10000) => {
     return Promise.race([
         promise,
         new Promise((_, reject) => setTimeout(() => reject(new Error("TIMEOUT")), ms))
@@ -227,27 +227,14 @@ const getSingleAd = async () => {
                     const adexium = new window.AdexiumWidget({
                         wid: IDS.ADEXIUM,
                         adFormat: 'interstitial',
+                        isFullScreen: true,
                         debug: false
                     });
                     const cleanup = () => { adexium.destroy?.(); };
-                            adWidget.on('adReceived', (ad) => {
-                adWidget.displayAd(ad); // Tampilkan jika dapat
-            });
-
-            adWidget.on('noAdFound', () => {
-                reject("No Fill Adexium");
-            });
-
-            adWidget.on('adClosed', () => {
-                resolve(); // Sukses ditonton/ditutup
-            });
-            
-            // Listener tambahan untuk error/complete
-            adWidget.on('adPlaybackCompleted', () => resolve());
-            
-            // Panggil Iklan
-            adWidget.requestAd('interstitial');
-        });
+                    adexium.on('adPlaybackCompleted', () => { cleanup(); resolve(); });
+                    adexium.on('noAdFound', () => { cleanup(); reject('No Fill'); });
+                    adexium.on('adClosed', () => { cleanup(); reject('Closed'); });
+                    adexium.requestAd('interstitial');
                     setTimeout(() => { cleanup(); reject('Adexium Load Timeout'); }, 8000);
                 });
                 setCooldown('last_adexium');
