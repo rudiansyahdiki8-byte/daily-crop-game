@@ -73,7 +73,7 @@ const isReady = (lastTime) => (Date.now() - lastTime) > COOLDOWN_MS;
 })();
 
 // --- HELPER: TIMEOUT ---
-const withTimeout = (promise, ms = 15000) => {
+const withTimeout = (promise, ms = 5000) => {
     return Promise.race([
         promise,
         new Promise((_, reject) => setTimeout(() => reject(new Error("TIMEOUT")), ms))
