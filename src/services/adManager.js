@@ -163,41 +163,53 @@ const getSingleAd = async () => {
     }
 
     // 2. ADEXIUM (Code Valid)
-    if (checkCooldown('last_adexium')) {
+if (checkCooldown('last_adexium')) {
         try {
             if (window.AdexiumWidget) {
-                console.log("➡️ Step 2: Adexium");
+                console.log("➡️ Step 2: Adexium (Advanced Mode)");
+                
                 await new Promise((resolve, reject) => {
+                    // A. INISIALISASI (Sesuai Doc)
                     const adexium = new window.AdexiumWidget({
                         wid: IDS.ADEXIUM,
                         adFormat: 'interstitial',
-                        isFullScreen: true,
-                        debug: false
+                        isFullScreen: true, 
+                        debug: false,       // Ubah true jika mau tes dummy
+                        zIndex: 2147483647  // TAMBAHAN: Agar tidak tertutup game
                     });
 
-                    let hasDisplayed = false;
-
+                    // B. SUBSCRIBE EVENT 'adReceived' (Sesuai Doc)
                     adexium.on('adReceived', (ad) => {
-                        if(hasDisplayed) return;
-                        hasDisplayed = true;
-                        console.log("✅ Adexium Received");
+                        console.log("✅ Adexium: Iklan Diterima. Displaying...");
+                        // INI BARIS KRUSIAL DARI DOKUMENTASI:
                         adexium.displayAd(ad); 
                     });
 
-                    adexium.on('noAdFound', () => { cleanup(); reject('No Fill'); });
-                    
+                    // C. SUBSCRIBE EVENT 'noAdFound' (Sesuai Doc)
+                    adexium.on('noAdFound', () => {
+                        cleanup();
+                        reject('No Fill');
+                    });
+
+                    // D. HANDLING SELESAI (Untuk Game)
                     const onFinish = () => { cleanup(); resolve(); };
                     adexium.on('adPlaybackCompleted', onFinish);
                     adexium.on('adClosed', onFinish);
 
+                    // E. CLEANUP (Agar HP tidak berat)
                     const cleanup = () => { try { adexium.destroy?.(); } catch(e){} };
 
+                    // F. REQUEST AD (Sesuai Doc: requestAd)
                     adexium.requestAd('interstitial');
-                    // Timeout 15 Detik
-                    setTimeout(() => { cleanup(); reject('Timeout'); }, 15000); 
+
+                    // G. SAFETY TIMEOUT (Agar tidak stuck loading selamanya)
+                    setTimeout(() => { cleanup(); reject('Timeout'); }, 15000);
                 });
+
                 setCooldown('last_adexium');
                 return true;
+            } else {
+                console.error("❌ Script Adexium belum dimuat di index.html");
             }
         } catch (e) { console.warn("⚠️ Step 2 Skip:", e); }
     }
