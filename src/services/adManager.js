@@ -1,16 +1,22 @@
 /**
- * AD MANAGER - SEPARATED MODE (FINAL)
- * Fitur:
- * 1. Script diload via index.html (Adexium pakai cdn.tgads.space).
- * 2. Cooldown 3 Menit (180 Detik).
- * 3. Waterfall: Adsgram -> Adexium -> Reward -> Monetag -> GigaPub.
+ * AD MANAGER - FINAL (WITH SMARTLINK FALLBACK)
+ * Urutan Waterfall:
+ * 1. Adsgram Interstitial (TON)
+ * 2. Adexium (USD - High CPM)
+ * 3. Adsgram Reward (TON)
+ * 4. Monetag (USD SDK)
+ * 5. SMARTLINK (Fallback Terakhir - Pasti Terbuka)
  */
 
 const IDS = {
     ADSGRAM_INT: "int-21085",     
     ADSGRAM_REWARD: "21143",      
     ADEXIUM: "33e68c72-2781-4120-a64d-3db4fb973c2d", 
-    MONETAG_ZONE: 10457329
+    MONETAG_ZONE: 10457329,
+    
+    // 🔴 GANTI INI DENGAN URL SMARTLINK ASLI ANDA
+    // Contoh: "https://example.com/direct-link-anda"
+    SMARTLINK_URL: "https://link.gigapub.tech/l/vi8999zpr" 
 };
 
 // ATURAN COOLDOWN: 3 MENIT
@@ -153,70 +159,42 @@ const getSingleAd = async () => {
         } catch (e) { console.warn("⚠️ Step 1 Skip:", e); }
     }
 
-    // 2. ADEXIUM (MANUAL MODE - TAPI PAKE LIBRARY DARI HTML)
+    // 2. ADEXIUM (CODE VALID - JANGAN DIUBAH)
     if (checkCooldown('last_adexium')) {
         try {
-            // Cek apakah script sudah ada (Sama seperti React: if !window.AdexiumWidget return)
             if (window.AdexiumWidget) {
                 console.log("➡️ Step 2: Adexium");
-
                 await new Promise((resolve, reject) => {
-                    // 1. Inisialisasi (Sama seperti useEffect)
                     const adexium = new window.AdexiumWidget({
                         wid: IDS.ADEXIUM,
                         adFormat: 'interstitial',
                         isFullScreen: true,
-                        debug: false // Ubah true jika ingin tes
+                        debug: false
                     });
 
-                    // 2. LISTENER: Saat iklan diterima (Sama seperti handleAdReceived)
+                    // Logic: Received -> Display
                     adexium.on('adReceived', (ad) => {
-                        console.log("✅ Adexium: Iklan Diterima. Menampilkan...");
-                        // INI KUNCI DARI CODE REACT TADI:
+                        console.log("✅ Adexium Received, Displaying...");
                         adexium.displayAd(ad); 
                     });
 
-                    // 3. LISTENER: Saat Stok Kosong (Sama seperti handleNoAdFound)
-                    adexium.on('noAdFound', () => {
-                        console.warn("⚠️ Adexium: No Fill");
-                        cleanup(); // Bersihkan memori
-                        reject('No Fill');
-                    });
-
-                    // 4. LISTENER: Saat Selesai/Tutup (Sama seperti handleAdPlaybackCompleted)
-                    const onFinish = () => { 
-                        console.log("✅ Adexium: Selesai");
-                        cleanup(); 
-                        resolve(true); // Sukses!
-                    };
+                    adexium.on('noAdFound', () => { cleanup(); reject('No Fill'); });
+                    
+                    const onFinish = () => { cleanup(); resolve(); };
                     adexium.on('adPlaybackCompleted', onFinish);
                     adexium.on('adClosed', onFinish);
 
-                    // Fungsi bersih-bersih (Sama seperti return () => { ... destroy })
-                    const cleanup = () => { 
-                        try { adexium.destroy?.(); } catch(e){} 
-                    };
+                    const cleanup = () => { try { adexium.destroy?.(); } catch(e){} };
 
-                    // 5. EKSEKUSI (Sama seperti return callback requestAd)
-                    console.log("⏳ Adexium: Requesting...");
                     adexium.requestAd('interstitial');
-                    
-                    // Safety Timeout (Jaga-jaga kalau server macet)
-                    setTimeout(() => { 
-                        cleanup(); 
-                        reject('Timeout'); 
-                    }, 15000); 
+                    setTimeout(() => { cleanup(); reject('Timeout'); }, 15000); 
                 });
-
                 setCooldown('last_adexium');
                 return true;
-            } else {
-                console.warn("⚠️ Script Adexium belum terload di index.html");
             }
-        } catch (e) { 
-            console.warn("⚠️ Step 2 Skip:", e); 
-        }
+        } catch (e) { console.warn("⚠️ Step 2 Skip:", e); }
     }
+
     // 3. ADSGRAM REWARD
     if (checkCooldown('last_adsgram_rew')) {
         try {
@@ -245,16 +223,23 @@ const getSingleAd = async () => {
         } catch (e) { console.log("⚠️ Step 4 Skip:", e); }
     }
 
-    // 5. GIGAPUB (Terakhir)
-    if (checkCooldown('last_gigapub')) {
+    // 5. SMARTLINK (PENGGANTI GIGAPUB)
+    // Syarat: URL harus diisi dan valid
+    if (checkCooldown('last_smartlink') && IDS.SMARTLINK_URL.startsWith('http')) {
         try {
-            if (typeof window.showGiga === 'function') {
-                console.log("➡️ Step 5: GigaPub");
-                // Gunakan "main" sesuai request Anda
-                await withTimeout(window.showGiga("main"), 8000);
-                setCooldown('last_gigapub'); 
-                return true;
+            console.log("➡️ Step 5: Smartlink Fallback");
+            
+            // Gunakan Telegram WebApp untuk membuka link dengan aman
+            if (window.Telegram?.WebApp) {
+                window.Telegram.WebApp.openLink(IDS.SMARTLINK_URL);
+            } else {
+                // Fallback untuk browser biasa
+                window.open(IDS.SMARTLINK_URL, '_blank');
             }
+            
+            // Kita anggap sukses karena link pasti terbuka
+            setCooldown('last_smartlink');
+            return true;
         } catch (e) { console.warn("⚠️ Step 5 Skip:", e); }
     }
 
