@@ -174,7 +174,7 @@ if (checkCooldown('last_adexium')) {
                         wid: IDS.ADEXIUM,
                         adFormat: 'interstitial',
                         
-                        debug: false,       // Ubah true jika mau tes dummy
+                        debug: false       // Ubah true jika mau tes dummy
                        
                     });
 
