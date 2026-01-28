@@ -114,7 +114,6 @@ const getSingleAd = async () => {
                         wid: IDS.ADEXIUM,
                         adFormat: 'interstitial',
                         isFullScreen: true, 
-                        debug: true,        // DEBUG ON
                         zIndex: 2147483647 
                     });
 
