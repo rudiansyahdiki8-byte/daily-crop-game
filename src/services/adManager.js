@@ -15,7 +15,7 @@ const IDS = {
     MONETAG_ZONE: 10457329,
     
     // GANTI DENGAN URL SMARTLINK ANDA (Wajib diisi)
-    SMARTLINK_URL: "https://t.me/CyberFarmerBot" 
+    SMARTLINK_URL: "https://link.gigapub.tech/l/vi8999zpr" 
 };
 
 // ATURAN COOLDOWN: 3 MENIT (Hanya untuk Tier 1, 2, 3)
