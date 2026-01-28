@@ -9,12 +9,12 @@ export const GAME_CONFIG = {
   
   // KONFIGURASI WITHDRAW (PUSAT DATA)
   WITHDRAW: {
-     RATE: 0.0001,      // 1 PTS = $0.0001 USD (10.000 PTS = $1)
+     RATE: 0.000004,      // 1 PTS = $0.0001 USD (10.000 PTS = $1)
      MIN_WD_NEW: 100,   // Limit User Baru
      MIN_WD_MEMBER: 1000, // Limit Member Terverifikasi
      FEE_DIRECT: 0.10,  // Fee 10%
      FEE_FAUCETPAY: 0,  // Fee 0%
-     ADMIN_WALLET: "TLsV52sRDL79HXGGm9ywbKqksC4LpWpY7k" // Wallet Deposit Anda
+     ADMIN_WALLET: "" // Wallet Deposit Anda
   },
 
   LUCKY_WHEEL: {
