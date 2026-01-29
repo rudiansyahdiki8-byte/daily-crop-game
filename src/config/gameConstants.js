@@ -37,8 +37,8 @@ export const LAND_PLOTS = {
 
 // --- VARIABLE BARU (FITUR EXTRA SLOT) ---
 export const EXTRA_SLOT_PRICE = {
-  1: 10000,    // Extra Slot ke-1
-  2: 750000    // Extra Slot ke-2
+  1: 1000,    // Extra Slot ke-1
+  2: 75000    // Extra Slot ke-2
 };
 
 // --- [BARU] VARIABLE UPGRADE GUDANG ---
