@@ -1,14 +1,7 @@
 /**
- * AD MANAGER - 7 TYPES MANUAL CONTROL
- * Cooldown: 5 Menit
- * * DAFTAR 7 TIPE IKLAN:
- * 1. Adsgram Interstitial
- * 2. Adsgram Reward
- * 3. AdExtra Interstitial (Full Screen)
- * 4. Monetag Popup (Manual TWA)
- * 5. Monetag Interstitial (Manual TWA)
- * 6. GigaPub Interstitial
- * 7. GigaPub Smartlink
+ * AD MANAGER - SAFETY TIMEOUT EDITION
+ * * Perbaikan: Menambahkan TIMEOUT 5 Detik di semua iklan manual.
+ * * Tujuan: Mencegah tombol "Mati Suri" jika iklan macet/tidak merespon.
  */
 
 const IDS = {
@@ -60,7 +53,6 @@ const hideLoadingOverlay = () => {
 // === SISTEM UI POPUP (JANGAN DIHAPUS) ===
 // ==========================================
 
-// 1. Popup Reward (Tampilan Hadiah)
 export const showRewardPopup = (title, message, iconClass = 'fa-coins') => {
     return new Promise((resolve) => {
         let popup = document.getElementById('ad-reward-popup');
@@ -79,7 +71,6 @@ export const showRewardPopup = (title, message, iconClass = 'fa-coins') => {
     });
 };
 
-// 2. Popup Confirm (Konfirmasi Nonton Iklan)
 export const showConfirmPopup = (title, message, iconClass = 'fa-question-circle') => {
     return new Promise((resolve) => {
         const old = document.getElementById('ad-confirm-popup');
@@ -99,13 +90,13 @@ export const showConfirmPopup = (title, message, iconClass = 'fa-question-circle
 };
 
 // ==========================================
-// === LOGIKA WATERFALL (7 TIPE MANUAL) ===
+// === LOGIKA WATERFALL (ANTI MACET) ===
 // ==========================================
 
 const getSingleAd = async () => {
     console.log("🌊 Memulai Waterfall Iklan...");
 
-    // 1. ADSGRAM INTERSTITIAL (Manual)
+    // 1. ADSGRAM INT
     if (checkCooldown('cd_adsgram_int') && window.Adsgram) {
         try {
             console.log("➡️ Coba: Adsgram Int");
@@ -115,7 +106,7 @@ const getSingleAd = async () => {
         } catch (e) { console.warn("Pass Adsgram Int"); }
     }
 
-    // 2. ADSGRAM REWARD (Manual)
+    // 2. ADSGRAM REWARD
     if (checkCooldown('cd_adsgram_rew') && window.Adsgram) {
         try {
             console.log("➡️ Coba: Adsgram Reward");
@@ -127,24 +118,29 @@ const getSingleAd = async () => {
         } catch (e) { console.warn("Pass Adsgram Rew"); }
     }
 
-    // 3. ADEXTRA INTERSTITIAL (Manual)
-    [cite_start]// Sesuai PDF: Panggil p_adextra [cite: 88]
+    // 3. ADEXTRA (DENGAN TIMEOUT 5 DETIK)
     if (checkCooldown('cd_adextra')) {
         try {
             console.log("➡️ Coba: AdExtra");
             if (typeof window.p_adextra === 'function') {
-                await new Promise((resolve, reject) => {
-                    const onSuccess = () => { console.log("AdExtra Success"); resolve(true); };
-                    const onError = () => { reject("AdExtra Error"); };
-                    window.p_adextra(onSuccess, onError);
-                });
+                // RACE: Siapa cepat dia menang (Iklan vs Timer 5 Detik)
+                await Promise.race([
+                    new Promise((resolve, reject) => {
+                        window.p_adextra(
+                            () => { console.log("AdExtra Success"); resolve(true); }, // OnSuccess
+                            () => { reject("AdExtra Error/NoFill"); }                // OnError
+                        );
+                    }),
+                    new Promise((_, reject) => setTimeout(() => reject("Timeout AdExtra"), 5000))
+                ]);
+
                 setCooldown('cd_adextra');
                 return true;
             }
-        } catch (e) { console.warn("Pass AdExtra"); }
+        } catch (e) { console.warn("Pass AdExtra (Lewat/Timeout):", e); }
     }
 
-    // 4. MONETAG POPUP (Manual TWA)
+    // 4. MONETAG POPUP (DENGAN TIMEOUT 3 DETIK)
     if (checkCooldown('cd_monetag_pop')) {
         try {
             console.log("➡️ Coba: Monetag Popup");
@@ -152,34 +148,37 @@ const getSingleAd = async () => {
             if (typeof f === 'function') {
                 f('pop'); 
                 setCooldown('cd_monetag_pop');
-                await new Promise(r => setTimeout(r, 1500)); // Jeda biar popup muncul
+                // Tunggu sebentar saja, jangan await f() karena popup tidak return promise di sdk lama
+                await new Promise(r => setTimeout(r, 2000)); 
                 return true;
             }
         } catch (e) { console.warn("Pass Monetag Pop"); }
     }
 
-    // 5. MONETAG INTERSTITIAL (Manual TWA)
+    // 5. MONETAG INTERSTITIAL (DENGAN TIMEOUT 5 DETIK)
     if (checkCooldown('cd_monetag_int')) {
         try {
             console.log("➡️ Coba: Monetag Interstitial");
             const f = window[`show_${IDS.MONETAG_ZONE}`];
             if (typeof f === 'function') {
-                await f();
+                await Promise.race([
+                    f(),
+                    new Promise((_, reject) => setTimeout(() => reject("Timeout Monetag"), 5000))
+                ]);
                 setCooldown('cd_monetag_int');
                 return true;
             }
         } catch (e) { console.warn("Pass Monetag Int"); }
     }
 
-    // 6. GIGAPUB INTERSTITIAL (Manual)
+    // 6. GIGAPUB INTERSTITIAL (DENGAN TIMEOUT 5 DETIK)
     if (checkCooldown('cd_gigapub_int')) {
         try {
             console.log("➡️ Coba: GigaPub Int");
             if (typeof window.showGiga === 'function') {
-                // Timeout 5 detik agar tidak macet
                 await Promise.race([
                     window.showGiga(),
-                    new Promise(r => setTimeout(r, 5000))
+                    new Promise((_, reject) => setTimeout(() => reject("Timeout GigaPub"), 5000))
                 ]);
                 setCooldown('cd_gigapub_int');
                 return true;
@@ -187,7 +186,7 @@ const getSingleAd = async () => {
         } catch (e) { console.warn("Pass GigaPub Int"); }
     }
 
-    // 7. GIGAPUB SMARTLINK (Manual - Last Resort)
+    // 7. GIGAPUB SMARTLINK (Link Biasa - Anti Macet)
     if (checkCooldown('cd_gigapub_link') && IDS.GIGAPUB_LINK) {
         console.log("➡️ Coba: GigaPub Link");
         try {
@@ -198,7 +197,7 @@ const getSingleAd = async () => {
             }
         } catch(e) {}
 
-        await new Promise(r => setTimeout(r, 1000));
+        await new Promise(r => setTimeout(r, 1500));
         setCooldown('cd_gigapub_link');
         return true;
     }
@@ -207,9 +206,14 @@ const getSingleAd = async () => {
     return false;
 };
 
-// --- EKSEKUSI UTAMA ---
+// --- EKSEKUSI UTAMA (SAFETY FINALLY) ---
 export const showAdStack = async (count = 1) => {
-    if (isAdProcessing) return false;
+    // PENTING: Cek status, kalau true jangan jalan.
+    if (isAdProcessing) {
+        console.warn("⚠️ Klik ditolak: Iklan sedang diproses.");
+        return false;
+    }
+
     isAdProcessing = true;
     showLoadingOverlay();
 
@@ -223,15 +227,16 @@ export const showAdStack = async (count = 1) => {
                     await new Promise(r => setTimeout(r, 2000));
                 }
             } else {
-                // Jika satu gagal di tengah jalan, stop loop
                 break; 
             }
         }
     } catch (e) {
         console.error("Ad Stack Error:", e);
     } finally {
+        // WAJIB DIJALANKAN AGAR TOMBOL HIDUP LAGI
         hideLoadingOverlay();
-        isAdProcessing = false;
+        isAdProcessing = false; 
+        console.log("✅ Ad Process Selesai. Tombol aktif kembali.");
     }
     return successCount > 0;
 };
