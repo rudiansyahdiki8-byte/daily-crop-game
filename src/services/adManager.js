@@ -24,7 +24,7 @@ const IDS = {
     GIGAPUB_LINK: "https://link.gigapub.tech/l/vi8999zpr"
 };
 
-const COOLDOWN_MS = 300 * 1000; // 5 Menit (Jeda antar iklan yang sama)
+const COOLDOWN_MS = 180 * 1000; // 3 Menit (Jeda antar iklan yang sama)
 const WATCH_TIMEOUT = 60000;    // 1 Menit (Batas waktu nonton Monetag)
 
 let isAdProcessing = false; 
