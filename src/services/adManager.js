@@ -1,8 +1,14 @@
 /**
- * AD MANAGER - STRICT QUEUE EDITION
- * * Perbaikan Utama: 
- * 1. Mencegah Overlap: Iklan berikutnya HARAM muncul sebelum iklan sekarang ditutup.
- * 2. Hapus Service Worker: Pastikan sw.js dihapus dari folder public agar tidak auto-popup.
+ * AD MANAGER - FINAL STRATEGY (ADSTERRA LINK INTEGRATED)
+ * * Link Adsterra: https://www.effectivegatecpm.com/...
+ * * Urutan Waterfall:
+ * 1. Adsgram Int
+ * 2. Adsgram Rew
+ * 3. Adsterra Link (Slot 3)
+ * 4. Monetag Popup
+ * 5. Monetag Inters
+ * 6. Adsterra Link (Slot 6)
+ * 7. GigaPub Link
  */
 
 const IDS = {
@@ -10,36 +16,20 @@ const IDS = {
     ADSGRAM_REWARD: "21143",
     
     MONETAG_ZONE: 10457329, 
-    GIGAPUB_LINK: "https://link.gigapub.tech/l/vi8999zpr",
+    
+    // ✅ LINK ADSTERRA ANDA (SUDAH TERPASANG)
+    ADSTERRA_LINK: "https://www.effectivegatecpm.com/gh7bask9y9?key=5a6453e5db9f6bf7c1f28291dddf9826", 
 
-    // SCRIPT URL (Disimpan dulu, jangan dipasang)
-    SCRIPT_ADEXTRA: "https://partner.adextra.io/jt/25e584f1c176cb01a08f07b23eca5b3053fc55b8.js",
-    SCRIPT_GIGAPUB: "//ad.gigapub.tech/script?id=5436"
+    // GigaPub Smartlink (Cadangan Terakhir)
+    GIGAPUB_LINK: "https://link.gigapub.tech/l/vi8999zpr"
 };
 
-const COOLDOWN_MS = 300 * 1000; // 5 Menit
+const COOLDOWN_MS = 300 * 1000; // 5 Menit (Jeda antar iklan yang sama)
+const WATCH_TIMEOUT = 60000;    // 1 Menit (Batas waktu nonton Monetag)
 
 let isAdProcessing = false; 
 
-// --- HELPER: LAZY LOAD (Download Script Diam-diam) ---
-const loadScript = (src) => {
-    return new Promise((resolve, reject) => {
-        // Cek kalau script sudah ada, jangan download lagi
-        if (document.querySelector(`script[src="${src}"]`)) {
-            resolve();
-            return;
-        }
-        console.log(`📥 Downloading script: ${src}...`);
-        const script = document.createElement('script');
-        script.src = src;
-        script.async = true;
-        script.onload = () => { console.log(`✅ Script Ready: ${src}`); resolve(); };
-        script.onerror = () => { console.error(`❌ Script Gagal: ${src}`); reject(); };
-        document.head.appendChild(script);
-    });
-};
-
-// --- HELPER LAINNYA ---
+// --- HELPER FUNCTIONS ---
 const checkCooldown = (key) => {
     try {
         const lastTime = parseInt(localStorage.getItem(key) || '0');
@@ -49,6 +39,8 @@ const checkCooldown = (key) => {
 const setCooldown = (key) => {
     try { localStorage.setItem(key, Date.now().toString()); } catch (e) {}
 };
+
+// UI Overlay (Loading Hitam)
 const showLoadingOverlay = (msg = "MENCARI IKLAN...") => {
     let overlay = document.getElementById('ad-loading-overlay');
     if (!overlay) {
@@ -105,7 +97,7 @@ export const showConfirmPopup = (title, message, iconClass = 'fa-question-circle
 };
 
 // ==========================================
-// === LOGIKA WATERFALL "SATU-SATU" ===
+// === LOGIKA WATERFALL (FINAL MIX) ===
 // ==========================================
 
 const getSingleAd = async () => {
@@ -135,31 +127,28 @@ const getSingleAd = async () => {
         } catch (e) { console.warn("Skip Adsgram Rew"); }
     }
 
-    // 3. ADEXTRA (Hanya download JIKA giliran tiba)
-    if (checkCooldown('cd_adextra')) {
+    // 3. ADSTERRA SMARTLINK (Pengganti AdExtra)
+    if (checkCooldown('cd_adsterra_1') && IDS.ADSTERRA_LINK) {
+        console.log("➡️ [3] Adsterra Smartlink (1)");
+        showLoadingOverlay("MEMBUKA SITUS SPONSOR...");
+        
         try {
-            console.log("➡️ [3] AdExtra");
-            showLoadingOverlay("MEMUAT ADEXTRA...");
-            
-            // Download script baru di sini (agar tidak auto-show sebelumnya)
-            await loadScript(IDS.SCRIPT_ADEXTRA);
-            await new Promise(r => setTimeout(r, 1000)); // Beri waktu napas
-
-            if (typeof window.p_adextra === 'function') {
-                await new Promise((resolve, reject) => {
-                     // Panggil Iklan
-                     window.p_adextra(
-                        () => { console.log("✅ AdExtra Done"); resolve(true); },
-                        () => { reject("AdExtra Error"); }
-                     );
-                });
-                setCooldown('cd_adextra');
-                return true;
+            if (window.Telegram?.WebApp) {
+                // try_instant_view: false agar membuka browser eksternal (lebih aman untuk Direct Link)
+                window.Telegram.WebApp.openLink(IDS.ADSTERRA_LINK, {try_instant_view: false});
+            } else {
+                window.open(IDS.ADSTERRA_LINK, '_blank');
             }
-        } catch (e) { console.warn("Skip AdExtra:", e); }
+        } catch(e) {}
+
+        // Simulasi waktu tunggu 2 detik (agar user melihat loading overlay sebentar)
+        await new Promise(r => setTimeout(r, 2000));
+        
+        setCooldown('cd_adsterra_1');
+        return true;
     }
 
-    // 4. MONETAG POPUP (Promise Only - Tanpa Race)
+    // 4. MONETAG POPUP
     if (checkCooldown('cd_monetag_pop')) {
         try {
             console.log("➡️ [4] Monetag Popup");
@@ -167,18 +156,17 @@ const getSingleAd = async () => {
             
             const f = window[`show_${IDS.MONETAG_ZONE}`];
             if (typeof f === 'function') {
-                // KITA HANYA LANJUT SETELAH IKLAN DITUTUP
-                // Tidak ada timeout, user wajib tutup iklan agar kode lanjut
-                await f('pop'); 
-                
-                console.log("✅ Monetag Popup Ditutup");
+                await Promise.race([
+                    f('pop').then(() => { console.log("✅ Monetag Popup Selesai"); return true; }),
+                    new Promise((_, reject) => setTimeout(() => reject("Timeout"), WATCH_TIMEOUT))
+                ]);
                 setCooldown('cd_monetag_pop');
                 return true;
             }
         } catch (e) { console.warn("Skip Monetag Pop:", e); }
     }
 
-    // 5. MONETAG INTERSTITIAL (Promise Only - Tanpa Race)
+    // 5. MONETAG INTERSTITIAL
     if (checkCooldown('cd_monetag_int')) {
         try {
             console.log("➡️ [5] Monetag Interstitial");
@@ -186,39 +174,41 @@ const getSingleAd = async () => {
             
             const f = window[`show_${IDS.MONETAG_ZONE}`];
             if (typeof f === 'function') {
-                // TUNGGU SAMPAI BENAR-BENAR SELESAI
-                await f();
-                
-                console.log("✅ Monetag Interstitial Ditutup");
+                await Promise.race([
+                    f().then(() => { console.log("✅ Monetag Inters Selesai"); return true; }),
+                    new Promise((_, reject) => setTimeout(() => reject("Timeout"), WATCH_TIMEOUT))
+                ]);
                 setCooldown('cd_monetag_int');
                 return true;
             }
         } catch (e) { console.warn("Skip Monetag Int:", e); }
     }
 
-    // 6. GIGAPUB (Hanya download JIKA giliran tiba)
-    if (checkCooldown('cd_gigapub_int')) {
+    // 6. ADSTERRA SMARTLINK (Pengganti GigaPub Video)
+    if (checkCooldown('cd_adsterra_2') && IDS.ADSTERRA_LINK) {
+        console.log("➡️ [6] Adsterra Smartlink (2)");
+        showLoadingOverlay("MEMBUKA SITUS SPONSOR...");
+        
         try {
-            console.log("➡️ [6] GigaPub");
-            showLoadingOverlay("MEMUAT GIGAPUB...");
-
-            await loadScript(IDS.SCRIPT_GIGAPUB);
-            await new Promise(r => setTimeout(r, 1000));
-
-            if (typeof window.showGiga === 'function') {
-                await window.showGiga(); // Tunggu sampai selesai
-                setCooldown('cd_gigapub_int');
-                return true;
+            if (window.Telegram?.WebApp) {
+                window.Telegram.WebApp.openLink(IDS.ADSTERRA_LINK, {try_instant_view: false});
+            } else {
+                window.open(IDS.ADSTERRA_LINK, '_blank');
             }
-        } catch (e) { console.warn("Skip GigaPub:", e); }
+        } catch(e) {}
+
+        await new Promise(r => setTimeout(r, 2000));
+        setCooldown('cd_adsterra_2');
+        return true;
     }
 
-    // 7. GIGAPUB SMARTLINK
+    // 7. GIGAPUB SMARTLINK (Cadangan Terakhir)
     if (checkCooldown('cd_gigapub_link') && IDS.GIGAPUB_LINK) {
         console.log("➡️ [7] GigaPub Link");
         try {
-            if (window.Telegram?.WebApp) window.Telegram.WebApp.openLink(IDS.GIGAPUB_LINK);
-            else window.open(IDS.GIGAPUB_LINK, '_blank');
+            const url = IDS.GIGAPUB_LINK;
+            if (window.Telegram?.WebApp) window.Telegram.WebApp.openLink(url);
+            else window.open(url, '_blank');
         } catch(e) {}
         
         await new Promise(r => setTimeout(r, 1500));
@@ -235,18 +225,15 @@ export const showAdStack = async (count = 1) => {
     if (isAdProcessing) return false;
     isAdProcessing = true;
     
-    // Jangan tampilkan overlay di awal, biar overlay per-iklan yang muncul
-    // showLoadingOverlay(); 
-
     let successCount = 0;
     try {
         for (let i = 0; i < count; i++) {
             const success = await getSingleAd();
             if (success) {
                 successCount++;
-                hideLoadingOverlay(); // Sembunyikan loading pas iklan sukses
+                hideLoadingOverlay(); 
                 if (i < count - 1) {
-                    await new Promise(r => setTimeout(r, 2000)); // Jeda 2 detik
+                    await new Promise(r => setTimeout(r, 2000)); 
                 }
             } else {
                 break; 
