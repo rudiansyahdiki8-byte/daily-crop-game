@@ -7,7 +7,7 @@ const FarmGrid = ({ user, activePage, currentUserId, onRefreshUser, onOpenMember
 
   // --- 1. LOGIC STATUS SLOT ---
   const getSlotStatus = (slotNum) => {
-      const userSlots = user?.slots || [1];
+      const userSlots = user?.slots || [2];
       const currentPlan = PLANS[user?.plan || 'FREE'];
       const baseLimit = currentPlan.plots; 
       const extraBought = user?.extraSlotsPurchased || 0; 
