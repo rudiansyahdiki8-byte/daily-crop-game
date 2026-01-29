@@ -1,8 +1,8 @@
 /**
- * AD MANAGER - FINAL NATIVE PROMISE EDITION
- * * Update: Menggunakan Native Promise (.then) untuk Monetag.
- * * Kelebihan: Reward hanya diberikan SETELAH user menutup iklan (lebih akurat).
- * * Safety: Tetap ada timeout 5 detik agar game tidak hang jika sinyal jelek.
+ * AD MANAGER - EXTENDED TIMEOUT EDITION
+ * * Masalah Sebelumnya: Timeout 5 detik terlalu cepat untuk iklan video (15-30s).
+ * * Solusi: Timeout diperpanjang jadi 60 Detik (1 Menit) agar user sempat nonton sampai habis.
+ * * Reward System: Native Promise (.then) tetap dipakai untuk akurasi.
  */
 
 const IDS = {
@@ -17,7 +17,10 @@ const IDS = {
     SCRIPT_GIGAPUB: "//ad.gigapub.tech/script?id=5436"
 };
 
-const COOLDOWN_MS = 300 * 1000; // 5 Menit
+// COOLDOWN ANTAR IKLAN (5 MENIT)
+const COOLDOWN_MS = 300 * 1000; 
+// BATAS WAKTU NONTON IKLAN (60 DETIK) - Agar tidak auto-cancel saat nonton
+const WATCH_TIMEOUT = 60000; 
 
 let isAdProcessing = false; 
 
@@ -97,7 +100,7 @@ export const showConfirmPopup = (title, message, iconClass = 'fa-question-circle
 };
 
 // ==========================================
-// === WATERFALL LOGIC (PROMISE BASED) ===
+// === WATERFALL LOGIC (60 DETIK TIMEOUT) ===
 // ==========================================
 
 const getSingleAd = async () => {
@@ -125,14 +128,15 @@ const getSingleAd = async () => {
         } catch (e) { console.warn("Pass Adsgram Rew"); }
     }
 
-    // 3. ADEXTRA (LAZY LOAD + PROMISE RACE)
+    // 3. ADEXTRA (LAZY + 60s TIMEOUT)
     if (checkCooldown('cd_adextra')) {
         try {
-            console.log("➡️ Coba: AdExtra (Lazy Loading...)");
+            console.log("➡️ Coba: AdExtra (Lazy Load...)");
             await loadScript(IDS.SCRIPT_ADEXTRA);
-            await new Promise(r => setTimeout(r, 1000));
+            await new Promise(r => setTimeout(r, 1000)); // Tunggu script siap
 
             if (typeof window.p_adextra === 'function') {
+                // Kita beri waktu 60 detik untuk user nonton & tutup iklan
                 await Promise.race([
                     new Promise((resolve, reject) => {
                         window.p_adextra(
@@ -140,7 +144,7 @@ const getSingleAd = async () => {
                             () => { reject("AdExtra Error"); }
                         );
                     }),
-                    new Promise((_, reject) => setTimeout(() => reject("Timeout AdExtra"), 5000))
+                    new Promise((_, reject) => setTimeout(() => reject("Timeout AdExtra"), WATCH_TIMEOUT))
                 ]);
                 setCooldown('cd_adextra');
                 return true;
@@ -148,19 +152,18 @@ const getSingleAd = async () => {
         } catch (e) { console.warn("Pass AdExtra:", e); }
     }
 
-    // 4. MONETAG POPUP (NATIVE PROMISE) ✅
+    // 4. MONETAG POPUP (PROMISE + 60s TIMEOUT)
     if (checkCooldown('cd_monetag_pop')) {
         try {
             console.log("➡️ Coba: Monetag Popup");
             const f = window[`show_${IDS.MONETAG_ZONE}`];
             if (typeof f === 'function') {
-                // Kita balapan: Iklan Ditutup (then) vs Timeout 5 Detik
                 await Promise.race([
                     f('pop').then(() => {
                         console.log("✅ Monetag Popup Selesai");
                         return true;
                     }),
-                    new Promise((_, reject) => setTimeout(() => reject("Timeout Monetag Pop"), 5000))
+                    new Promise((_, reject) => setTimeout(() => reject("Timeout Monetag Pop"), WATCH_TIMEOUT))
                 ]);
                 
                 setCooldown('cd_monetag_pop');
@@ -169,7 +172,7 @@ const getSingleAd = async () => {
         } catch (e) { console.warn("Pass Monetag Pop:", e); }
     }
 
-    // 5. MONETAG INTERSTITIAL (NATIVE PROMISE) ✅
+    // 5. MONETAG INTERSTITIAL (PROMISE + 60s TIMEOUT)
     if (checkCooldown('cd_monetag_int')) {
         try {
             console.log("➡️ Coba: Monetag Interstitial");
@@ -180,7 +183,7 @@ const getSingleAd = async () => {
                         console.log("✅ Monetag Interstitial Selesai");
                         return true;
                     }),
-                    new Promise((_, reject) => setTimeout(() => reject("Timeout Monetag Int"), 5000))
+                    new Promise((_, reject) => setTimeout(() => reject("Timeout Monetag Int"), WATCH_TIMEOUT))
                 ]);
                 
                 setCooldown('cd_monetag_int');
@@ -189,16 +192,16 @@ const getSingleAd = async () => {
         } catch (e) { console.warn("Pass Monetag Int:", e); }
     }
 
-    // 6. GIGAPUB INTERSTITIAL (LAZY LOAD)
+    // 6. GIGAPUB INTERSTITIAL (LAZY + 60s TIMEOUT)
     if (checkCooldown('cd_gigapub_int')) {
         try {
-            console.log("➡️ Coba: GigaPub Int (Lazy...)");
+            console.log("➡️ Coba: GigaPub Int (Lazy Load...)");
             await loadScript(IDS.SCRIPT_GIGAPUB);
 
             if (typeof window.showGiga === 'function') {
                 await Promise.race([
                     window.showGiga(),
-                    new Promise((_, reject) => setTimeout(() => reject("Timeout GigaPub"), 5000))
+                    new Promise((_, reject) => setTimeout(() => reject("Timeout GigaPub"), WATCH_TIMEOUT))
                 ]);
                 setCooldown('cd_gigapub_int');
                 return true;
