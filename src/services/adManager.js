@@ -1,38 +1,55 @@
 /**
- * AD MANAGER - SAFETY TIMEOUT EDITION
- * * Perbaikan: Menambahkan TIMEOUT 5 Detik di semua iklan manual.
- * * Tujuan: Mencegah tombol "Mati Suri" jika iklan macet/tidak merespon.
+ * AD MANAGER - LAZY LOAD EDITION (ANTI-BANDEL)
+ * * Perbaikan Utama:
+ * - Script GigaPub & AdExtra TIDAK ditaruh di index.html.
+ * - Script di-inject manual saat giliran air terjun (waterfall) tiba.
+ * - Mencegah iklan muncul otomatis saat loading game.
  */
 
 const IDS = {
     ADSGRAM_INT: "int-21085",     
     ADSGRAM_REWARD: "21143",
     
-    // ID Monetag TWA
     MONETAG_ZONE: 10457329, 
+    GIGAPUB_LINK: "https://link.gigapub.tech/l/vi8999zpr",
 
-    // GigaPub Smartlink
-    GIGAPUB_LINK: "https://link.gigapub.tech/l/vi8999zpr"
+    // URL SCRIPT (Disimpan di sini, dipanggil nanti)
+    SCRIPT_ADEXTRA: "https://partner.adextra.io/jt/25e584f1c176cb01a08f07b23eca5b3053fc55b8.js",
+    SCRIPT_GIGAPUB: "//ad.gigapub.tech/script?id=5436"
 };
 
-// COOLDOWN 5 MENIT (300 Detik)
-const COOLDOWN_MS = 300 * 1000; 
+const COOLDOWN_MS = 300 * 1000; // 5 Menit
 
 let isAdProcessing = false; 
 
-// --- HELPER FUNCTIONS ---
+// --- HELPER: LAZY LOAD SCRIPT ---
+// Fungsi sakti untuk memanggil script yang "dibuang" dari index.html
+const loadScript = (src) => {
+    return new Promise((resolve, reject) => {
+        // Cek kalau script sudah ada, langsung lanjut
+        if (document.querySelector(`script[src="${src}"]`)) {
+            resolve();
+            return;
+        }
+        const script = document.createElement('script');
+        script.src = src;
+        script.async = true;
+        script.onload = () => { console.log(`✅ Script Loaded: ${src}`); resolve(); };
+        script.onerror = () => { console.error(`❌ Gagal Load: ${src}`); reject(); };
+        document.head.appendChild(script);
+    });
+};
+
+// --- HELPER: COOLDOWN & OVERLAY ---
 const checkCooldown = (key) => {
     try {
         const lastTime = parseInt(localStorage.getItem(key) || '0');
         return (COOLDOWN_MS - (Date.now() - lastTime)) <= 0; 
     } catch (e) { return true; }
 };
-
 const setCooldown = (key) => {
     try { localStorage.setItem(key, Date.now().toString()); } catch (e) {}
 };
-
-// UI Loading (Overlay Hitam)
 const showLoadingOverlay = () => {
     let overlay = document.getElementById('ad-loading-overlay');
     if (!overlay) {
@@ -49,10 +66,7 @@ const hideLoadingOverlay = () => {
     if (overlay) overlay.style.display = 'none';
 };
 
-// ==========================================
-// === SISTEM UI POPUP (JANGAN DIHAPUS) ===
-// ==========================================
-
+// --- UI POPUP SYSTEM (TETAP ADA) ---
 export const showRewardPopup = (title, message, iconClass = 'fa-coins') => {
     return new Promise((resolve) => {
         let popup = document.getElementById('ad-reward-popup');
@@ -70,7 +84,6 @@ export const showRewardPopup = (title, message, iconClass = 'fa-coins') => {
         }, 50);
     });
 };
-
 export const showConfirmPopup = (title, message, iconClass = 'fa-question-circle') => {
     return new Promise((resolve) => {
         const old = document.getElementById('ad-confirm-popup');
@@ -90,7 +103,7 @@ export const showConfirmPopup = (title, message, iconClass = 'fa-question-circle
 };
 
 // ==========================================
-// === LOGIKA WATERFALL (ANTI MACET) ===
+// === LOGIKA WATERFALL (LAZY LOAD) ===
 // ==========================================
 
 const getSingleAd = async () => {
@@ -118,29 +131,36 @@ const getSingleAd = async () => {
         } catch (e) { console.warn("Pass Adsgram Rew"); }
     }
 
-    // 3. ADEXTRA (DENGAN TIMEOUT 5 DETIK)
+    // 3. ADEXTRA (LAZY LOAD)
+    // Script baru dipanggil di detik ini, jadi tidak mungkin muncul di awal game
     if (checkCooldown('cd_adextra')) {
         try {
-            console.log("➡️ Coba: AdExtra");
+            console.log("➡️ Coba: AdExtra (Lazy Loading...)");
+            
+            // A. Panggil Script dulu
+            await loadScript(IDS.SCRIPT_ADEXTRA);
+            
+            // B. Tunggu sebentar agar script siap
+            await new Promise(r => setTimeout(r, 1000));
+
+            // C. Eksekusi
             if (typeof window.p_adextra === 'function') {
-                // RACE: Siapa cepat dia menang (Iklan vs Timer 5 Detik)
                 await Promise.race([
                     new Promise((resolve, reject) => {
                         window.p_adextra(
-                            () => { console.log("AdExtra Success"); resolve(true); }, // OnSuccess
-                            () => { reject("AdExtra Error/NoFill"); }                // OnError
+                            () => { console.log("AdExtra Success"); resolve(true); },
+                            () => { reject("AdExtra Error/NoFill"); }
                         );
                     }),
                     new Promise((_, reject) => setTimeout(() => reject("Timeout AdExtra"), 5000))
                 ]);
-
                 setCooldown('cd_adextra');
                 return true;
             }
-        } catch (e) { console.warn("Pass AdExtra (Lewat/Timeout):", e); }
+        } catch (e) { console.warn("Pass AdExtra:", e); }
     }
 
-    // 4. MONETAG POPUP (DENGAN TIMEOUT 3 DETIK)
+    // 4. MONETAG POPUP
     if (checkCooldown('cd_monetag_pop')) {
         try {
             console.log("➡️ Coba: Monetag Popup");
@@ -148,14 +168,13 @@ const getSingleAd = async () => {
             if (typeof f === 'function') {
                 f('pop'); 
                 setCooldown('cd_monetag_pop');
-                // Tunggu sebentar saja, jangan await f() karena popup tidak return promise di sdk lama
                 await new Promise(r => setTimeout(r, 2000)); 
                 return true;
             }
         } catch (e) { console.warn("Pass Monetag Pop"); }
     }
 
-    // 5. MONETAG INTERSTITIAL (DENGAN TIMEOUT 5 DETIK)
+    // 5. MONETAG INTERSTITIAL
     if (checkCooldown('cd_monetag_int')) {
         try {
             console.log("➡️ Coba: Monetag Interstitial");
@@ -171,10 +190,16 @@ const getSingleAd = async () => {
         } catch (e) { console.warn("Pass Monetag Int"); }
     }
 
-    // 6. GIGAPUB INTERSTITIAL (DENGAN TIMEOUT 5 DETIK)
+    // 6. GIGAPUB INTERSTITIAL (LAZY LOAD)
+    // Script baru dipanggil di sini
     if (checkCooldown('cd_gigapub_int')) {
         try {
-            console.log("➡️ Coba: GigaPub Int");
+            console.log("➡️ Coba: GigaPub Int (Lazy Loading...)");
+
+            // A. Panggil Script
+            await loadScript(IDS.SCRIPT_GIGAPUB);
+
+            // B. Eksekusi
             if (typeof window.showGiga === 'function') {
                 await Promise.race([
                     window.showGiga(),
@@ -183,10 +208,10 @@ const getSingleAd = async () => {
                 setCooldown('cd_gigapub_int');
                 return true;
             }
-        } catch (e) { console.warn("Pass GigaPub Int"); }
+        } catch (e) { console.warn("Pass GigaPub Int:", e); }
     }
 
-    // 7. GIGAPUB SMARTLINK (Link Biasa - Anti Macet)
+    // 7. GIGAPUB SMARTLINK
     if (checkCooldown('cd_gigapub_link') && IDS.GIGAPUB_LINK) {
         console.log("➡️ Coba: GigaPub Link");
         try {
@@ -206,14 +231,9 @@ const getSingleAd = async () => {
     return false;
 };
 
-// --- EKSEKUSI UTAMA (SAFETY FINALLY) ---
+// --- EKSEKUSI ---
 export const showAdStack = async (count = 1) => {
-    // PENTING: Cek status, kalau true jangan jalan.
-    if (isAdProcessing) {
-        console.warn("⚠️ Klik ditolak: Iklan sedang diproses.");
-        return false;
-    }
-
+    if (isAdProcessing) return false;
     isAdProcessing = true;
     showLoadingOverlay();
 
@@ -233,10 +253,9 @@ export const showAdStack = async (count = 1) => {
     } catch (e) {
         console.error("Ad Stack Error:", e);
     } finally {
-        // WAJIB DIJALANKAN AGAR TOMBOL HIDUP LAGI
         hideLoadingOverlay();
-        isAdProcessing = false; 
-        console.log("✅ Ad Process Selesai. Tombol aktif kembali.");
+        isAdProcessing = false;
+        console.log("✅ Proses Iklan Selesai.");
     }
     return successCount > 0;
 };
