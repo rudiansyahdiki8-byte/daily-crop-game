@@ -1,9 +1,9 @@
 /**
- * AD MANAGER - ROTATION SYSTEM (SISTEM GILIRAN)
- * * Masalah Lama: Adsgram memakan semua trafik prioritas.
- * * Solusi Baru: Iklan dipanggil bergiliran (1 -> 2 -> 3 -> 4 -> ... -> 1).
- * * Efek: 10 Tombol Task akan terbagi rata ke semua network.
- * * Logic Timer: Tetap pakai Timer 15s (kecuali RichAds).
+ * AD MANAGER - SMART TIMING EDITION
+ * * Problem Fix: Timer muncul duluan sebelum iklan keluar.
+ * * Solusi: Tambahkan jeda "OPENING AD..." selama 3-4 detik sebelum timer 15s dimulai.
+ * * RichAds: Diberi waktu loading khusus agar iklan muncul dulu baru timer jalan.
+ * * Rotasi: Tetap jalan (1 -> 2 -> 3 ...).
  */
 
 const IDS = {
@@ -17,23 +17,32 @@ const IDS = {
     RICHADS: { PUB_ID: "1000630", APP_ID: "5929" }
 };
 
-// COOLDOWN PER SLOT (Biarkan 3 Menit/180 Detik)
-// Karena kita punya banyak slot, user tidak akan kehabisan iklan meski di-spam.
-const COOLDOWN_MS = 180 * 1000; 
+const COOLDOWN_MS = 180 * 1000; // 3 Menit
 const WATCH_TIMEOUT = 60000;    
 
 let isAdProcessing = false; 
 
-// --- TIMERS & HELPERS ---
+// --- HELPER: DELAY (Jeda Waktu) ---
+const wait = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+// --- HELPER: COUNTDOWN TIMER ---
 const runCountdown = (seconds) => {
     return new Promise(resolve => {
         let counter = seconds;
         const msgEl = document.getElementById('ad-msg');
+        
+        // Update teks saat timer mulai
         if(msgEl) msgEl.innerText = `PLEASE WAIT ${counter}s...`;
+
         const interval = setInterval(() => {
             counter--;
-            if (counter > 0) { if(msgEl) msgEl.innerText = `PLEASE WAIT ${counter}s...`; } 
-            else { clearInterval(interval); if(msgEl) msgEl.innerText = "COMPLETED!"; resolve(); }
+            if (counter > 0) { 
+                if(msgEl) msgEl.innerText = `PLEASE WAIT ${counter}s...`; 
+            } else { 
+                clearInterval(interval); 
+                if(msgEl) msgEl.innerText = "VERIFYING...";
+                resolve(); 
+            }
         }, 1000);
     });
 };
@@ -75,34 +84,42 @@ const hideLoadingOverlay = () => {
     if (overlay) overlay.style.display = 'none';
 };
 
-// --- DEFINISI SLOT IKLAN (ARRAY) ---
-// Kita buat daftar fungsi agar bisa diputar (rotasi)
+// --- DAFTAR SLOT (DENGAN LOGIKA BARU) ---
 const AD_SLOTS = [
     {
         id: 'adsgram_int',
         name: 'LOADING ADSGRAM...',
         run: async () => {
+            // Adsgram punya timer sendiri, jadi langsung show
             if (!window.Adsgram) throw "No SDK";
             await window.Adsgram.init({ blockId: IDS.ADSGRAM_INT, debug: false }).show();
         }
     },
     {
         id: 'adsterra_1',
-        name: 'OPENING SPONSOR...',
+        name: 'PREPARING AD...', // Teks Awal
         run: async () => {
             openLink(IDS.ADSTERRA_LINK);
+            // Jeda 3 detik: Biarkan tab baru terbuka dulu
+            await wait(3000); 
+            // Baru mulai timer
             await runCountdown(15);
         }
     },
     {
         id: 'monetag_pop',
-        name: 'LOADING MONETAG...',
+        name: 'LOADING POPUP...',
         run: async () => {
             const f = window[`show_${IDS.MONETAG_ZONE}`];
             if (typeof f !== 'function') throw "No SDK";
-            const adPromise = f('pop').catch(() => null); 
-            const timerPromise = runCountdown(15); 
-            await Promise.all([adPromise, timerPromise]);
+            
+            f('pop').catch(() => null); // Munculkan iklan
+            
+            // Jeda 2 detik: Biarkan popup muncul menutupi layar
+            await wait(2000);
+            
+            // Baru mulai timer di background
+            await runCountdown(15);
         }
     },
     {
@@ -110,10 +127,18 @@ const AD_SLOTS = [
         name: 'LOADING RICHADS...',
         run: async () => {
             if (typeof window.TelegramAdsController === 'undefined') throw "No SDK";
+            
+            // Init iklan
             window.TelegramAdsController = new TelegramAdsController();
             window.TelegramAdsController.initialize({ pubId: IDS.RICHADS.PUB_ID, appId: IDS.RICHADS.APP_ID });
-            // RichAds: Delay 10s tanpa timer visual
-            await new Promise(r => setTimeout(r, 10000));
+            
+            // RichAds sering telat, kita kasih waktu "PREPARING" lebih lama (5 detik)
+            const msgEl = document.getElementById('ad-msg');
+            if(msgEl) msgEl.innerText = "PREPARING AD...";
+            await wait(5000); 
+
+            // Setelah 5 detik (iklan harusnya sudah muncul), baru timer jalan
+            await runCountdown(15);
         }
     },
     {
@@ -122,16 +147,18 @@ const AD_SLOTS = [
         run: async () => {
             const f = window[`show_${IDS.MONETAG_ZONE}`];
             if (typeof f !== 'function') throw "No SDK";
-            const adPromise = f().catch(() => null);
-            const timerPromise = runCountdown(15);
-            await Promise.all([adPromise, timerPromise]);
+            
+            f().catch(() => null);
+            await wait(2000); // Tunggu video player muncul
+            await runCountdown(15);
         }
     },
     {
         id: 'gigapub',
-        name: 'OPENING SPONSOR...',
+        name: 'PREPARING AD...',
         run: async () => {
             openLink(IDS.GIGAPUB_LINK);
+            await wait(3000); // Biarkan link kebuka dulu
             await runCountdown(15);
         }
     },
@@ -145,28 +172,23 @@ const AD_SLOTS = [
     },
     {
         id: 'adsterra_2',
-        name: 'OPENING SPONSOR...',
+        name: 'PREPARING AD...',
         run: async () => {
             openLink(IDS.ADSTERRA_LINK);
+            await wait(3000);
             await runCountdown(15);
         }
     }
 ];
 
-// --- CORE: ROTATION LOGIC ---
+// --- ROTATION ENGINE ---
 const getSingleAd = async () => {
-    // 1. Ambil index terakhir dari LocalStorage (Biar rotasi lanjut terus meski refresh)
     let lastIndex = parseInt(localStorage.getItem('last_ad_index') || '-1');
-    
-    // 2. Tentukan mulai dari mana (Index + 1)
     let startIndex = (lastIndex + 1) % AD_SLOTS.length;
     
     console.log(`🎡 Rotation Start: Index ${startIndex}`);
 
-    // 3. Loop memutar (Mencari slot yang READY dan TIDAK COOLDOWN)
-    // Kita loop sebanyak jumlah slot agar semua dicek
     for (let i = 0; i < AD_SLOTS.length; i++) {
-        // Hitung index saat ini (pakai modulo biar muter balik ke 0)
         let currentIndex = (startIndex + i) % AD_SLOTS.length;
         let slot = AD_SLOTS[currentIndex];
 
@@ -175,42 +197,31 @@ const getSingleAd = async () => {
                 console.log(`➡️ Trying Slot [${currentIndex}]: ${slot.id}`);
                 showLoadingOverlay(slot.name);
                 
-                // JALANKAN IKLANNYA
                 await slot.run();
 
-                // SUKSES!
-                // a. Set Cooldown slot ini
                 setCooldown(slot.id);
-                // b. Simpan index ini sebagai "Terakhir Dipakai"
                 localStorage.setItem('last_ad_index', currentIndex.toString());
                 
                 return true;
-
             } catch (e) {
-                console.warn(`⚠️ Slot ${slot.id} Failed/Skipped:`, e);
-                // Kalau error (misal Adsgram habis), Lanjut ke loop berikutnya (i++)
-                // Jangan simpan index, biar next time dicoba lagi atau dilewati
+                console.warn(`⚠️ Slot ${slot.id} Failed:`, e);
             }
-        } else {
-            console.log(`⏳ Slot ${slot.id} is Cooldown`);
         }
     }
 
-    // 4. Kalau semua slot habis/cooldown, pakai SAFETY NET (Adsterra Paksa)
-    console.log("🔥 All Slots Cooldown/Error -> Force Backup");
+    // Safety Backup
     if (checkCooldown('backup_final')) {
-        showLoadingOverlay("OPENING SPONSOR...");
+        showLoadingOverlay("PREPARING AD...");
         openLink(IDS.ADSTERRA_LINK);
+        await wait(3000);
         await runCountdown(15);
         setCooldown('backup_final');
         return true;
     }
 
-    console.error("❌ ABSOLUTELY NO ADS AVAILABLE");
     return false;
 };
 
-// --- MAIN EXPORT ---
 export const showAdStack = async (count = 1) => {
     if (isAdProcessing) return false;
     isAdProcessing = true;
@@ -233,7 +244,6 @@ export const showAdStack = async (count = 1) => {
     return successCount > 0;
 };
 
-// --- UI POPUP EXPORT (Sama seperti sebelumnya) ---
 export const showRewardPopup = (title, message, iconClass = 'fa-coins') => {
     return new Promise((resolve) => {
         const oldPopup = document.getElementById('ad-reward-popup');
@@ -279,3 +289,4 @@ export const showConfirmPopup = (title, message, iconClass = 'fa-question-circle
 };
 
 window.resetAds = () => { isAdProcessing = false; hideLoadingOverlay(); console.log("Ads Reset!"); };
+        
