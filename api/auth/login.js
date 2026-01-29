@@ -28,7 +28,7 @@ export default async function handler(req, res) {
         storageLimit: 50,
         inventory: {},
         farm: {},
-        slots: [2],
+        slots: [1],
         buffs: {},
         dailyTasks: {},
         friendsCount: 0,
