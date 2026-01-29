@@ -26,7 +26,7 @@ export default async function handler(req, res) {
       if (userData.plan === planId) throw new Error("Anda sudah berada di Plan ini!");
 
       // 2. HITUNG HARGA (USDT -> PTS)
-      const rateUsdToPts = GAME_CONFIG.WITHDRAW?.RATE || 250000; 
+      const rateUsdToPts = GAME_CONFIG.WITHDRAW?.RATE || 100000; 
       const priceInPts = targetPlan.priceUsdt * rateUsdToPts;
 
       // 3. CEK SALDO
