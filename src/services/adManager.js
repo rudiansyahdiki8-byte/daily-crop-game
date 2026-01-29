@@ -110,50 +110,68 @@ const getSingleAd = async () => {
     }
 
     // 2. ADEXIUM (ID Baru & Logic Baru)
-    if (checkCooldown('last_adexium')) {
+        if (checkCooldown('last_adexium')) {
         try {
+            // Cek apakah script Adexium sudah terload
             if (typeof window.AdexiumWidget !== 'undefined') {
-                console.log("➡️ Step 2: Adexium");
+                console.log("➡️ Step 2: Adexium (Official Integration)");
                 
                 await new Promise((resolve, reject) => {
                     const adexium = new window.AdexiumWidget({
-                        wid: IDS.ADEXIUM, // ID Baru
+                        wid: IDS.ADEXIUM,
                         adFormat: 'interstitial',
                         isFullScreen: true, 
+                        debug: true, // Gunakan True untuk tes ID baru, ubah False jika sudah rilis
                         zIndex: 2147483647 
                     });
 
-                    // Event Listeners
+                    // Handler: Iklan Diterima & Siap Muncul
                     const onAdReceived = (ad) => {
                         console.log("✅ Adexium Received");
-                        adexium.displayAd(ad); 
-                    };
-                    const onNoAdFound = () => reject('No Fill');
-                    const onFinish = () => { 
-                        try { adexium.destroy?.(); } catch(e){} 
-                        resolve(); 
+                        adexium.displayAd(ad);
                     };
 
+                    // Handler: Iklan Tidak Ditemukan
+                    const onNoAdFound = () => {
+                        reject('No Fill');
+                    };
+
+                    // Handler: Iklan Selesai / Ditutup
+                    const onFinish = () => {
+                        try { 
+                            adexium.off('adReceived', onAdReceived);
+                            adexium.off('noAdFound', onNoAdFound);
+                            adexium.off('adPlaybackCompleted', onFinish);
+                            adexium.off('adClosed', onFinish);
+                            adexium.destroy?.(); 
+                        } catch(e){}
+                        resolve();
+                    };
+
+                    // Subscribe Event (Sesuai Dokumen)
                     adexium.on('adReceived', onAdReceived);
                     adexium.on('noAdFound', onNoAdFound);
                     adexium.on('adPlaybackCompleted', onFinish);
-                    adexium.on('adClosed', onFinish);
+                    adexium.on('adClosed', onFinish); // Tambahan safety jika user tutup paksa
 
-                    // Request
+                    // Request Iklan
                     adexium.requestAd('interstitial');
-                    
-                    // Timeout Safety
+
+                    // Timeout Safety 10 detik
                     setTimeout(() => { 
                         try { adexium.destroy?.(); } catch(e){}
                         reject('Timeout'); 
                     }, 10000);
                 });
-                
+
                 setCooldown('last_adexium');
                 return true;
+            } else {
+                console.warn("⚠️ Script Adexium belum load di index.html");
             }
         } catch (e) { console.warn("⚠️ Step 2 Error:", e); }
     }
+
 
     // 3. ADSGRAM REWARD (Cooldown 3m)
     if (checkCooldown('last_adsgram_rew') && window.Adsgram) {
