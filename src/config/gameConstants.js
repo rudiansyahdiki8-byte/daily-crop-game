@@ -54,7 +54,7 @@ export const STORAGE_UPGRADES = {
 
 // --- LOGIKA PLAN ---
 export const PLANS = {
-  FREE:     { id: "FREE",     priceUsdt: 0,  plots: 2,  storage: 50,       bonusSell: 0,    ads: "High" },
+  FREE:     { id: "FREE",     priceUsdt: 0,  plots: 1,  storage: 50,       bonusSell: 0,    ads: "High" },
   MORTGAGE: { id: "MORTGAGE", priceUsdt: 20, plots: 4,  storage: 240,      bonusSell: 0.05, ads: "Medium" },
   TENANT:   { id: "TENANT",   priceUsdt: 30, plots: 7,  storage: 500,      bonusSell: 0.15, ads: "None" },
   OWNER:    { id: "OWNER",    priceUsdt: 50, plots: 10, storage: Infinity, bonusSell: 0.30, ads: "None" },
