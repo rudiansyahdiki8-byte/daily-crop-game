@@ -1,32 +1,31 @@
 /**
- * AD MANAGER - SMARTLINK EDITION
- * * Perubahan Strategi:
- * 1. GigaPub: Diganti ke SMARTLINK (Lebih stabil, anti-stuck).
- * -> Posisi: Tier 4 (Sebelum Monetag).
- * -> Cooldown: 3 Menit (Supaya user tidak dilempar ke browser terus-terusan).
- * 2. Monetag: Video (Tier 5) & Popup (Tier 6) tetap ada sebagai cadangan.
- * 3. Adexium: Tetap mode Singleton (Terbaik).
+ * AD MANAGER - HYBRID MODE (WEBSITE + TWA BACKUP)
+ * * Strategi Testing:
+ * 1. ADSGRAM: Tier 1.
+ * 2. MONETAG WEBSITE (Direct Link): Tier 2 -> Menggantikan Adexium/GigaPub.
+ * 3. MONETAG TWA (Zone Lama): Tier 4 -> Disimpan (Jangan dibuang dulu).
+ * 4. GIGAPUB: Tier 5 -> Paling terakhir.
  */
 
 const IDS = {
     ADSGRAM_INT: "int-21085",     
     ADSGRAM_REWARD: "21143",      
     
-    // ✅ ID ADEXIUM
-    ADEXIUM: "d458d704-f8eb-420b-b4fe-b60432bc2b63", 
+    // ✅ MONETAG WEBSITE (DIRECT LINK BARU)
+    // Link dari otieu.com yang Anda kirim
+    MONETAG_WEB_LINK: "https://otieu.com/4/10535147", 
     
-    MONETAG_ZONE: 10457329,
+    // ✅ MONETAG TWA (ZONE LAMA - CADANGAN)
+    MONETAG_TWA_ZONE: 10457329,
 
-    // ✅ SMARTLINK GIGAPUB (Dari data backup Anda)
+    // GIGAPUB (SMARTLINK - TERAKHIR)
     GIGAPUB_LINK: "https://link.gigapub.tech/l/vi8999zpr" 
 };
 
 // ATURAN COOLDOWN: 3 MENIT 
-// Berlaku untuk: Adsgram, Adexium, DAN Smartlink GigaPub
 const COOLDOWN_MS = 180 * 1000; 
 
 let isAdProcessing = false; 
-let adexiumInstance = null; // Variable Singleton Adexium
 
 // --- HELPER FUNCTIONS ---
 const checkCooldown = (key) => {
@@ -57,7 +56,7 @@ const hideLoadingOverlay = () => {
     if (overlay) overlay.style.display = 'none';
 };
 
-// Popup Reward (Wajib Ada)
+// Popup Reward
 export const showRewardPopup = (title, message, iconClass = 'fa-coins') => {
     return new Promise((resolve) => {
         let popup = document.getElementById('ad-reward-popup');
@@ -76,7 +75,7 @@ export const showRewardPopup = (title, message, iconClass = 'fa-coins') => {
     });
 };
 
-// Popup Confirm (Wajib Ada)
+// Popup Confirm
 export const showConfirmPopup = (title, message, iconClass = 'fa-question-circle') => {
     return new Promise((resolve) => {
         const old = document.getElementById('ad-confirm-popup');
@@ -95,11 +94,11 @@ export const showConfirmPopup = (title, message, iconClass = 'fa-question-circle
     });
 };
 
-// --- LOGIKA WATERFALL (FINAL STABLE) ---
+// --- LOGIKA WATERFALL (URUTAN BARU) ---
 const getSingleAd = async () => {
     console.log("🌊 Memulai Waterfall Iklan...");
 
-    // 1. ADSGRAM (Cooldown 3m)
+    // 1. ADSGRAM INT (Cooldown 3m)
     if (checkCooldown('last_adsgram_int') && window.Adsgram) {
         try {
             console.log("➡️ Step 1: Adsgram Int");
@@ -109,43 +108,24 @@ const getSingleAd = async () => {
         } catch (e) { console.warn("⚠️ Step 1 Lewat:", e); }
     }
 
-    // 2. ADEXIUM (Singleton Mode)
-    if (checkCooldown('last_adexium')) {
+    // 2. MONETAG WEBSITE (DIRECT LINK)
+    // -> Menggantikan posisi Adexium/GigaPub
+    if (checkCooldown('last_monetag_web') && IDS.MONETAG_WEB_LINK) {
         try {
-            if (typeof window.AdexiumWidget !== 'undefined') {
-                console.log("➡️ Step 2: Adexium");
-                if (!adexiumInstance) {
-                    adexiumInstance = new window.AdexiumWidget({
-                        wid: IDS.ADEXIUM,
-                        adFormat: 'interstitial',
-                        isFullScreen: true,
-                        debug: true
-                    });
-                }
-                await new Promise((resolve, reject) => {
-                    const onAdReceived = (ad) => { if (adexiumInstance) adexiumInstance.displayAd(ad); };
-                    const onNoAdFound = () => reject('No Fill');
-                    const onFinish = () => { cleanup(); resolve(); };
-                    const cleanup = () => {
-                        if (adexiumInstance) {
-                            adexiumInstance.off('adReceived', onAdReceived);
-                            adexiumInstance.off('noAdFound', onNoAdFound);
-                            adexiumInstance.off('adPlaybackCompleted', onFinish);
-                            adexiumInstance.off('adClosed', onFinish);
-                        }
-                    };
-                    if (adexiumInstance) {
-                        adexiumInstance.on('adReceived', onAdReceived);
-                        adexiumInstance.on('noAdFound', onNoAdFound);
-                        adexiumInstance.on('adPlaybackCompleted', onFinish);
-                        adexiumInstance.on('adClosed', onFinish);
-                        adexiumInstance.requestAd('interstitial');
-                    }
-                    setTimeout(() => { cleanup(); reject('Timeout'); }, 8000);
-                });
-                setCooldown('last_adexium');
-                return true;
+            console.log("➡️ Step 2: Monetag Website (Direct Link)");
+            
+            if (window.Telegram?.WebApp) {
+                window.Telegram.WebApp.openLink(IDS.MONETAG_WEB_LINK);
+            } else {
+                window.open(IDS.MONETAG_WEB_LINK, '_blank');
             }
+
+            // Jeda 2 detik
+            await new Promise(r => setTimeout(r, 2000));
+            
+            setCooldown('last_monetag_web');
+            console.log("✅ Monetag Web Opened");
+            return true;
         } catch (e) { console.warn("⚠️ Step 2 Error:", e); }
     }
 
@@ -161,43 +141,44 @@ const getSingleAd = async () => {
         } catch (e) { console.warn("⚠️ Step 3 Lewat:", e); }
     }
 
-    // 4. GIGAPUB (SMARTLINK MODE)
-    // Anti-Stuck: Buka link -> Langsung anggap sukses
+    // 4. MONETAG TWA (ZONE LAMA - CADANGAN)
+    // "Jangan buang monetag TWA dulu" -> Kita panggil di sini
+    try {
+        console.log("➡️ Step 4: Monetag TWA (Video/Popup)");
+        const f = window[`show_${IDS.MONETAG_TWA_ZONE}`];
+        if (typeof f === 'function') { 
+            // Coba Video dulu
+            await f(); 
+            return true; 
+        }
+    } catch (e) { 
+        // Kalau video gagal, coba Popup TWA
+        try {
+             const f = window[`show_${IDS.MONETAG_TWA_ZONE}`];
+             if (typeof f === 'function') { await f('pop'); return true; }
+        } catch(err) {}
+    }
+
+    // 5. GIGAPUB (SMARTLINK - TERAKHIR)
+    // "Gigapub buat terakhir"
     if (checkCooldown('last_gigapub') && IDS.GIGAPUB_LINK) {
         try {
-            console.log("➡️ Step 4: GigaPub Smartlink");
+            console.log("➡️ Step 5: GigaPub Smartlink (Last Resort)");
             
-            // Buka Link (Support Telegram & Browser biasa)
             if (window.Telegram?.WebApp) {
                 window.Telegram.WebApp.openLink(IDS.GIGAPUB_LINK);
             } else {
                 window.open(IDS.GIGAPUB_LINK, '_blank');
             }
 
-            // Beri jeda 1 detik agar terasa natural, lalu return true
             await new Promise(r => setTimeout(r, 1000));
-            
             setCooldown('last_gigapub');
-            console.log("✅ GigaPub Smartlink Opened");
+            console.log("✅ GigaPub Opened");
             return true;
-        } catch (e) { console.warn("⚠️ Step 4 Error:", e); }
+        } catch (e) { console.warn("⚠️ Step 5 Error:", e); }
     }
 
-    // 5. MONETAG VIDEO (Unlimited)
-    try {
-        console.log("➡️ Step 5: Monetag Video");
-        const f = window[`show_${IDS.MONETAG_ZONE}`];
-        if (typeof f === 'function') { await f(); return true; }
-    } catch (e) { }
-
-    // 6. MONETAG POPUP (Unlimited - Jaring Terakhir)
-    try {
-        console.log("➡️ Step 6: Monetag Popup");
-        const f = window[`show_${IDS.MONETAG_ZONE}`];
-        if (typeof f === 'function') { await f('pop'); return true; }
-    } catch (e) { }
-
-    console.error("❌ SEMUA IKLAN GAGAL");
+    console.error("❌ SEMUA IKLAN GAGAL/COOLDOWN");
     return false;
 };
 
