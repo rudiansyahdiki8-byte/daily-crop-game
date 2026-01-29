@@ -1,29 +1,28 @@
 /**
- * AD MANAGER - FINAL SAFE VERSION (BASED ON YOUR BACKUP)
- * * Struktur: 100% Sama dengan file backup Anda (Aman untuk Build).
- * * Update: 
- * 1. ID Adexium Baru (d458d704...).
- * 2. GigaPub pakai window.showGiga() (ID 5436).
+ * AD MANAGER - GIGAPUB PRIORITY & COOLDOWN
+ * * Update Strategi:
+ * 1. Urutan: Adsgram -> Adexium -> GigaPub -> Monetag.
+ * 2. GigaPub: Masuk aturan Cooldown 3 Menit (Safety).
+ * 3. Monetag: Menjadi cadangan terakhir (Unlimited).
  */
 
 const IDS = {
     ADSGRAM_INT: "int-21085",     
     ADSGRAM_REWARD: "21143",      
     
-    // ✅ UPDATE ID ADEXIUM BARU
+    // ✅ ID ADEXIUM
     ADEXIUM: "d458d704-f8eb-420b-b4fe-b60432bc2b63", 
     
     MONETAG_ZONE: 10457329,
-    
-    // (Smartlink lama diganti logic GigaPub baru di bawah)
 };
 
-// ✅ CONFIG GIGAPUB BARU (ID 5436)
+// ✅ CONFIG GIGAPUB (ID 5436)
 const GIGAPUB_CONFIG = {
     SCRIPT_URL: "https://ad.gigapub.tech/script?id=5436"
 };
 
-// ATURAN COOLDOWN: 3 MENIT (Hanya untuk Tier 1, 2, 3)
+// ATURAN COOLDOWN: 3 MENIT 
+// Berlaku untuk: Adsgram, Adexium, DAN GigaPub
 const COOLDOWN_MS = 180 * 1000; 
 
 let isAdProcessing = false; 
@@ -95,7 +94,7 @@ export const showConfirmPopup = (title, message, iconClass = 'fa-question-circle
     });
 };
 
-// --- LOGIKA WATERFALL UTAMA (Update ID & GigaPub Logic) ---
+// --- LOGIKA WATERFALL UTAMA (Update Urutan) ---
 const getSingleAd = async () => {
     console.log("🌊 Memulai Waterfall Iklan...");
 
@@ -109,28 +108,25 @@ const getSingleAd = async () => {
         } catch (e) { console.warn("⚠️ Step 1 Lewat:", e); }
     }
 
-    // 2. ADEXIUM (ID Baru & Logic Baru)
-if (checkCooldown('last_adexium')) {
+    // 2. ADEXIUM (Cooldown 3m)
+    if (checkCooldown('last_adexium')) {
         try {
             if (typeof window.AdexiumWidget !== 'undefined') {
                 console.log("➡️ Step 2: Adexium");
                 
                 await new Promise((resolve, reject) => {
                     const adexium = new window.AdexiumWidget({
-                        wid: IDS.ADEXIUM, // ID: d458d704...
+                        wid: IDS.ADEXIUM,
                         adFormat: 'interstitial',
                         isFullScreen: true, 
                         zIndex: 2147483647 
                     });
 
-                    const onAdReceived = (ad) => {
-                        console.log("✅ Adexium Received");
-                        adexium.displayAd(ad);
-                    };
+                    const onAdReceived = (ad) => { adexium.displayAd(ad); };
                     const onNoAdFound = () => reject('No Fill');
-                    const onFinish = () => {
-                        try { adexium.destroy?.(); } catch(e){}
-                        resolve();
+                    const onFinish = () => { 
+                        try { adexium.destroy?.(); } catch(e){} 
+                        resolve(); 
                     };
 
                     adexium.on('adReceived', onAdReceived);
@@ -142,9 +138,9 @@ if (checkCooldown('last_adexium')) {
                     setTimeout(() => { 
                         try { adexium.destroy?.(); } catch(e){}
                         reject('Timeout'); 
-                    }, 8000);
+                    }, 10000);
                 });
-
+                
                 setCooldown('last_adexium');
                 return true;
             }
@@ -163,51 +159,58 @@ if (checkCooldown('last_adexium')) {
         } catch (e) { console.warn("⚠️ Step 3 Lewat:", e); }
     }
 
-    // 4. MONETAG VIDEO (Unlimited)
+    // 4. GIGAPUB (NAIK KELAS! + PAKAI COOLDOWN 3 MENIT)
+    // Sekarang dia akan dicek Cooldown-nya dulu
+    if (checkCooldown('last_gigapub')) {
+        try {
+            console.log("➡️ Step 4: GigaPub (Priority & Cooldown)");
+            
+            // A. Lazy Load Script
+            if (!window.showGiga) {
+                console.log("⏳ Loading Script GigaPub...");
+                await new Promise((resolve, reject) => {
+                    if(document.getElementById('gigapub-lib')) { resolve(); return; }
+                    const script = document.createElement('script');
+                    script.id = 'gigapub-lib';
+                    script.src = GIGAPUB_CONFIG.SCRIPT_URL; 
+                    script.onload = resolve;
+                    script.onerror = reject;
+                    document.head.appendChild(script);
+                });
+            }
+
+            // B. Show Ad
+            if (typeof window.showGiga === 'function') {
+                await window.showGiga(); // Return Promise
+                console.log("✅ GigaPub Success");
+                
+                // C. Catat Waktu (Agar kena Cooldown)
+                setCooldown('last_gigapub');
+                
+                return true;
+            }
+        } catch (e) { console.warn("⚠️ Step 4 GigaPub Error:", e); }
+    }
+
+    // 5. MONETAG VIDEO (Unlimited - Cadangan 1)
     try {
-        console.log("➡️ Step 4: Monetag Video");
+        console.log("➡️ Step 5: Monetag Video (Backup Unlimited)");
         const f = window[`show_${IDS.MONETAG_ZONE}`];
         if (typeof f === 'function') {
             await f(); 
             return true;
         }
-    } catch (e) { console.warn("⚠️ Step 4 Lewat:", e); }
+    } catch (e) { console.warn("⚠️ Step 5 Lewat:", e); }
 
-    // 5. MONETAG POPUP (Unlimited)
+    // 6. MONETAG POPUP (Unlimited - Cadangan 2)
     try {
-        console.log("➡️ Step 5: Monetag Popup");
+        console.log("➡️ Step 6: Monetag Popup (Backup Unlimited)");
         const f = window[`show_${IDS.MONETAG_ZONE}`];
         if (typeof f === 'function') {
             await f('pop'); 
             return true;
         }
-    } catch (e) { console.warn("⚠️ Step 5 Lewat:", e); }
-
-    // 6. GIGAPUB (METODE BARU: window.showGiga)
-    try {
-        console.log("➡️ Step 6: GigaPub (showGiga)");
-        
-        // A. Lazy Load Script (Jika belum ada)
-        if (!window.showGiga) {
-            console.log("⏳ Loading Script GigaPub...");
-            await new Promise((resolve, reject) => {
-                if(document.getElementById('gigapub-lib')) { resolve(); return; }
-                const script = document.createElement('script');
-                script.id = 'gigapub-lib';
-                script.src = GIGAPUB_CONFIG.SCRIPT_URL; // URL ID 5436
-                script.onload = resolve;
-                script.onerror = reject;
-                document.head.appendChild(script);
-            });
-        }
-
-        // B. Panggil Fungsi showGiga
-        if (typeof window.showGiga === 'function') {
-            await window.showGiga(); // Return Promise
-            console.log("✅ GigaPub Success");
-            return true;
-        }
-    } catch (e) { console.warn("⚠️ Step 6 Error:", e); }
+    } catch (e) { console.warn("⚠️ Step 6 Lewat:", e); }
 
     console.error("❌ SEMUA IKLAN GAGAL");
     return false;
