@@ -1,42 +1,38 @@
 /**
- * AD MANAGER - ULTIMATE TIMER EDITION
- * * Fitur: SEMUA SLOT (Link/Popup) memiliki timer mundur wajib 15 detik.
- * * Bahasa: Full English.
- * * Slot: Adsgram -> Adsterra -> Monetag (Pop/Int) -> RichAds -> GigaPub -> Backup.
+ * AD MANAGER - INDEX.HTML INTEGRATION
+ * * RichAds Script: Sudah dipasang di index.html (Global).
+ * * RichAds Logic: Langsung panggil window.TelegramAdsController.
+ * * Timer: Slot lain pakai Timer 15s, RichAds pakai "Loading Wait" 10s (Biar aman).
  */
 
 const IDS = {
     ADSGRAM_INT: "int-21085",     
     ADSGRAM_REWARD: "21143",
+    MONETAG_ZONE: 10457329,
     
-    MONETAG_ZONE: 10457329, // SDK ZONE
-
     // ✅ LINK ADSTERRA
     ADSTERRA_LINK: "https://www.effectivegatecpm.com/gh7bask9y9?key=5a6453e5db9f6bf7c1f28291dddf9826", 
 
-    // ✅ LINK GIGAPUB (Dimasukkan kembali sesuai request)
+    // ✅ LINK GIGAPUB
     GIGAPUB_LINK: "https://link.gigapub.tech/l/vi8999zpr",
 
     // ✅ RICHADS CONFIG
     RICHADS: {
-        SCRIPT_URL: "https://richinfo.co/richpartners/telegram/js/tg-ob.js",
         PUB_ID: "1000630",
         APP_ID: "5929"
     }
 };
 
-const COOLDOWN_MS = 360 * 1000; // 3 Minutes
+const COOLDOWN_MS = 180 * 1000; // 3 Menit
 const WATCH_TIMEOUT = 60000;    
 
 let isAdProcessing = false; 
 
-// --- HELPER: COUNTDOWN TIMER (Visual) ---
+// --- HELPER: COUNTDOWN TIMER (Untuk Link/Popup Biasa) ---
 const runCountdown = (seconds) => {
     return new Promise(resolve => {
         let counter = seconds;
         const msgEl = document.getElementById('ad-msg');
-        
-        // Update teks awal
         if(msgEl) msgEl.innerText = `PLEASE WAIT ${counter}s...`;
 
         const interval = setInterval(() => {
@@ -46,23 +42,9 @@ const runCountdown = (seconds) => {
             } else {
                 clearInterval(interval);
                 if(msgEl) msgEl.innerText = "COMPLETED!";
-                resolve(); // Timer selesai
+                resolve(); 
             }
         }, 1000);
-    });
-};
-
-// --- HELPER: LAZY LOAD ---
-const loadScript = (src, timeout = 10000) => {
-    return new Promise((resolve, reject) => {
-        if (document.querySelector(`script[src="${src}"]`)) { resolve(); return; }
-        const script = document.createElement('script');
-        script.src = src;
-        script.async = true;
-        const timer = setTimeout(() => { script.src = ""; reject("Script Timeout"); }, timeout);
-        script.onload = () => { clearTimeout(timer); console.log(`✅ Loaded: ${src}`); resolve(); };
-        script.onerror = () => { clearTimeout(timer); console.error(`❌ Error: ${src}`); reject(); };
-        document.head.appendChild(script);
     });
 };
 
@@ -178,7 +160,7 @@ const getSingleAd = async () => {
         } catch (e) { console.warn("Skip Adsgram Rew"); }
     }
 
-    // 3. ADSTERRA LINK (WITH TIMER 15s)
+    // 3. ADSTERRA LINK (TIMER 15s)
     if (checkCooldown('cd_adsterra_1') && IDS.ADSTERRA_LINK) {
         console.log("➡️ [3] Adsterra Link");
         showLoadingOverlay("OPENING SPONSOR...");
@@ -190,8 +172,7 @@ const getSingleAd = async () => {
         return true;
     }
 
-    // 4. MONETAG POPUP (WITH TIMER 15s)
-    // Walaupun user tutup popupnya, timer di layar game tetap jalan 15s
+    // 4. MONETAG POPUP (TIMER 15s)
     if (checkCooldown('cd_monetag_pop')) {
         try {
             console.log("➡️ [4] Monetag Popup");
@@ -200,8 +181,7 @@ const getSingleAd = async () => {
                 showLoadingOverlay("LOADING MONETAG...");
                 
                 const adPromise = f('pop').catch(() => null); 
-                const timerPromise = runCountdown(15); // Wajib tunggu 15s
-
+                const timerPromise = runCountdown(15); 
                 await Promise.all([adPromise, timerPromise]);
 
                 setCooldown('cd_monetag_pop');
@@ -210,7 +190,7 @@ const getSingleAd = async () => {
         } catch (e) { console.warn("Skip Monetag Pop:", e); }
     }
 
-    // 5. MONETAG INTERSTITIAL (WITH TIMER 15s)
+    // 5. MONETAG INTERSTITIAL (TIMER 15s)
     if (checkCooldown('cd_monetag_int')) {
         try {
             console.log("➡️ [5] Monetag Interstitial");
@@ -219,8 +199,7 @@ const getSingleAd = async () => {
                 showLoadingOverlay("LOADING VIDEO...");
                 
                 const adPromise = f().catch(() => null);
-                const timerPromise = runCountdown(15); // Disamakan 15s
-
+                const timerPromise = runCountdown(15);
                 await Promise.all([adPromise, timerPromise]);
                 
                 setCooldown('cd_monetag_int');
@@ -229,50 +208,51 @@ const getSingleAd = async () => {
         } catch (e) { console.warn("Skip Monetag Int:", e); }
     }
 
-    // 6. RICHADS (WITH TIMER 15s)
+    // 6. RICHADS (Tanpa Countdown Visual, tapi Delay 10 Detik)
     if (checkCooldown('cd_richads')) {
         try {
-            console.log("➡️ [6] RichAds");
-            showLoadingOverlay("LOADING RICHADS...");
+            console.log("➡️ [6] RichAds (Global)");
             
-            await loadScript(IDS.RICHADS.SCRIPT_URL, 8000);
-            
+            // Cek apakah script di index.html sudah load?
             if (typeof window.TelegramAdsController !== 'undefined') {
+                showLoadingOverlay("LOADING RICHADS...");
+                
+                // Initialize Ulang
                 window.TelegramAdsController = new TelegramAdsController();
                 window.TelegramAdsController.initialize({
                     pubId: IDS.RICHADS.PUB_ID,
                     appId: IDS.RICHADS.APP_ID,
                 });
                 
-                // Wajib tunggu 15s
-                await runCountdown(15);
+                // Jeda 10 Detik (Tanpa timer mundur visual, cuma Loading...)
+                // Ini memberi waktu iklan untuk muncul dan user menontonnya.
+                console.log("⏳ Waiting 10s for RichAds...");
+                await new Promise(r => setTimeout(r, 10000));
                 
                 setCooldown('cd_richads');
                 return true;
+            } else {
+                console.warn("⚠️ RichAds Script not ready yet");
             }
         } catch(e) { console.warn("RichAds Error:", e); }
     }
 
-    // 7. GIGAPUB SMARTLINK (WITH TIMER 15s)
+    // 7. GIGAPUB (TIMER 15s)
     if (checkCooldown('cd_gigapub') && IDS.GIGAPUB_LINK) {
         console.log("➡️ [7] GigaPub Link");
         showLoadingOverlay("OPENING SPONSOR...");
-        
         openLink(IDS.GIGAPUB_LINK);
         await runCountdown(15);
-
         setCooldown('cd_gigapub');
         return true;
     }
 
-    // 8. BACKUP (Adsterra) - Safety Net
+    // 8. BACKUP (TIMER 15s)
     if (checkCooldown('cd_backup') && IDS.ADSTERRA_LINK) {
         console.log("➡️ [8] Backup Link");
         showLoadingOverlay("OPENING SPONSOR...");
-        
         openLink(IDS.ADSTERRA_LINK);
         await runCountdown(15);
-
         setCooldown('cd_backup');
         return true;
     }
