@@ -25,7 +25,7 @@ const IDS = {
     }
 };
 
-const COOLDOWN_MS = 180 * 1000; // 3 Menit
+const COOLDOWN_MS = 300 * 1000; // 3 Menit
 const WATCH_TIMEOUT = 60000;    // 1 Menit (Timeout Monetag)
 
 let isAdProcessing = false; 
