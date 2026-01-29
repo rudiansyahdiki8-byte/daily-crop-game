@@ -1,10 +1,11 @@
 /**
- * AD MANAGER - FINAL FIX (TIMEOUT SAFETY)
- * * Perbaikan Masalah GigaPub:
- * 1. Menambahkan "Safety Timeout" 15 detik pada GigaPub.
- * -> Jika iklan macet/tidak close, game akan otomatis lanjut & kasih reward.
- * -> Ini juga memperbaiki masalah "Cooldown tidak tersimpan".
- * 2. Adexium tetap Mode Singleton (Sesuai dokumen).
+ * AD MANAGER - SMARTLINK EDITION
+ * * Perubahan Strategi:
+ * 1. GigaPub: Diganti ke SMARTLINK (Lebih stabil, anti-stuck).
+ * -> Posisi: Tier 4 (Sebelum Monetag).
+ * -> Cooldown: 3 Menit (Supaya user tidak dilempar ke browser terus-terusan).
+ * 2. Monetag: Video (Tier 5) & Popup (Tier 6) tetap ada sebagai cadangan.
+ * 3. Adexium: Tetap mode Singleton (Terbaik).
  */
 
 const IDS = {
@@ -15,18 +16,17 @@ const IDS = {
     ADEXIUM: "d458d704-f8eb-420b-b4fe-b60432bc2b63", 
     
     MONETAG_ZONE: 10457329,
+
+    // ✅ SMARTLINK GIGAPUB (Dari data backup Anda)
+    GIGAPUB_LINK: "https://link.gigapub.tech/l/vi8999zpr" 
 };
 
-// ✅ CONFIG GIGAPUB (ID 5436)
-const GIGAPUB_CONFIG = {
-    SCRIPT_URL: "https://ad.gigapub.tech/script?id=5436"
-};
+// ATURAN COOLDOWN: 3 MENIT 
+// Berlaku untuk: Adsgram, Adexium, DAN Smartlink GigaPub
+const COOLDOWN_MS = 180 * 1000; 
 
-const COOLDOWN_MS = 180 * 1000; // 3 Menit
 let isAdProcessing = false; 
-
-// --- VARIABLE SINGLETON ADEXIUM ---
-let adexiumInstance = null; 
+let adexiumInstance = null; // Variable Singleton Adexium
 
 // --- HELPER FUNCTIONS ---
 const checkCooldown = (key) => {
@@ -57,7 +57,7 @@ const hideLoadingOverlay = () => {
     if (overlay) overlay.style.display = 'none';
 };
 
-// Popup Reward
+// Popup Reward (Wajib Ada)
 export const showRewardPopup = (title, message, iconClass = 'fa-coins') => {
     return new Promise((resolve) => {
         let popup = document.getElementById('ad-reward-popup');
@@ -76,7 +76,7 @@ export const showRewardPopup = (title, message, iconClass = 'fa-coins') => {
     });
 };
 
-// Popup Confirm
+// Popup Confirm (Wajib Ada)
 export const showConfirmPopup = (title, message, iconClass = 'fa-question-circle') => {
     return new Promise((resolve) => {
         const old = document.getElementById('ad-confirm-popup');
@@ -95,7 +95,7 @@ export const showConfirmPopup = (title, message, iconClass = 'fa-question-circle
     });
 };
 
-// --- LOGIKA WATERFALL UTAMA ---
+// --- LOGIKA WATERFALL (FINAL STABLE) ---
 const getSingleAd = async () => {
     console.log("🌊 Memulai Waterfall Iklan...");
 
@@ -109,7 +109,7 @@ const getSingleAd = async () => {
         } catch (e) { console.warn("⚠️ Step 1 Lewat:", e); }
     }
 
-    // 2. ADEXIUM (Singleton Fix)
+    // 2. ADEXIUM (Singleton Mode)
     if (checkCooldown('last_adexium')) {
         try {
             if (typeof window.AdexiumWidget !== 'undefined') {
@@ -161,50 +161,38 @@ const getSingleAd = async () => {
         } catch (e) { console.warn("⚠️ Step 3 Lewat:", e); }
     }
 
-    // 4. GIGAPUB (DENGAN TIMEOUT SAFETY)
-    if (checkCooldown('last_gigapub')) {
+    // 4. GIGAPUB (SMARTLINK MODE)
+    // Anti-Stuck: Buka link -> Langsung anggap sukses
+    if (checkCooldown('last_gigapub') && IDS.GIGAPUB_LINK) {
         try {
-            console.log("➡️ Step 4: GigaPub");
+            console.log("➡️ Step 4: GigaPub Smartlink");
             
-            // A. Lazy Load Script
-            if (!window.showGiga) {
-                await new Promise((resolve, reject) => {
-                    if(document.getElementById('gigapub-lib')) { resolve(); return; }
-                    const script = document.createElement('script');
-                    script.id = 'gigapub-lib';
-                    script.src = GIGAPUB_CONFIG.SCRIPT_URL; 
-                    script.onload = resolve;
-                    script.onerror = reject;
-                    document.head.appendChild(script);
-                });
+            // Buka Link (Support Telegram & Browser biasa)
+            if (window.Telegram?.WebApp) {
+                window.Telegram.WebApp.openLink(IDS.GIGAPUB_LINK);
+            } else {
+                window.open(IDS.GIGAPUB_LINK, '_blank');
             }
 
-            // B. Panggil Fungsi dengan TIMEOUT 15 Detik
-            if (typeof window.showGiga === 'function') {
-                console.log("⏳ Menunggu GigaPub...");
-                
-                // Gunakan Promise.race: Siapa cepat dia dapat (Iklan selesai ATAU Timeout)
-                await Promise.race([
-                    window.showGiga(), // Iklan Normal
-                    new Promise(resolve => setTimeout(resolve, 15000)) // Paksa Selesai setelah 15 detik
-                ]);
-
-                // Apapun yang terjadi (Sukses atau Timeout), kita anggap selesai
-                console.log("✅ GigaPub Selesai (atau Timeout Forced)");
-                setCooldown('last_gigapub'); // Catat Cooldown agar tidak muncul lagi
-                return true; // Beri Reward
-            }
+            // Beri jeda 1 detik agar terasa natural, lalu return true
+            await new Promise(r => setTimeout(r, 1000));
+            
+            setCooldown('last_gigapub');
+            console.log("✅ GigaPub Smartlink Opened");
+            return true;
         } catch (e) { console.warn("⚠️ Step 4 Error:", e); }
     }
 
-    // 5. MONETAG VIDEO
+    // 5. MONETAG VIDEO (Unlimited)
     try {
+        console.log("➡️ Step 5: Monetag Video");
         const f = window[`show_${IDS.MONETAG_ZONE}`];
         if (typeof f === 'function') { await f(); return true; }
     } catch (e) { }
 
-    // 6. MONETAG POPUP
+    // 6. MONETAG POPUP (Unlimited - Jaring Terakhir)
     try {
+        console.log("➡️ Step 6: Monetag Popup");
         const f = window[`show_${IDS.MONETAG_ZONE}`];
         if (typeof f === 'function') { await f('pop'); return true; }
     } catch (e) { }
