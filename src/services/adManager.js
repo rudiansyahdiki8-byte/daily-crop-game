@@ -1,9 +1,9 @@
 /**
- * AD MANAGER - FIXED & COMPLETE
- * * Update Terakhir:
- * 1. MENGEMBALIKAN: showRewardPopup & showConfirmPopup (Supaya Vercel tidak Error).
- * 2. UPDATE: Adexium ID Baru (d458d704...).
- * 3. UPDATE: GigaPub pakai window.showGiga().
+ * AD MANAGER - FIXED COMPLETE VERSION
+ * * Changelog:
+ * 1. MENGEMBALIKAN: showRewardPopup & showConfirmPopup (Agar Build Vercel Sukses).
+ * 2. UPDATE: Adexium ID Baru (d458d704...) & CDN Baru.
+ * 3. UPDATE: GigaPub ID 5436 pakai window.showGiga().
  */
 
 const IDS = {
@@ -21,7 +21,7 @@ const GIGAPUB_CONFIG = {
     SCRIPT_URL: "https://ad.gigapub.tech/script?id=5436"
 };
 
-// ATURAN COOLDOWN: 3 MENIT
+// ATURAN COOLDOWN: 3 MENIT (Hanya untuk Tier 1-3)
 const COOLDOWN_MS = 180 * 1000; 
 let isAdProcessing = false; 
 
@@ -54,7 +54,7 @@ const hideLoadingOverlay = () => {
     if (overlay) overlay.style.display = 'none';
 };
 
-// --- 🟢 FITUR YANG SEMPAT HILANG (INI PENTING UNTUK BUILD) ---
+// --- 🟢 FITUR YANG SEMPAT HILANG (WAJIB ADA UNTUK BUILD) ---
 
 // 1. Popup Reward (UI Sukses)
 export const showRewardPopup = (title, message, iconClass = 'fa-coins') => {
