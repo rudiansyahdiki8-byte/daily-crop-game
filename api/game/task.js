@@ -2,16 +2,22 @@ import { sendSuccess, sendError, allowMethod } from '../_utils/response.js';
 import { getUserRef } from '../_utils/firebase.js';
 
 // KONFIGURASI TUGAS (Backend Local Config)
+// [UPDATE] Kita ubah jadi Range Min-Max biar seru (Gacha Reward)
 const DAILY_TASKS = {
-  'LOGIN':      { reward: 100, label: 'Daily Login' },
-  'GIFT':       { reward: 100, label: 'Send Gift' },
-  'CLEAN':      { reward: 120, label: 'Clean Farm' },
-  'WATER':      { reward: 120, label: 'Water Plants' },
-  'FERTILIZER': { reward: 130, label: 'Use Fertilizer' },
-  'PEST':       { reward: 140, label: 'Kill Pests' },
-  'HARVEST':    { reward: 150, label: 'Harvest Crop' },
-  'SELL':       { reward: 160, label: 'Sell Items' },
-  'SPIN':       { reward: 180, label: 'Lucky Spin' }
+  'LOGIN':      { min: 50,  max: 100, label: 'Daily Login' },
+  'GIFT':       { min: 50,  max: 100, label: 'Send Gift' },
+  'CLEAN':      { min: 80,  max: 120, label: 'Clean Farm' },
+  'WATER':      { min: 80,  max: 120, label: 'Water Plants' },
+  'FERTILIZER': { min: 90,  max: 130, label: 'Use Fertilizer' },
+  'PEST':       { min: 100, max: 150, label: 'Kill Pests' },
+  'HARVEST':    { min: 100, max: 200, label: 'Harvest Crop' },
+  'SELL':       { min: 120, max: 200, label: 'Sell Items' },
+  'SPIN':       { min: 150, max: 250, label: 'Lucky Spin' }
+};
+
+// Helper Random Range
+const getRandomReward = (min, max) => {
+    return Math.floor(Math.random() * (max - min + 1)) + min;
 };
 
 export default async function handler(req, res) {
@@ -20,7 +26,7 @@ export default async function handler(req, res) {
   try {
     const { userId, taskId } = req.body;
     
-    // 1. Validasi
+    // 1. Validasi Task ID
     const taskConfig = DAILY_TASKS[taskId];
     if (!taskConfig) {
        throw new Error(`Invalid Task ID: ${taskId}`);
@@ -33,7 +39,8 @@ export default async function handler(req, res) {
       if (!doc.exists) throw new Error("User not found");
       const userData = doc.data();
 
-      // 2. CEK KLAIM (Format Tanggal: YYYY-MM-DD)
+      // 2. CEK KLAIM HARI INI (Format Tanggal: YYYY-MM-DD)
+      // Menggunakan tanggal server (UTC) agar konsisten
       const todayStr = new Date().toISOString().split('T')[0];
       const userTasks = userData.dailyTasks || {}; 
       const lastClaimDate = userTasks[taskId];
@@ -42,8 +49,9 @@ export default async function handler(req, res) {
         throw new Error("Task already claimed today!");
       }
 
-      // 3. REWARD
-      let finalReward = taskConfig.reward;
+      // 3. HITUNG REWARD (RNG / ACAK)
+      // Agar sesuai dengan label "Random" di Frontend
+      const finalReward = getRandomReward(taskConfig.min, taskConfig.max);
 
       // 4. UPDATE USER
       const newBalance = (userData.balance || 0) + finalReward;
@@ -55,12 +63,13 @@ export default async function handler(req, res) {
           desc: `Task: ${taskConfig.label}`,
           date: Date.now()
       };
+      
       const currentHistory = userData.history || [];
       const newHistory = [logEntry, ...currentHistory].slice(0, 50);
 
       t.update(userRef, {
         balance: newBalance,
-        [`dailyTasks.${taskId}`]: todayStr, // Simpan tanggal hari ini
+        [`dailyTasks.${taskId}`]: todayStr, // Tandai sudah klaim hari ini
         history: newHistory
       });
 
