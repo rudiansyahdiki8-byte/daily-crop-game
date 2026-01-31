@@ -7,6 +7,7 @@ export default async function handler(req, res) {
   try {
     const { userId, uplineId } = req.body;
 
+    // Cek Self-Invite
     if (String(userId) === String(uplineId)) throw new Error("Self-invite not allowed.");
 
     const userRef = getUserRef(userId);
@@ -22,34 +23,44 @@ export default async function handler(req, res) {
       const userData = userDoc.data();
       const uplineData = uplineDoc.data();
 
-      // Cek double bind
+      // Cek apakah sudah punya upline
       if (userData.uplineId) throw new Error("Already bound.");
 
       // 1. Update User (Downline)
       t.update(userRef, { uplineId: uplineId });
       
-      // 2. Update Upline (Simpan Detail Teman)
+      // 2. Update Upline (Pengundang)
       const currentFriendsCount = uplineData.friendsCount || 0;
       
-      // Kita simpan data teman di Map 'referrals'
-      // Key: ID Teman, Value: { username, totalBonus, joinDate }
       const newReferralData = {
           username: userData.username || 'Farmer',
           totalBonusGiven: 0,
           joinDate: Date.now()
       };
 
-      t.update(uplineRef, { 
-          friendsCount: currentFriendsCount + 1,
-          [`referrals.${userId}`]: newReferralData
-      });
+      // [PERBAIKAN KRUSIAL] Cek apakah wadah 'referrals' ada?
+      // Jika tidak ada (user lama), kita pakai SET dengan MERGE agar fieldnya dibuat.
+      if (!uplineData.referrals) {
+          t.set(uplineRef, {
+             friendsCount: currentFriendsCount + 1,
+             referrals: {
+                 [userId]: newReferralData
+             }
+          }, { merge: true });
+      } else {
+          // Jika sudah ada, pakai UPDATE biasa
+          t.update(uplineRef, { 
+              friendsCount: currentFriendsCount + 1,
+              [`referrals.${userId}`]: newReferralData
+          });
+      }
     });
 
     return sendSuccess(res, { uplineId }, "Bind Success");
 
   } catch (error) {
-    // Silent error untuk auto-bind agar tidak mengganggu flow
-    console.log("Bind Error:", error.message);
+    // Silent Error agar tidak mengganggu flow game user
+    console.log("Bind Skipped:", error.message);
     return sendError(res, 400, error.message);
   }
 }
