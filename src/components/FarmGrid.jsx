@@ -1,11 +1,22 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ITEM_DETAILS, PLANS, EXTRA_SLOT_PRICE } from '../config/gameConstants';
-import { showAdStack, showRewardPopup, showConfirmPopup } from '../services/adManager'; // Import showConfirmPopup
+import { showAdStack, showRewardPopup, showConfirmPopup } from '../services/adManager'; 
 import { startFarming, harvestCrop, buyItem } from '../services/api';
 
 const FarmGrid = ({ user, activePage, currentUserId, onRefreshUser, onOpenMember, onOpenWithdraw, setLoading }) => {
 
-  // --- 1. LOGIC STATUS SLOT ---
+  // --- 1. STATE UNTUK TICKER (DETAK JANTUNG) ---
+  // Ini bikin progress bar jalan setiap detik
+  const [, setTick] = useState(0);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+        setTick(t => t + 1); // Paksa re-render setiap 1 detik
+    }, 1000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // --- 2. LOGIC STATUS SLOT ---
   const getSlotStatus = (slotNum) => {
       const userSlots = user?.slots || [1];
       const currentPlan = PLANS[user?.plan || 'FREE'];
@@ -23,7 +34,7 @@ const FarmGrid = ({ user, activePage, currentUserId, onRefreshUser, onOpenMember
       return 'DISABLED';
   };
 
-  // --- 2. HANDLER KLIK SLOT (ENGLISH & CUSTOM POPUP) ---
+  // --- 3. HANDLER KLIK SLOT ---
   const handleSlotClick = async (slotId) => {
     if (!currentUserId) return;
     
@@ -36,7 +47,6 @@ const FarmGrid = ({ user, activePage, currentUserId, onRefreshUser, onOpenMember
         const nextExtraIndex = currentExtra + 1;
         const price = EXTRA_SLOT_PRICE[nextExtraIndex] || 0;
 
-        // GANTI window.confirm DENGAN showConfirmPopup
         const isConfirmed = await showConfirmPopup(
             "EXPAND FARM", 
             `Purchase Permanent Extra Land?\nPrice: ${price.toLocaleString()} PTS`,
@@ -46,13 +56,12 @@ const FarmGrid = ({ user, activePage, currentUserId, onRefreshUser, onOpenMember
         if (isConfirmed) {
              try {
                   setLoading(true);
-                  await buyItem(currentUserId, `EXTRA_LAND_${nextExtraIndex}`); // Sesuai ID di buy.js
+                  await buyItem(currentUserId, `EXTRA_LAND_${nextExtraIndex}`);
                   await onRefreshUser(); 
                   setLoading(false);
                   await showRewardPopup("LAND UNLOCKED!", "Permanent Asset Acquired", "fa-check-double");
              } catch(e) {
                   setLoading(false);
-                  // Cek Error Saldo
                   if(e.response?.data?.message?.includes('Saldo') || e.message?.includes('Saldo')) {
                       const deposit = await showConfirmPopup(
                           "INSUFFICIENT BALANCE",
@@ -61,7 +70,6 @@ const FarmGrid = ({ user, activePage, currentUserId, onRefreshUser, onOpenMember
                       );
                       if(deposit) onOpenWithdraw();
                   } else {
-                      // Error Lain (Ganti Alert Biasa)
                       await showRewardPopup("ERROR", e.response?.data?.message || "Transaction Failed", "fa-circle-exclamation");
                   }
              }
@@ -85,16 +93,16 @@ const FarmGrid = ({ user, activePage, currentUserId, onRefreshUser, onOpenMember
     // C. LOGIC FARMING (Active)
     const slotData = user?.farm?.[slotId];
     
-    // PANEN (HARVEST)
+    // -- PANEN (HARVEST) --
     if (slotData && Date.now() >= slotData.harvestAt) {
+      // TAMPILKAN IKLAN SEBELUM PANEN (Wajib!)
       const success = await showAdStack(1); 
       if (success) {
           try {
               setLoading(true); 
-              const res = await harvestCrop(currentUserId, slotId);
+              await harvestCrop(currentUserId, slotId);
               await onRefreshUser();
               setLoading(false);
-              // Tidak perlu popup sukses tiap panen (mengganggu flow), cukup visual update
           } catch(e) {
               setLoading(false);
               await showRewardPopup("HARVEST FAILED", e.response?.data?.message || "Server Error", "fa-bug");
@@ -103,7 +111,8 @@ const FarmGrid = ({ user, activePage, currentUserId, onRefreshUser, onOpenMember
       return; 
     }
 
-    // TANAM (PLANT)
+    // -- TANAM MANUAL (PLANT) --
+    // Hanya jika slot kosong & user klik manual (jarang terjadi karena auto-replant)
     try {
       setLoading(true);
       if (!slotData) {
@@ -117,9 +126,12 @@ const FarmGrid = ({ user, activePage, currentUserId, onRefreshUser, onOpenMember
     }
   };
 
-  // --- 3. RENDER VISUAL (ENGLISH) ---
+  // --- 4. RENDER VISUAL ---
   const startSlot = (activePage * 4) + 1;
   const pageSlots = [0, 1, 2, 3].map(offset => startSlot + offset);
+
+  // Waktu sekarang (Realtime karena ada Ticker)
+  const now = Date.now();
 
   return (
     <div className="zone-farm">
@@ -134,8 +146,7 @@ const FarmGrid = ({ user, activePage, currentUserId, onRefreshUser, onOpenMember
                  displayPrice = EXTRA_SLOT_PRICE[currentExtra + 1] || 0;
              }
 
-             // Logic Visual Progress
-             const now = Date.now();
+             // Logic Visual Progress (Realtime)
              const isReady = s && now >= s.harvestAt;
              let progressPct = 0;
              let timeText = "";
@@ -144,18 +155,23 @@ const FarmGrid = ({ user, activePage, currentUserId, onRefreshUser, onOpenMember
                 const totalDuration = (s.harvestAt - s.plantedAt) || 180000; 
                 const timeLeft = s.harvestAt - now;
                 const timeElapsed = totalDuration - timeLeft;
+                // Kalkulasi Persen
                 progressPct = Math.min(100, Math.max(0, (timeElapsed / totalDuration) * 100));
-                timeText = `${Math.ceil(timeLeft / 1000)}s`;
+                // Text Detik
+                const secLeft = Math.ceil(timeLeft / 1000);
+                timeText = secLeft > 60 ? `${Math.ceil(secLeft/60)}m` : `${secLeft}s`;
              }
 
+             // Tentukan Gambar Stage
              let overlayImage = null; 
              let showBubble = false;
              if (visualStatus === 'ACTIVE' && s) {
                 if (isReady) {
-                   overlayImage = '/assets/stage_growing.png'; 
+                   overlayImage = '/assets/stage_growing.png'; // Bisa ganti stage_ready.png jika ada
                    showBubble = true;
                 } else {
-                   overlayImage = progressPct < 50 ? '/assets/stage_sprout.png' : '/assets/stage_growing.png';
+                   // Visual tumbuh berdasarkan persen
+                   overlayImage = progressPct < 30 ? '/assets/stage_sprout.png' : '/assets/stage_growing.png';
                 }
              }
 
@@ -182,13 +198,14 @@ const FarmGrid = ({ user, activePage, currentUserId, onRefreshUser, onOpenMember
                         {overlayImage && (
                             <img src={overlayImage} alt="Crop" style={{
                                 position: 'absolute', top:0, width: '75%', height: 'auto', zIndex: 5, pointerEvents: 'none', 
-                                filter: isReady ? 'drop-shadow(0 0 5px #39FF14)' : 'none'
+                                filter: isReady ? 'drop-shadow(0 0 5px #39FF14)' : 'none',
+                                transition: 'all 0.5s ease'
                             }} />
                         )}
                         {isReady ? (
                             <>
                                 {showBubble && (
-                                    <div className="harvest-bubble" style={{zIndex: 20}}>
+                                    <div className="harvest-bubble" style={{zIndex: 20, animation: 'bounce 1s infinite'}}>
                                         <div style={{fontSize:'2.8rem'}}>{ITEM_DETAILS[s.cropName]?.icon || '📦'}</div>
                                     </div>
                                 )}
@@ -196,7 +213,7 @@ const FarmGrid = ({ user, activePage, currentUserId, onRefreshUser, onOpenMember
                             </>
                         ) : s ? (
                             <div className="custom-progress-container" style={{top: '10%', width: '70%'}}>
-                                <div className="progress-fill-farm" style={{width: `${progressPct}%`}}></div>
+                                <div className="progress-fill-farm" style={{width: `${progressPct}%`, transition: 'width 1s linear'}}></div>
                                 <span className="progress-text">{timeText}</span>
                             </div>
                         ) : (
