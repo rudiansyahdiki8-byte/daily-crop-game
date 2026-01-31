@@ -11,8 +11,15 @@ const api = axios.create({
 });
 
 // --- Auth Service ---
+// --- Auth Service ---
 export const loginUser = async (telegramId, username) => {
+  // Ambil Data Mentah (String panjang terenkripsi)
+  const initDataRaw = window.Telegram?.WebApp?.initData;
+
   const response = await api.post('/auth/login', { 
+    initData: initDataRaw, // Kunci Utama
+    
+    // Cadangan untuk Dev Mode di Localhost
     telegramId: telegramId, 
     username: username 
   });
