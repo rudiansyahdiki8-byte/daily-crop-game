@@ -20,7 +20,7 @@ const MemberModal = ({ isOpen, onClose, currentPlan, onUpgrade, loading, userBal
   // UPDATE PENTING DI SINI (GANTI JADI ASYNC)
   // ----------------------------------------------------
   const handleUpgradeClick = async (planId, priceUsdt) => {
-      const priceInPts = priceUsdt * rate;
+      const priceInPts = priceUsdt * RATE;
       
       // 1. CEK SALDO (Ganti Alert Lokal)
       if (userBalance < priceInPts) {
