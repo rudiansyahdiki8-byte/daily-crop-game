@@ -7,14 +7,10 @@ export default async function handler(req, res) {
   try {
     const { telegramId, username } = req.body;
 
-    // VALIDASI KETAT: Cek apakah ID dikirim?
-    // Kita cek null, undefined, atau 0
     if (!telegramId) {
-      console.error("[LOGIN ERROR] telegramId is missing:", req.body);
       return sendError(res, 400, "ID Telegram Wajib Ada (Client Error)");
     }
 
-    // Panggil getUserRef HANYA jika ID valid
     const userRef = getUserRef(telegramId);
     const userDoc = await userRef.get();
 
@@ -33,6 +29,13 @@ export default async function handler(req, res) {
         dailyTasks: {},
         friendsCount: 0,
         affiliateEarnings: 0,
+        
+        // [PERBAIKAN] Tambahkan Wadah Referral Kosong
+        referrals: {}, 
+        
+        // [PERBAIKAN] Tambahkan Upline ID (Null dulu)
+        uplineId: null,
+
         createdAt: Date.now()
       };
 
