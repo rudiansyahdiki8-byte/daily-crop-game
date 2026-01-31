@@ -1,44 +1,57 @@
 import { CROPS, PLANS } from '../../src/config/gameConstants.js';
 
-// Helper: Ambil harga acak dari range (Harga Dinamis)
-const getRandomPrice = (rarityType) => {
-  // Cari config tanaman berdasarkan Rarity string (COMMON, RARE, dll)
-  // Kita loop object CROPS untuk cari yang cocok
-  const cropConfig = Object.values(CROPS).find(c => c.items.includes(rarityType)) || CROPS.COMMON;
+// --- HELPER 1: RUMUS HARGA (SEED HOUR) ---
+// LOGIC INI MENYAMAKAN HARGA FRONTEND DAN BACKEND
+const getHourlyPrice = (rarityConfig, seed) => {
+  const [min, max] = rarityConfig.priceRange;
+  // Gunakan Item Pertama sebagai "Garam" agar harga tiap tanaman beda
+  const seedString = `${seed}-${rarityConfig.items[0]}`;
   
-  // Kalau parameter inputnya nama tanaman (misal "Spinach"), kita cari rarity-nya dulu
-  // Tapi untuk simplifikasi, asumsi input fungsi ini sudah Rarity Config atau kita cari manual
-  return Math.floor(Math.random() * (cropConfig.priceRange[1] - cropConfig.priceRange[0] + 1)) + cropConfig.priceRange[0];
-};
-
-// Helper: Cari Rarity berdasarkan nama tanaman
-const getRarityByCropName = (cropName) => {
-  for (const [rarityKey, config] of Object.entries(CROPS)) {
-    if (config.items.includes(cropName)) return config; // Return object config
+  let hash = 0;
+  for (let i = 0; i < seedString.length; i++) {
+    hash = Math.imul(31, hash) + seedString.charCodeAt(i) | 0;
   }
-  return CROPS.COMMON; // Fallback
+  const rand01 = Math.abs(hash) / 2147483647;
+  return Math.floor(min + (rand01 * (max - min)));
 };
 
+// --- HELPER 2: CARI RARITY ---
+const getRarityByCropName = (cropName) => {
+  for (const config of Object.values(CROPS)) {
+    if (config.items.includes(cropName)) return config; 
+  }
+  return CROPS.COMMON; 
+};
+
+/**
+ * Menghitung total harga jual dengan rumus Seeded Random (Jam)
+ * Agar sinkron dengan tampilan di MarketModal.jsx
+ */
 export const calculateSellTotal = (userPlanId, inventoryToSell) => {
   let subTotal = 0;
   
-  // 1. Hitung Base Price
+  // 1. Ambil Jam Server (Seed)
+  // Ini memastikan harga server = harga user (selama jamnya sama)
+  const currentHourSeed = Math.floor(Date.now() / 3600000);
+
+  // 2. Hitung Harga Dasar
   for (const [cropName, qty] of Object.entries(inventoryToSell)) {
     if (qty <= 0) continue;
     
     const cropConfig = getRarityByCropName(cropName);
-    // Ambil harga acak sesuai range rarity 
-    const pricePerUnit = Math.floor(Math.random() * (cropConfig.priceRange[1] - cropConfig.priceRange[0] + 1)) + cropConfig.priceRange[0];
+    
+    // GUNAKAN RUMUS JAM
+    const pricePerUnit = getHourlyPrice(cropConfig, currentHourSeed);
     
     subTotal += (pricePerUnit * qty);
   }
 
-  // 2. Hitung Bonus Plan 
+  // 3. Hitung Bonus Membership
   const planData = PLANS[userPlanId] || PLANS.FREE;
   const bonusPercentage = planData.bonusSell || 0;
   const bonusAmount = Math.floor(subTotal * bonusPercentage);
 
-  // 3. Hitung Total Akhir
+  // 4. Total Akhir
   const totalReceived = subTotal + bonusAmount;
 
   return {
