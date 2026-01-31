@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { CONSUMABLES, ITEM_DETAILS, CROPS, EXTRA_SLOT_PRICE, STORAGE_UPGRADES } from '../config/gameConstants';
 
 // --- LOGIC HARGA (TETAP SAMA) ---
+// (Logic ini untuk tampilan visual saja, harga asli tetap divalidasi backend)
 const getHourlyPrice = (itemName, seed) => {
   let min = 10, max = 20;
   for (const group of Object.values(CROPS)) {
@@ -162,7 +163,7 @@ const MarketModal = ({ isOpen, onClose, user, onSellAll, onBuyItem, loading, onW
         {/* SPLIT VIEW */}
         <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:15, flex:1, overflow:'hidden'}}>
             
-            {/* LIVE MARKET */}
+            {/* LIVE MARKET (Kiri) */}
             <div style={{background:'rgba(0,0,0,0.2)', borderRadius:20, padding:12, border:'1px solid rgba(0, 229, 255, 0.1)', display:'flex', flexDirection:'column', overflow:'hidden'}}>
                 <div style={{fontSize:'0.85rem', color:'#00E5FF', fontWeight:'bold', marginBottom:10, textAlign:'center', paddingBottom:5, borderBottom:'1px solid rgba(0, 229, 255, 0.1)', display:'flex', alignItems:'center', justifyContent:'center', gap:6}}><span>📈</span> MARKET PRICE</div>
                 <div className="no-scrollbar" style={{flex:1, overflowY:'scroll', display:'flex', flexDirection:'column', gap:6}}>
@@ -175,10 +176,12 @@ const MarketModal = ({ isOpen, onClose, user, onSellAll, onBuyItem, loading, onW
                 </div>
             </div>
             
-            {/* MY INVENTORY */}
-            <div style={{background:'rgba(0,0,0,0.2)', borderRadius:20, padding:12, border:'1px solid rgba(76, 175, 80, 0.1)', display:'flex', flexDirection:'column'}}>
+            {/* MY INVENTORY (Kanan) - FIX: Added overflow:'hidden' to wrapper */}
+            <div style={{background:'rgba(0,0,0,0.2)', borderRadius:20, padding:12, border:'1px solid rgba(76, 175, 80, 0.1)', display:'flex', flexDirection:'column', overflow:'hidden'}}>
                 <div style={{fontSize:'0.85rem', color:'#4CAF50', fontWeight:'bold', marginBottom:10, textAlign:'center', paddingBottom:5, borderBottom:'1px solid rgba(76, 175, 80, 0.1)', display:'flex', alignItems:'center', justifyContent:'center', gap:6}}><span>🎒</span> INVENTORY</div>
-                <div style={{flex:1, overflowY:'auto', display:'flex', flexDirection:'column', gap:6}}>
+                
+                {/* FIX: Added className="no-scrollbar" and ensure overflowY is scroll */}
+                <div className="no-scrollbar" style={{flex:1, overflowY:'scroll', display:'flex', flexDirection:'column', gap:6}}>
                     {sellList.filter(n => inventory[n] > 0).length === 0 ? (
                         <div style={{height:'100%', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', opacity:0.3}}>
                             <i className="fa-solid fa-basket-shopping fa-2x" style={{marginBottom:10}}></i><span style={{fontSize:'0.8rem'}}>Empty</span>
@@ -192,7 +195,7 @@ const MarketModal = ({ isOpen, onClose, user, onSellAll, onBuyItem, loading, onW
                                          <div style={{display:'flex', alignItems:'center', gap:6}}><span style={{fontSize:'1.2rem'}}>{ITEM_DETAILS[name].icon}</span><span style={{fontSize:'0.75rem', fontWeight:'bold'}}>{name}</span></div>
                                          <div style={{fontSize:'0.7rem', background:'#111', padding:'2px 8px', borderRadius:6, color:'#4CAF50'}}>x{qty}</div>
                                      </div>
-                                     {/* TOMBOL SELL TUNGGAL -> MEMBUKA POPUP KECIL */}
+                                     {/* TOMBOL SELL TUNGGAL */}
                                      <button onClick={() => openSellDialog(name, qty)} disabled={loading} style={{
                                          width:'100%', background:'#2196F3', border:'none', borderRadius:6, color:'white', 
                                          fontSize:'0.7rem', padding:'6px', cursor:'pointer', fontWeight:'bold', marginTop:5,
@@ -296,6 +299,7 @@ const MarketModal = ({ isOpen, onClose, user, onSellAll, onBuyItem, loading, onW
   );
 };
 
+// ... ShopCard Component (Sama seperti sebelumnya, tidak perlu diubah)
 const ShopCard = ({name, price, icon, owned, buy, disabled, desc, color}) => (
     <div style={{
         background: owned ? `linear-gradient(145deg, rgba(76, 175, 80, 0.1), rgba(0,0,0,0.3))` : `linear-gradient(145deg, rgba(255,255,255,0.05), rgba(0,0,0,0.2))`,
