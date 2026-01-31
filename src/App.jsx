@@ -31,7 +31,7 @@ function App() {
         
         // Ambil Parameter Referral (jika ada)
         // Format link: t.me/bot?startapp=12345
-        const startParam = tg.initDataUnsafe.start_param; 
+        const startParam = tg.initDataUnsafe?.start_param; 
 
         setCurrentUserId(realId);
         try {
