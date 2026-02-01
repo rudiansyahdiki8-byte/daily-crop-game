@@ -1,6 +1,6 @@
 /**
  * AD MANAGER - ROLLING SYSTEM (ROUND ROBIN)
- * Total 7 Langkah Rotasi.
+ * Total Langkah Rotasi: 7 (Lama) + 2 (Baru) = 9 Langkah.
  * Tujuan: Membagi traffic secara merata agar CPM terjaga & Anti-Spam.
  * * URUTAN ROTASI:
  * 1. Adsgram Int
@@ -10,6 +10,8 @@
  * 5. Monetag Inters
  * 6. Monetag Link
  * 7. Adsterra Link (High Priority)
+ * 8. Onclicka (BARU)
+ * 9. Telega.io (BARU)
  * -> Balik ke 1
  */
 
@@ -24,9 +26,14 @@ const IDS = {
     // DIRECT LINKS
     ADSTERRA_LINK: "https://www.effectivegatecpm.com/gh7bask9y9?key=5a6453e5db9f6bf7c1f28291dddf9826",
     MONETAG_LINK: "https://otieu.com/4/10535147", 
+
+    // === TAMBAHAN ID BARU ===
+    ONCLICKA_SPOT: "6109124",
+    TELEGA_TOKEN: "ae4d6894-34a8-425f-a486-01d27672f2ce",
+    TELEGA_BLOCK: "41e9b5df-2ce0-4de7-9556-31744e7e508b"
 };
 
-// Urutan Rotasi (7 Slot)
+// Urutan Rotasi (Ditambah Slot 7 & 8)
 const AD_ROTATION = [
     'ADSGRAM_INT',   // Slot 0 (Langkah 1)
     'ADSTERRA_LINK', // Slot 1 (Langkah 2)
@@ -34,7 +41,9 @@ const AD_ROTATION = [
     'ADSGRAM_REW',   // Slot 3 (Langkah 4)
     'MONETAG_INT',   // Slot 4 (Langkah 5)
     'MONETAG_LINK',  // Slot 5 (Langkah 6)
-    'ADSTERRA_LINK'  // Slot 6 (Langkah 7 - Double Cuan)
+    'ADSTERRA_LINK', // Slot 6 (Langkah 7 - Double Cuan)
+    'ONCLICKA',      // Slot 7 (BARU)
+    'TELEGA'         // Slot 8 (BARU)
 ];
 
 // Cooldown per jaringan (tetap ada untuk keamanan ganda)
@@ -42,8 +51,31 @@ const COOLDOWN_MS = 60 * 1000; // 1 Menit cukup karena sudah di-rolling
 
 let isAdProcessing = false; 
 
+// === VARIABEL GLOBAL UNTUK IKLAN BARU ===
+let onclickaShowFn = null;
+let telegaAds = null;
+
+// === FUNGSI INIT BARU (Panggil ini di useEffect App.jsx/Main.jsx) ===
+export const initNewAds = async () => {
+    // Init Onclicka
+    if (window.initCdTma) {
+        try {
+            window.initCdTma({ id: IDS.ONCLICKA_SPOT })
+                .then(show => { onclickaShowFn = show; console.log("✅ Onclicka Ready"); })
+                .catch(e => console.log("❌ Onclicka Error", e));
+        } catch (e) {}
+    }
+    // Init Telega
+    if (window.TelegaIn) {
+        try {
+            telegaAds = window.TelegaIn.AdsController.create_miniapp({ token: IDS.TELEGA_TOKEN });
+            console.log("✅ Telega Ready");
+        } catch (e) {}
+    }
+};
+
 // --- HELPER STORAGE ---
-// Menyimpan posisi terakhir (0-6) agar saat refresh tetap lanjut, bukan ulang dari 1
+// Menyimpan posisi terakhir (0-8) agar saat refresh tetap lanjut
 const getRotationIndex = () => {
     try { return parseInt(localStorage.getItem('ad_rotation_idx') || '0'); } 
     catch (e) { return 0; }
@@ -217,6 +249,37 @@ const executeAdType = async (type) => {
         } catch (e) { return false; }
     }
 
+    // === 7. ONCLICKA (TAMBAHAN BARU) ===
+    if (type === 'ONCLICKA') {
+        if (!checkCooldown('cd_onclicka')) return false;
+        console.log("🔄 Rolling: Onclicka");
+        if (onclickaShowFn) {
+            try {
+                await onclickaShowFn();
+                setCooldown('cd_onclicka');
+                return true;
+            } catch (e) { return false; }
+        }
+        return false;
+    }
+
+    // === 8. TELEGA (TAMBAHAN BARU) ===
+    if (type === 'TELEGA') {
+        // Telega agak beda, dia non-blocking biasanya, tapi kita masukkan flow
+        if (!checkCooldown('cd_telega')) return false;
+        console.log("🔄 Rolling: Telega");
+        if (telegaAds) {
+            try {
+                telegaAds.ad_show({ adBlockUuid: IDS.TELEGA_BLOCK });
+                setCooldown('cd_telega');
+                // Beri waktu user melihat
+                await new Promise(r => setTimeout(r, 2000)); 
+                return true;
+            } catch (e) { return false; }
+        }
+        return false;
+    }
+
     return false;
 };
 
@@ -246,7 +309,7 @@ export const showAdStack = async (count = 1) => {
     try {
         for (let i = 0; i < count; i++) {
             
-            // Loop Mencari Iklan yang Available (Max 7 kali percobaan geser)
+            // Loop Mencari Iklan yang Available (Max Panjang Array Rotasi)
             // Agar kalau Slot 1 error/cooldown, langsung coba Slot 2, dst.
             let adFound = false;
             
@@ -273,7 +336,7 @@ export const showAdStack = async (count = 1) => {
                 successCount++;
                 if (i < count - 1) await new Promise(r => setTimeout(r, 1500));
             } else {
-                // Jika sudah putar 7 kali tapi gagal semua (Cooldown semua)
+                // Jika sudah putar semua tapi gagal (Cooldown semua)
                 console.error("❌ ALL ADS COOLDOWN/ERROR");
                 break;
             }
