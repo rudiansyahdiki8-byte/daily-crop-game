@@ -150,6 +150,8 @@ export default async function handler(req, res) {
         return { rewardId: reward.id, rewardName: reward.val, type: reward.type };
       }
 
+      // Invalid mode or step
+      throw new Error(`Invalid mode: ${mode} or step: ${step}`);
     });
 
     return sendSuccess(res, result, "Success");

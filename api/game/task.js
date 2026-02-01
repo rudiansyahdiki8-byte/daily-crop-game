@@ -1,19 +1,6 @@
 import { sendSuccess, sendError, allowMethod } from '../_utils/response.js';
 import { getUserRef } from '../_utils/firebase.js';
-
-// TASK CONFIGURATION (Backend Local Config)
-// [UPDATE] Changed to Min-Max Range for "Gacha Reward" feel
-const DAILY_TASKS = {
-  'LOGIN': { min: 50, max: 100, label: 'Daily Login' },
-  'GIFT': { min: 50, max: 100, label: 'Send Gift' },
-  'CLEAN': { min: 80, max: 120, label: 'Clean Farm' },
-  'WATER': { min: 80, max: 120, label: 'Water Plants' },
-  'FERTILIZER': { min: 90, max: 130, label: 'Use Fertilizer' },
-  'PEST': { min: 100, max: 150, label: 'Kill Pests' },
-  'HARVEST': { min: 100, max: 200, label: 'Harvest Crop' },
-  'SELL': { min: 120, max: 200, label: 'Sell Items' },
-  'SPIN': { min: 150, max: 250, label: 'Lucky Spin' }
-};
+import { DAILY_TASKS } from '../../src/config/gameConstants.js';
 
 // Random Range Helper
 const getRandomReward = (min, max) => {

@@ -1,12 +1,20 @@
 import { CROPS, PLANS } from '../../src/config/gameConstants.js';
 
-// --- HELPER 1: RUMUS HARGA (SEED HOUR) ---
+// --- HELPER 1: CARI RARITY ---
+const getRarityByCropName = (cropName) => {
+  for (const config of Object.values(CROPS)) {
+    if (config.items.includes(cropName)) return config;
+  }
+  return CROPS.COMMON;
+};
+
+// --- HELPER 2: RUMUS HARGA (SEED HOUR) ---
 // LOGIC INI MENYAMAKAN HARGA FRONTEND DAN BACKEND
-const getHourlyPrice = (rarityConfig, seed) => {
+const getHourlyPriceByRarity = (rarityConfig, seed) => {
   const [min, max] = rarityConfig.priceRange;
   // Gunakan Item Pertama sebagai "Garam" agar harga tiap tanaman beda
   const seedString = `${seed}-${rarityConfig.items[0]}`;
-  
+
   let hash = 0;
   for (let i = 0; i < seedString.length; i++) {
     hash = Math.imul(31, hash) + seedString.charCodeAt(i) | 0;
@@ -15,12 +23,23 @@ const getHourlyPrice = (rarityConfig, seed) => {
   return Math.floor(min + (rand01 * (max - min)));
 };
 
-// --- HELPER 2: CARI RARITY ---
-const getRarityByCropName = (cropName) => {
-  for (const config of Object.values(CROPS)) {
-    if (config.items.includes(cropName)) return config; 
+/**
+ * Get hourly price for a specific item by name
+ * @param {string} itemName - The crop/item name
+ * @param {number} hourSeed - Hour seed (Date.now() / 3600000)
+ * @returns {number} Price for this hour
+ */
+export const getHourlyPrice = (itemName, hourSeed) => {
+  const rarityConfig = getRarityByCropName(itemName);
+  const [min, max] = rarityConfig.priceRange;
+  const seedString = `${hourSeed}-${itemName}`;
+
+  let hash = 0;
+  for (let i = 0; i < seedString.length; i++) {
+    hash = Math.imul(31, hash) + seedString.charCodeAt(i) | 0;
   }
-  return CROPS.COMMON; 
+  const rand01 = Math.abs(hash) / 2147483647;
+  return Math.floor(min + (rand01 * (max - min)));
 };
 
 /**
@@ -29,7 +48,7 @@ const getRarityByCropName = (cropName) => {
  */
 export const calculateSellTotal = (userPlanId, inventoryToSell) => {
   let subTotal = 0;
-  
+
   // 1. Ambil Jam Server (Seed)
   // Ini memastikan harga server = harga user (selama jamnya sama)
   const currentHourSeed = Math.floor(Date.now() / 3600000);
@@ -37,12 +56,10 @@ export const calculateSellTotal = (userPlanId, inventoryToSell) => {
   // 2. Hitung Harga Dasar
   for (const [cropName, qty] of Object.entries(inventoryToSell)) {
     if (qty <= 0) continue;
-    
-    const cropConfig = getRarityByCropName(cropName);
-    
-    // GUNAKAN RUMUS JAM
-    const pricePerUnit = getHourlyPrice(cropConfig, currentHourSeed);
-    
+
+    // GUNAKAN RUMUS JAM (now uses itemName directly)
+    const pricePerUnit = getHourlyPrice(cropName, currentHourSeed);
+
     subTotal += (pricePerUnit * qty);
   }
 

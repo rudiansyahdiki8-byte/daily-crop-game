@@ -1,12 +1,18 @@
 import { PLANS } from '../../src/config/gameConstants.js';
 
-// Cek apakah gudang penuh [cite: 53, 55]
-export const isStorageFull = (currentItemsCount, userPlanId, extraSlots = 0) => {
-    const baseCap = PLANS[userPlanId]?.storage || 50; 
-    const maxCap = baseCap + extraSlots;
-    
-    // Jika user OWNER, storage unlimited [cite: 21]
+/**
+ * Check if storage is full
+ * @param {number} currentItemsCount - Current total items in inventory
+ * @param {string} userPlanId - User's current plan
+ * @param {number} storageLimit - User's storage limit (base + upgrades)
+ * @returns {boolean} - True if storage is full
+ */
+export const isStorageFull = (currentItemsCount, userPlanId, storageLimit) => {
+    // OWNER plan has unlimited storage
     if (userPlanId === 'OWNER') return false;
+
+    // Use provided storageLimit directly (already includes base + upgrades)
+    const maxCap = storageLimit || PLANS[userPlanId]?.storage || 50;
 
     return currentItemsCount >= maxCap;
 };

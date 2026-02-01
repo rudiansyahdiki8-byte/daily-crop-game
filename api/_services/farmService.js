@@ -21,11 +21,18 @@ export const rollCropData = (activeBuffs = {}) => {
   const rand = Math.random();
   let rarity = 'COMMON';
 
-  // Check Order: Legendary -> Epic -> Rare -> Uncommon -> Common
-  if (rand < CROPS.LEGENDARY.chance + (buffMod / 10)) rarity = 'LEGENDARY';
-  else if (rand < CROPS.EPIC.chance + (buffMod / 5)) rarity = 'EPIC';
-  else if (rand < CROPS.RARE.chance + buffMod) rarity = 'RARE';
-  else if (rand < CROPS.UNCOMMON.chance) rarity = 'UNCOMMON';
+  // Calculate cumulative thresholds for rarity check
+  // Order: Legendary -> Epic -> Rare -> Uncommon -> Common (fallback)
+  const legendaryThreshold = CROPS.LEGENDARY.chance + (buffMod / 10);
+  const epicThreshold = legendaryThreshold + CROPS.EPIC.chance + (buffMod / 5);
+  const rareThreshold = epicThreshold + CROPS.RARE.chance + buffMod;
+  const uncommonThreshold = rareThreshold + CROPS.UNCOMMON.chance;
+
+  if (rand < legendaryThreshold) rarity = 'LEGENDARY';
+  else if (rand < epicThreshold) rarity = 'EPIC';
+  else if (rand < rareThreshold) rarity = 'RARE';
+  else if (rand < uncommonThreshold) rarity = 'UNCOMMON';
+  // else stays COMMON
 
   // Pick Random Crop from that Rarity
   const cropGroup = CROPS[rarity];

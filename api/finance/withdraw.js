@@ -1,6 +1,7 @@
 import { sendSuccess, sendError, allowMethod } from '../_utils/response.js';
 import { getUserRef, db } from '../_utils/firebase.js';
 import { GAME_CONFIG } from '../../src/config/gameConstants.js';
+import { checkRateLimit, RATE_LIMITS, isValidWalletAddress, isValidUserId } from '../_utils/security.js';
 
 export default async function handler(req, res) {
   if (!allowMethod(req, res, 'POST')) return;
@@ -8,6 +9,17 @@ export default async function handler(req, res) {
   try {
     // Frontend sends this data
     const { userId, amount, address, method, currency } = req.body;
+
+    // 🛡️ SECURITY: Validate userId format
+    if (!isValidUserId(userId)) {
+      return sendError(res, 400, "Invalid user ID format.");
+    }
+
+    // 🛡️ SECURITY: Rate limiting (3 withdrawals per minute max)
+    const rateCheck = checkRateLimit(userId, 'withdraw', RATE_LIMITS.withdraw);
+    if (!rateCheck.allowed) {
+      return sendError(res, 429, `Too many requests. Try again in ${Math.ceil(rateCheck.resetIn / 1000)}s`);
+    }
 
     // Convert string to number
     const withdrawAmount = parseInt(amount);
@@ -19,8 +31,13 @@ export default async function handler(req, res) {
     if (!withdrawAmount || withdrawAmount <= 0) return sendError(res, 400, "Invalid amount.");
     if (!address) return sendError(res, 400, "Wallet address is required.");
 
+    // 🛡️ SECURITY: Validate wallet address format
+    if (!isValidWalletAddress(address, currency || 'USDT')) {
+      return sendError(res, 400, "Invalid wallet address format.");
+    }
+
     // ============================================================
-    // 🛡️ SECURITY 1: WALLET LOCK
+    // 🛡️ SECURITY 1: WALLET LOCK + BAN SYSTEM
     // Check if this wallet is already used by another account
     // ============================================================
     if (method === 'FAUCETPAY') {
@@ -30,14 +47,36 @@ export default async function handler(req, res) {
 
       if (!duplicateCheck.empty) {
         const owner = duplicateCheck.docs[0].data();
-        // If wallet exists in DB, but not owned by this user -> REJECT
+        // If wallet exists in DB, but not owned by this user -> BAN + REJECT
         if (String(owner.id) !== String(userId)) {
-          throw new Error("⛔ REJECTED: This wallet is already linked to another Telegram account!");
+          // 🚨 BAN THE ABUSER
+          const userRef = getUserRef(userId);
+          await userRef.update({
+            banned: true,
+            banReason: 'WALLET_ABUSE',
+            banDate: Date.now()
+          });
+
+          // 📝 LOG TO ABUSE COLLECTION
+          await db.collection('abuse_logs').add({
+            abuserId: userId,
+            victimId: owner.id,
+            walletAddress: address,
+            type: 'WALLET_STEAL_ATTEMPT',
+            date: Date.now()
+          });
+
+          throw new Error("⛔ BANNED: Attempting to use another user's wallet is prohibited!");
         }
       }
     }
 
+    // 🛡️ CHECK IF USER IS BANNED
     const userRef = getUserRef(userId);
+    const userDoc = await userRef.get();
+    if (userDoc.exists && userDoc.data().banned) {
+      throw new Error("⛔ Your account has been banned for policy violation.");
+    }
 
     const result = await userRef.firestore.runTransaction(async (t) => {
       const doc = await t.get(userRef);
@@ -83,9 +122,7 @@ export default async function handler(req, res) {
         params.append('api_key', FP_API_KEY);
         params.append('amount', usdAmount.toFixed(8)); // Send in USD/USDT
         params.append('to', address);
-        params.append('currency', 'USDT'); // We use USDT (TRC20/BEP20) for stability
-
-        console.log(`[WD] Sending $${usdAmount} USDT to ${address}...`);
+        params.append('currency', currency || 'USDT'); // Use selected currency
 
         // --- CALL FAUCETPAY ---
         const fpResponse = await fetch('https://faucetpay.io/api/v1/send', {

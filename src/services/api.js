@@ -28,17 +28,17 @@ export const loginUser = async (telegramId, username) => {
 
 // --- Farm Service ---
 export const startFarming = async (userId, slotId) => {
-  const response = await api.post('/farm/start', { userId, slotId });
+  const response = await api.post('/farm/start', { userId, slotId, action: 'start' });
   return response.data.data;
 };
 
 export const harvestCrop = async (userId, slotId) => {
-  const response = await api.post('/farm/harvest', { userId, slotId });
+  const response = await api.post('/farm/harvest', { userId, slotId, action: 'harvest' });
   return response.data.data;
 };
 
 export const harvestAll = async (userId) => {
-  const response = await api.post('/farm/harvest-all', { userId });
+  const response = await api.post('/farm/harvest-all', { userId, action: 'harvest-all' });
   return response.data.data;
 };
 

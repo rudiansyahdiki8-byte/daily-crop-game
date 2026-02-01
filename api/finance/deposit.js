@@ -13,10 +13,18 @@ export default async function handler(req, res) {
 
     const userRef = getUserRef(userId);
 
-    await userRef.firestore.runTransaction(async (t) => {
+    const result = await userRef.firestore.runTransaction(async (t) => {
       const doc = await t.get(userRef);
       if (!doc.exists) throw new Error("User not found");
       const userData = doc.data();
+
+      // Check for duplicate txHash in history
+      const existingDeposit = (userData.history || []).find(
+        h => h.type === 'DEPOSIT_REQUEST' && h.txHash === txHash
+      );
+      if (existingDeposit) {
+        throw new Error("This transaction ID has already been submitted!");
+      }
 
       // Create Request Log
       const logData = {
@@ -40,9 +48,11 @@ export default async function handler(req, res) {
         // IMPORTANT: 'balance' is NOT added here.
         // Balance is added manually by Admin via Database after checking mutation.
       });
+
+      return { status: 'PENDING', txHash, logId: logData.id };
     });
 
-    return sendSuccess(res, { status: 'PENDING', txHash }, "Deposit Request Sent! Please wait for Admin confirmation.");
+    return sendSuccess(res, result, "Deposit Request Sent! Please wait for Admin confirmation.");
 
   } catch (error) {
     return sendError(res, 400, error.message);

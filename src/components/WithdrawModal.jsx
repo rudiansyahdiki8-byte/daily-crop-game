@@ -5,7 +5,7 @@ import { GAME_CONFIG } from '../config/gameConstants';
 
 const FALLBACK_PRICES = { USDT: 1, TON: 5.2, TRX: 0.12, DOGE: 0.15, LTC: 70 };
 
-const WithdrawModal = ({ isOpen, onClose, userBalance, onWithdraw, loading, userId }) => {
+const WithdrawModal = ({ isOpen, onClose, userBalance, onWithdraw, loading, userId, linkedWallet }) => {
     const [activeTab, setActiveTab] = useState('WITHDRAW');
     const [cryptoPrices, setCryptoPrices] = useState(FALLBACK_PRICES);
 
@@ -17,6 +17,13 @@ const WithdrawModal = ({ isOpen, onClose, userBalance, onWithdraw, loading, user
 
     const [depAmount, setDepAmount] = useState('');
     const [txHash, setTxHash] = useState('');
+
+    // Auto-fill linked wallet if exists
+    useEffect(() => {
+        if (linkedWallet && wdMethod === 'FAUCETPAY') {
+            setWdAddress(linkedWallet);
+        }
+    }, [linkedWallet, wdMethod]);
 
     // Fetch Live Prices
     useEffect(() => {
@@ -159,14 +166,50 @@ const WithdrawModal = ({ isOpen, onClose, userBalance, onWithdraw, loading, user
                             {/* ADDRESS INPUT */}
                             <div>
                                 <Label text={wdMethod === 'FAUCETPAY' ? 'FAUCETPAY EMAIL' : 'WALLET ADDRESS'} />
-                                <div style={inputContainerStyle}>
-                                    <i className="fa-solid fa-wallet" style={{ color: '#666', marginRight: 10 }}></i>
-                                    <input
-                                        value={wdAddress} onChange={e => setWdAddress(e.target.value)}
-                                        placeholder={wdMethod === 'FAUCETPAY' ? 'name@email.com' : '0x...'}
-                                        style={inputStyle}
-                                    />
-                                </div>
+
+                                {/* Show locked wallet status */}
+                                {linkedWallet && wdMethod === 'FAUCETPAY' ? (
+                                    <div style={{
+                                        background: 'rgba(76, 175, 80, 0.1)',
+                                        border: '1px solid rgba(76, 175, 80, 0.3)',
+                                        borderRadius: 12,
+                                        padding: '12px 15px',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: 10
+                                    }}>
+                                        <i className="fa-solid fa-lock" style={{ color: '#4CAF50' }}></i>
+                                        <div>
+                                            <div style={{ fontSize: '0.7rem', color: '#4CAF50', fontWeight: 'bold' }}>LOCKED WALLET</div>
+                                            <div style={{ color: 'white', fontWeight: 'bold', fontSize: '0.9rem' }}>{linkedWallet}</div>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <>
+                                        <div style={inputContainerStyle}>
+                                            <i className="fa-solid fa-wallet" style={{ color: '#666', marginRight: 10 }}></i>
+                                            <input
+                                                value={wdAddress} onChange={e => setWdAddress(e.target.value)}
+                                                placeholder={wdMethod === 'FAUCETPAY' ? 'name@email.com' : '0x...'}
+                                                style={inputStyle}
+                                            />
+                                        </div>
+                                        {wdMethod === 'FAUCETPAY' && (
+                                            <div style={{
+                                                marginTop: 8,
+                                                padding: '8px 12px',
+                                                background: 'rgba(255, 193, 7, 0.1)',
+                                                border: '1px solid rgba(255, 193, 7, 0.3)',
+                                                borderRadius: 8,
+                                                fontSize: '0.7rem',
+                                                color: '#FFC107'
+                                            }}>
+                                                <i className="fa-solid fa-triangle-exclamation" style={{ marginRight: 6 }}></i>
+                                                First withdrawal will permanently lock this wallet to your account.
+                                            </div>
+                                        )}
+                                    </>
+                                )}
                             </div>
 
                             {/* AMOUNT INPUT */}

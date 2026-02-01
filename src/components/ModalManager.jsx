@@ -54,6 +54,7 @@ const ModalManager = ({
         onWithdraw={handleWithdraw}
         loading={loading}
         userId={currentUserId}
+        linkedWallet={user?.linkedWallet}
       />
 
       {/* 3. PROFILE */}

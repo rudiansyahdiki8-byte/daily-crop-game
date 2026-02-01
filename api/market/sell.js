@@ -1,26 +1,7 @@
 import { sendSuccess, sendError, allowMethod } from '../_utils/response.js';
 import { getUserRef, admin } from '../_utils/firebase.js';
-// Add REFERRAL_BONUSES to import
-import { PLANS, CROPS, CONSUMABLES, REFERRAL_BONUSES } from '../../src/config/gameConstants.js';
-
-// --- PRICE HELPER (RANDOM) ---
-const getPriceRange = (itemName) => {
-  for (const group of Object.values(CROPS)) {
-    if (group.items.includes(itemName)) return group.priceRange;
-  }
-  return [10, 20];
-};
-
-const getHourlyPrice = (itemName, hourSeed) => {
-  const [min, max] = getPriceRange(itemName);
-  const seedString = `${hourSeed}-${itemName}`;
-  let hash = 0;
-  for (let i = 0; i < seedString.length; i++) {
-    hash = Math.imul(31, hash) + seedString.charCodeAt(i) | 0;
-  }
-  const rand01 = Math.abs(hash) / 2147483647;
-  return Math.floor(min + (rand01 * (max - min)));
-};
+import { PLANS, CONSUMABLES, REFERRAL_BONUSES } from '../../src/config/gameConstants.js';
+import { getHourlyPrice } from '../_services/marketService.js';
 
 export default async function handler(req, res) {
   if (!allowMethod(req, res, 'POST')) return;

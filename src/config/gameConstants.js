@@ -6,23 +6,18 @@
 
 export const GAME_CONFIG = {
   CURRENCY: "PTS",
-  EXCHANGE_RATE: 100000, // 1 USD = 100,000 PTS
+  EXCHANGE_RATE: 250000, // 1 USD = 250,000 PTS
 
   // WITHDRAW CONFIGURATION (DATA CENTER)
   WITHDRAW: {
-    RATE: 0.00001,     // 1 PTS = $0.00001 USD (100,000 PTS = 1 USD)
+    RATE: 0.000004,    // 1 PTS = $0.000004 USD (250,000 PTS = 1 USD)
     MIN_WD_NEW: 100,   // Limit for New Users
     MIN_WD_MEMBER: 1000, // Limit for Verified Members
     FEE_DIRECT: 0.10,  // Fee 10%
     FEE_FAUCETPAY: 0,  // Fee 0%
-    ADMIN_WALLET: "" // Your Deposit Wallet
-  },
-
-  LUCKY_WHEEL: {
-    COST_PAID: 150,
-    JACKPOT: 15000,
-    COOLDOWN_FREE: 3600,
+    ADMIN_WALLET: "YOUR_USDT_WALLET_HERE" // Set your deposit wallet address
   }
+  // Note: LUCKY_WHEEL config removed - use SPIN_CONFIG instead
 };
 
 
@@ -38,8 +33,8 @@ export const LAND_PLOTS = {
 
 // --- NEW VARIABLES (EXTRA SLOT FEATURE) ---
 export const EXTRA_SLOT_PRICE = {
-  1: 1000,    // 1st Extra Slot
-  2: 75000    // 2nd Extra Slot
+  1: 10000,   // 1st Extra Slot (balanced with SLOT_2)
+  2: 100000   // 2nd Extra Slot
 };
 
 // --- [NEW] STORAGE UPGRADE VARIABLES ---
@@ -55,12 +50,12 @@ export const STORAGE_UPGRADES = {
   }
 };
 
-// --- PLAN LOGIC ---
+// --- PLAN LOGIC (Prices doubled for economy balance) ---
 export const PLANS = {
   FREE: { id: "FREE", priceUsdt: 0, plots: 1, storage: 50, bonusSell: 0, ads: "High" },
-  MORTGAGE: { id: "MORTGAGE", priceUsdt: 20, plots: 4, storage: 240, bonusSell: 0.05, ads: "Medium" },
-  TENANT: { id: "TENANT", priceUsdt: 30, plots: 7, storage: 500, bonusSell: 0.15, ads: "None" },
-  OWNER: { id: "OWNER", priceUsdt: 50, plots: 10, storage: Infinity, bonusSell: 0.30, ads: "None" },
+  MORTGAGE: { id: "MORTGAGE", priceUsdt: 40, plots: 4, storage: 240, bonusSell: 0.05, ads: "Medium" },
+  TENANT: { id: "TENANT", priceUsdt: 60, plots: 7, storage: 500, bonusSell: 0.15, ads: "None" },
+  OWNER: { id: "OWNER", priceUsdt: 100, plots: 10, storage: Infinity, bonusSell: 0.30, ads: "None" },
 };
 
 export const REFERRAL_BONUSES = {
@@ -120,18 +115,25 @@ export const CONSUMABLES = {
   SCARECROW: { id: 'SCARECROW', name: 'Golden Scarecrow', price: 3000, desc: 'Lucky! x3 Rare-Legend Chance (24h)' },
 };
 
-export const DAILY_TASK_CONFIG = { TOTAL_REWARD_POOL: 1200, TOTAL_TASKS: 9 };
-export const DAILY_TASKS_LIST = [
-  { id: 'LOGIN', label: 'Daily Login', icon: '📅' },
-  { id: 'GIFT', label: 'Send Gift', icon: '🎁' },
-  { id: 'CLEAN', label: 'Clean Farm', icon: '🧹' },
-  { id: 'WATER', label: 'Water Plants', icon: '💧' },
-  { id: 'FERTILIZER', label: 'Use Fertilizer', icon: '🧪' },
-  { id: 'PEST', label: 'Kill Pests', icon: '🐛' },
-  { id: 'HARVEST', label: 'Harvest Crop', icon: '🌾' },
-  { id: 'SELL', label: 'Sell Items', icon: '💰' },
-  { id: 'SPIN', label: 'Lucky Spin', icon: '🎡' }
-];
+// --- DAILY TASKS CONFIG (Single Source of Truth) ---
+export const DAILY_TASKS = {
+  'LOGIN': { min: 50, max: 100, label: 'Daily Login', icon: '📅' },
+  'GIFT': { min: 50, max: 100, label: 'Send Gift', icon: '🎁' },
+  'CLEAN': { min: 80, max: 120, label: 'Clean Farm', icon: '🧹' },
+  'WATER': { min: 80, max: 120, label: 'Water Plants', icon: '💧' },
+  'FERTILIZER': { min: 90, max: 130, label: 'Use Fertilizer', icon: '🧪' },
+  'PEST': { min: 100, max: 150, label: 'Kill Pests', icon: '🐛' },
+  'HARVEST': { min: 100, max: 200, label: 'Harvest Crop', icon: '🌾' },
+  'SELL': { min: 120, max: 200, label: 'Sell Items', icon: '💰' },
+  'SPIN': { min: 150, max: 250, label: 'Lucky Spin', icon: '🎡' }
+};
+
+// Helper: Convert DAILY_TASKS to array for frontend iteration
+export const DAILY_TASKS_LIST = Object.entries(DAILY_TASKS).map(([id, config]) => ({
+  id,
+  label: config.label,
+  icon: config.icon
+}));
 
 
 // --- SPIN CONFIGURATION (THIS WAS MISSING BEFORE) ---

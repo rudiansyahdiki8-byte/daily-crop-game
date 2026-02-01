@@ -27,14 +27,15 @@ export default async function handler(req, res) {
         throw new Error("This item cannot be used (Passive/Error).");
       }
 
-      // 3. CALCULATE DURATION (24 HOURS)
+      // 3. CALCULATE DURATION (24 HOURS, Max 7 Days Stacking)
       const now = Date.now();
       const oneDay = 24 * 60 * 60 * 1000;
+      const maxDuration = 7 * oneDay; // Cap at 7 days
       let newExpireTime = now + oneDay;
 
-      // If similar buff is active, extend time (Optional: or reset max 24h)
+      // If similar buff is active, extend time (capped at 7 days)
       if (buffs[itemId] && buffs[itemId] > now) {
-        newExpireTime = buffs[itemId] + oneDay;
+        newExpireTime = Math.min(buffs[itemId] + oneDay, now + maxDuration);
       }
 
       // 4. UPDATE DB

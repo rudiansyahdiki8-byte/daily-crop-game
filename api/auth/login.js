@@ -22,8 +22,8 @@ export default async function handler(req, res) {
       userId = validatedUser.id;
       userName = validatedUser.username || validatedUser.first_name;
     }
-    // B. DEV MODE (LOCALHOST)
-    else if (devId && process.env.NODE_ENV === 'development') {
+    // B. DEV MODE (Requires explicit ALLOW_DEV_MODE=true in ENV)
+    else if (devId && process.env.ALLOW_DEV_MODE === 'true') {
       console.warn("⚠️ LOGIN DEV MODE");
       userId = devId;
       userName = devUsername;
@@ -78,6 +78,12 @@ export default async function handler(req, res) {
 
     // Login
     const userData = userDoc.data();
+
+    // 🛡️ CHECK IF USER IS BANNED
+    if (userData.banned) {
+      return sendError(res, 403, `⛔ Account banned: ${userData.banReason || 'Policy violation'}`);
+    }
+
     if (userName && userData.username !== userName) {
       await userRef.update({ username: userName });
       userData.username = userName;
