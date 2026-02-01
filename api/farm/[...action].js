@@ -185,9 +185,27 @@ export default async function handler(req, res) {
     if (!allowMethod(req, res, 'POST')) return;
 
     try {
-        // Extract action from URL: /api/farm/start -> ['start']
-        const { action } = req.query;
-        const actionName = Array.isArray(action) ? action[0] : action;
+        // Extract action from URL: /api/farm/start -> 'start'
+        // Method 1: From Vercel query params (catch-all)
+        let actionName = req.query.action;
+        if (Array.isArray(actionName)) {
+            actionName = actionName[0];
+        }
+
+        // Method 2: Fallback - extract from URL path
+        if (!actionName && req.url) {
+            // URL could be: /api/farm/start or /farm/start
+            const urlPath = req.url.split('?')[0]; // Remove query string
+            const segments = urlPath.split('/').filter(Boolean);
+            // Find action after 'farm' segment
+            const farmIndex = segments.indexOf('farm');
+            if (farmIndex !== -1 && segments[farmIndex + 1]) {
+                actionName = segments[farmIndex + 1];
+            }
+        }
+
+        // Debug log (remove in production)
+        console.log('[FARM API] Action:', actionName, 'URL:', req.url);
 
         switch (actionName) {
             case 'start':
